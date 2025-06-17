@@ -45,43 +45,43 @@ function handleSubmit() {
     <div class="space-y-4">
       <!-- 基金代码 -->
       <div>
-        <label for="fund-code" class="block text-sm font-medium text-gray-700 dark:text-gray-300">基金代码</label>
+        <label for="fund-code" class="text-sm font-medium mb-1 block">基金代码</label>
         <input
           id="fund-code"
           v-model="formData.code"
           type="text"
           placeholder="例如: 161725"
           :disabled="isEditing"
-          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+          class="input-base"
           required
         >
       </div>
 
       <!-- 持有金额 -->
       <div>
-        <label for="holding-amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300">持有金额 (元)</label>
+        <label for="holding-amount" class="text-sm font-medium mb-1 block">持有金额 (元)</label>
         <input
           id="holding-amount"
           v-model.number="formData.holding_amount"
           type="number"
           step="0.01"
           placeholder="例如: 5000.00"
-          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+          class="input-base"
           required
         >
       </div>
 
       <!-- 基金名称 (可选) -->
       <div>
-        <label for="fund-name" class="block text-sm font-medium text-gray-700 dark:text-gray-300">基金名称 (可选)</label>
+        <label for="fund-name" class="text-sm font-medium mb-1 block">基金名称 (可选)</label>
         <input
           id="fund-name"
           v-model="formData.name"
           type="text"
           placeholder="若不填，将尝试自动获取"
-          class="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-teal-500 focus:border-teal-500"
+          class="input-base"
         >
-        <p class="mt-1 text-xs text-gray-500">
+        <p class="text-xs text-gray-500 mt-1">
           对于QDII等特殊基金，可能需要手动填写。
         </p>
       </div>
@@ -91,7 +91,7 @@ function handleSubmit() {
     <div class="mt-6 flex justify-end space-x-3">
       <button
         type="button"
-        class="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 dark:bg-gray-600 dark:text-gray-200 rounded-md hover:bg-gray-200 dark:hover:bg-gray-500"
+        class="text-sm text-gray-700 font-medium px-4 py-2 rounded-md bg-gray-100 dark:text-gray-200 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500"
         @click="emit('cancel')"
       >
         取消

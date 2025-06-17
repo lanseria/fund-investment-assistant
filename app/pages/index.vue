@@ -1,6 +1,11 @@
+<!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
+import { appName } from '~/constants'
 
+useHead({
+  title: `持仓列表 - ${appName}`,
+})
 const holdingStore = useHoldingStore()
 const { holdings, isLoading } = storeToRefs(holdingStore)
 
@@ -40,6 +45,7 @@ async function handleSubmit(formData: any) {
     closeModal()
   }
   catch (error) {
+    console.error(error)
     // 错误处理，例如显示一个 toast 通知
     alert('操作失败，请查看控制台获取更多信息。')
   }
@@ -51,6 +57,7 @@ async function handleDelete(holding: Holding) {
       await holdingStore.deleteHolding(holding.code)
     }
     catch (error) {
+      console.error(error)
       alert('删除失败！')
     }
   }
@@ -58,28 +65,40 @@ async function handleDelete(holding: Holding) {
 </script>
 
 <template>
-  <div class="p-4 md:p-8">
-    <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">
-        我的持仓
-      </h1>
-      <button class="btn" @click="openAddModal">
-        <div i-carbon-add mr-1 />
-        添加基金
-      </button>
-    </div>
+  <!-- 调整整体内边距，使其在手机和桌面都合适 -->
+  <div class="p-4 lg:p-8 sm:p-6">
+    <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">
+          我的持仓
+        </h1>
+        <p class="text-gray-500 mt-1 dark:text-gray-400">
+          概览您的基金投资组合
+        </p>
+      </div>
+      <div class="flex gap-4 items-center">
+        <DarkToggle /> <!-- 将暗色模式切换按钮移到这里 -->
+        <button class="flex items-center btn" @click="openAddModal">
+          <div i-carbon-add mr-1 />
+          添加基金
+        </button>
+      </div>
+    </header>
 
-    <div v-if="isLoading" class="text-center p-10">
-      <div i-carbon-circle-dash class="text-4xl animate-spin" />
+    <!-- 主体内容 -->
+    <div v-if="isLoading" class="card flex h-64 items-center justify-center">
+      <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
-    <div v-else-if="holdings.length === 0" class="text-center text-gray-500 p-10">
-      暂无持仓数据，请先添加基金。
+    <div v-else-if="holdings.length === 0" class="card text-gray-500 py-20 text-center">
+      <div i-carbon-search class="text-5xl mx-auto mb-4" />
+      <p>暂无持仓数据，请先添加基金。</p>
     </div>
     <HoldingList v-else :holdings="holdings" @edit="openEditModal" @delete="handleDelete" />
 
-    <Footer />
+    <!-- 移除 Footer，让页面更专注 -->
+    <!-- <Footer /> -->
 
-    <!-- 模态框组件 -->
+    <!-- 模态框组件 (保持不变) -->
     <Modal v-model="isModalOpen" :title="modalTitle">
       <AddEditHoldingForm
         :initial-data="editingHolding"
