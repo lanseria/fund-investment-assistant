@@ -55,7 +55,8 @@ export default defineNuxtConfig({
     routeRules: {
       // 将所有 /api/fund/** 的请求代理到 Python 后端
       '/api/fund/**': {
-        proxy: 'http://127.0.0.1:8000/**',
+        // proxy: 'http://127.0.0.1:8000/**',
+        proxy: 'http://bmcr1-wtr-r1:8888/**',
       },
     },
     esbuild: {
@@ -66,7 +67,6 @@ export default defineNuxtConfig({
     prerender: {
       crawlLinks: false,
       routes: ['/'],
-      ignore: ['/hi'],
     },
   },
 

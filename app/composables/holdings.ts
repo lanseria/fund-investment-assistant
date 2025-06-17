@@ -1,6 +1,6 @@
+import type { Holding } from '~/types/holding'
 // app/composables/holdings.ts
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import type { Holding } from '~/types/holding'
 
 export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
