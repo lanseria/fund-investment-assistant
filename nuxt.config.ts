@@ -10,7 +10,7 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxt/eslint',
   ],
-
+  ssr: false,
   devtools: {
     enabled: true,
   },
@@ -52,6 +52,12 @@ export default defineNuxtConfig({
   compatibilityDate: '2024-08-14',
 
   nitro: {
+    routeRules: {
+      // 将所有 /api/fund/** 的请求代理到 Python 后端
+      '/api/fund/**': {
+        proxy: 'http://127.0.0.1:8000/**',
+      },
+    },
     esbuild: {
       options: {
         target: 'esnext',
