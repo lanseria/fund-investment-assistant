@@ -62,6 +62,20 @@ async function handleDelete(holding: Holding) {
     }
   }
 }
+
+// --- 新的导入/导出状态和逻辑 ---
+const isImportModalOpen = ref(false)
+
+async function handleExport() {
+  await holdingStore.exportHoldings()
+}
+
+async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: boolean }) {
+  const result = await holdingStore.importHoldings(file, overwrite)
+  isImportModalOpen.value = false
+  if (result)
+    alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
+}
 </script>
 
 <template>
@@ -76,7 +90,14 @@ async function handleDelete(holding: Holding) {
           概览您的基金投资组合
         </p>
       </div>
-      <div class="flex gap-4 items-center">
+      <div class="flex gap-2 items-center sm:gap-4">
+        <!-- 新增的导入/导出按钮 -->
+        <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
+          <div i-carbon-upload />
+        </button>
+        <button class="icon-btn" title="导出数据" @click="handleExport">
+          <div i-carbon-download />
+        </button>
         <DarkToggle /> <!-- 将暗色模式切换按钮移到这里 -->
         <button class="flex items-center btn" @click="openAddModal">
           <div i-carbon-add mr-1 />
@@ -86,10 +107,10 @@ async function handleDelete(holding: Holding) {
     </header>
 
     <!-- 主体内容 -->
-    <div v-if="isLoading" class="card flex h-64 items-center justify-center">
+    <div v-if="isLoading" class="flex h-64 items-center justify-center card">
       <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
-    <div v-else-if="holdings.length === 0" class="card text-gray-500 py-20 text-center">
+    <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>暂无持仓数据，请先添加基金。</p>
     </div>
@@ -105,6 +126,11 @@ async function handleDelete(holding: Holding) {
         @submit="handleSubmit"
         @cancel="closeModal"
       />
+    </Modal>
+
+    <!-- 新的导入模态框 -->
+    <Modal v-model="isImportModalOpen" title="导入持仓数据">
+      <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
     </Modal>
   </div>
 </template>

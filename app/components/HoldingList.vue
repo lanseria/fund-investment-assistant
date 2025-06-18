@@ -8,13 +8,13 @@ defineProps<{
 const emit = defineEmits(['edit', 'delete'])
 
 function getChangeClass(holding: Holding) {
-  if (!holding.today_estimate_nav)
+  // 使用新的 percentage_change 字段
+  if (holding.percentage_change === null || holding.percentage_change === undefined)
     return 'text-gray'
-  const change = holding.today_estimate_nav - holding.yesterday_nav
-  if (change > 0)
-    return 'text-red-500'
-  if (change < 0)
-    return 'text-green-500'
+  if (holding.percentage_change > 0)
+    return 'text-red-500 dark:text-red-400'
+  if (holding.percentage_change < 0)
+    return 'text-green-500 dark:text-green-400'
   return 'text-gray'
 }
 
@@ -25,24 +25,26 @@ function formatCurrency(value: number) {
 
 <template>
   <!-- 使用 card shortcut -->
-  <div class="card overflow-hidden">
+  <div class="overflow-hidden card">
     <!-- 在小屏幕上，表格可以水平滚动 -->
     <div class="overflow-x-auto">
       <table class="text-left w-full table-auto">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <!-- 增加内边距和字体样式 -->
             <th class="text-sm text-gray-600 font-semibold p-4 dark:text-gray-300">
               基金名称
             </th>
             <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
-              持有金额
-            </th>
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right hidden dark:text-gray-300 sm:table-cell">
-              昨日净值
+              持有份额
             </th>
             <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
-              今日估值
+              持有金额
+            </th>
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
+              估算金额
+            </th>
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
+              估算涨跌
             </th>
             <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
               操作
@@ -60,15 +62,22 @@ function formatCurrency(value: number) {
                 </div>
               </NuxtLink>
             </td>
+            <!-- 持有份额 -->
+            <td class="text-sm font-mono p-4 text-right">
+              <!-- {{ h.shares.toFixed(2) }} -->
+              {{ h.shares }}
+            </td>
+            <!-- 持有金额 -->
             <td class="font-mono p-4 text-right">
               {{ formatCurrency(h.holding_amount) }}
             </td>
-            <!-- sm:table-cell: 在小屏幕 (sm) 以下隐藏 -->
-            <td class="font-mono p-4 text-right hidden sm:table-cell">
-              {{ h.yesterday_nav.toFixed(4) }}
-            </td>
+            <!-- 估算金额 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              {{ h.today_estimate_nav?.toFixed(4) || '-' }}
+              {{ h.today_estimate_amount ? formatCurrency(h.today_estimate_amount) : '-' }}
+            </td>
+            <!-- 估算涨跌幅 -->
+            <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
+              <!-- {{ h.percentage_change !== null ? `${h.percentage_change.toFixed(2)}%` : '-' }} -->
             </td>
             <td class="p-4 text-right space-x-2">
               <button class="icon-btn" title="修改" @click="emit('edit', h)">

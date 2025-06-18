@@ -1,3 +1,4 @@
+/* eslint-disable no-alert */
 import type { Holding } from '~/types/holding'
 // app/composables/holdings.ts
 import { acceptHMRUpdate, defineStore } from 'pinia'
@@ -84,6 +85,64 @@ export const useHoldingStore = defineStore('holding', () => {
   // --- Getters (Computed) ---
   const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + h.holding_amount, 0))
 
+  /**
+   * 导出持仓数据
+   */
+  async function exportHoldings() {
+    try {
+      // $fetch 返回的是一个 Blob 对象
+      const blob = await $fetch('/api/fund/utils/export', {
+        responseType: 'blob',
+      })
+
+      // 创建一个临时的 URL 来触发浏览器下载
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'fund_holdings_export.json' // 设置下载的文件名
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      a.remove()
+    }
+    catch (error) {
+      console.error('导出数据失败:', error)
+      alert('导出失败，请查看控制台！')
+    }
+  }
+
+  /**
+   * 导入持仓数据
+   * @param file - 用户选择的 JSON 文件
+   * @param overwrite - 是否覆盖现有数据
+   */
+  async function importHoldings(file: File, overwrite: boolean) {
+    isLoading.value = true
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('overwrite', String(overwrite)) // 布尔值需要转为字符串
+
+    try {
+      const result = await $fetch<{ message: string, imported: number, skipped: number }>('/api/fund/utils/import', {
+        method: 'POST',
+        body: formData,
+      })
+      // 导入成功后，刷新列表
+      await fetchHoldings()
+      return result
+    }
+    catch (error: any) {
+      console.error('导入数据失败:', error)
+      // 尝试从错误中获取后端的详细信息
+      const detail = error.data?.detail || '发生未知错误'
+      alert(`导入失败: ${detail}`)
+      throw error
+    }
+    finally {
+      isLoading.value = false
+    }
+  }
+
   return {
     holdings,
     isLoading,
@@ -92,6 +151,8 @@ export const useHoldingStore = defineStore('holding', () => {
     addHolding,
     updateHolding,
     deleteHolding,
+    exportHoldings,
+    importHoldings,
   }
 })
 

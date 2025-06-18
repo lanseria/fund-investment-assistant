@@ -1,80 +1,132 @@
-<p align="center">
-<img src="https://user-images.githubusercontent.com/11247099/140462375-7b7ac4db-35b7-453c-8a05-13d8d20282c4.png" width="600"/>
-</p>
+# Fund Investment Assistant - Frontend
 
-<h2 align="center">
-<a href="https://github.com/antfu/vitesse">Vitesse</a> for Nuxt 3
-</h2><br>
+这是基金投资助手项目的 **Nuxt 3 前端应用**。它基于功能丰富的 [Vitesse for Nuxt 3](https://github.com/antfu/vitesse-nuxt) 模板构建，负责提供一个美观、响应式且功能强大的用户界面。
 
-<p align="center">
-<br>
-<a href="https://vitesse-nuxt3.netlify.app/">🖥 Online Preview</a>
-<br><br>
-<a href="https://stackblitz.com/github/antfu/vitesse-nuxt"><img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt=""></a>
-</p>
+## ✨ 主要功能
 
-## Features
+- **仪表盘**: 以清晰的表格形式展示所有持仓基金，动态显示份额、持有金额、盘中估算金额及涨跌幅。
+- **交互式图表**: 为每只基金提供历史净值走势图，支持动态时间范围选择和多条移动平均线（MA）的展示。
+- **持仓管理**: 通过美观的模态框（Modal）实现基金持仓的添加、修改和删除操作。
+- **数据导入/导出**: 提供 UI 界面，支持通过 JSON 文件备份和恢复核心的持仓数据。
+- **响应式设计**: 完美适配桌面和移动设备，提供一致的用户体验。
+- **主题切换**: 支持亮色（Light）和暗色（Dark）模式，并能自动适配系统设置。
 
-- 💚 [Nuxt 3](https://nuxt.com/) - SSR, ESR, File-based routing, components auto importing, modules, etc.
+## 🛠️ 技术栈
 
-- ⚡️ Vite - Instant HMR.
+- **框架**: [Nuxt 3](https://nuxt.com/) (Vue 3)
+- **构建工具**: Vite
+- **状态管理**: Pinia
+- **样式方案**: [UnoCSS](https://github.com/unocss/unocss) (原子化 CSS)
+- **图表库**: ECharts
+- **语言**: TypeScript
+- **代码规范**: @antfu/eslint-config
 
-- 🎨 [UnoCSS](https://github.com/unocss/unocss) - The instant on-demand atomic CSS engine.
+## 🚀 快速开始
 
-- 😃 Use icons from any icon sets in Pure CSS, powered by [UnoCSS](https://github.com/unocss/unocss).
+### 1. 环境准备
 
-- 🔥 The `<script setup>` syntax.
+- **Node.js**: 建议使用 v18.x 或 v20.x 版本。
+- **pnpm**: 推荐使用 `pnpm`作为包管理器。如果尚未安装，请运行：
+  ```bash
+  npm install -g pnpm
+  ```
 
-- 🍍 [State Management via Pinia](https://github.com/vuejs/pinia), see [./app/composables/user.ts](./app/composables/user.ts).
+### 2. 项目配置
 
-- 📑 [Layout system](./app/layouts).
+- **克隆项目**:
 
-- 📥 APIs auto importing - for Composition API, VueUse and custom composables.
+  ```bash
+  git clone <your-frontend-repo-url>
+  cd <your-frontend-project-name>
+  ```
 
-- 🏎 Zero-config cloud functions and deploy.
+- **安装依赖**:
 
-- 🦾 TypeScript, of course.
+  ```bash
+  pnpm install
+  ```
 
-- 📲 [PWA](https://github.com/vite-pwa/nuxt) with offline support and auto-update behavior.
+- **后端 API 配置**:
+  本项目通过 Nuxt 的服务器代理与后端 API 通信。请确保后端服务正在运行。代理配置位于 `nuxt.config.ts` 的 `nitro.routeRules` 部分。默认配置会将所有 `/api/fund/**` 的请求转发到 `http://127.0.0.1:8000/**`。
 
-## Plugins
+  **请确保您的 Python 后端服务正在 `http://127.0.0.1:8000` 上运行。**
 
-### Nuxt Modules
+### 3. 开发模式
 
-- [VueUse](https://github.com/vueuse/vueuse) - collection of useful composition APIs.
-- [ColorMode](https://github.com/nuxt-modules/color-mode) - dark and Light mode with auto detection made easy with Nuxt.
-- [UnoCSS](https://github.com/unocss/unocss) - the instant on-demand atomic CSS engine.
-- [Pinia](https://github.com/vuejs/pinia) - intuitive, type safe, light and flexible Store for Vue.
-- [VitePWA](https://github.com/vite-pwa/nuxt) - zero-config PWA Plugin for Nuxt 3.
-- [DevTools](https://github.com/nuxt/devtools) - unleash Nuxt Developer Experience.
+- **启动开发服务器**:
+  ```bash
+  pnpm run dev
+  ```
+  应用将运行在 `http://localhost:3000`。得益于 Vite，您将享受到极速的热模块重载（HMR）。
 
-## IDE
+## scripts
 
-We recommend using [VS Code](https://code.visualstudio.com/) with [Volar](https://github.com/johnsoncodehk/volar) to get the best experience (You might want to disable [Vetur](https://vuejs.github.io/vetur/) if you have it).
+- `pnpm run dev`: 启动开发服务器。
+- `pnpm run build`: 构建用于生产环境的应用。
+- `pnpm run preview`: 在本地预览生产构建的产物。
+- `pnpm run lint`: 检查代码风格和规范。
+- `pnpm run typecheck`: 进行 TypeScript 类型检查。
 
-## Variations
+## 部署
 
-- [vitesse](https://github.com/antfu/vitesse) - Opinionated Vite Starter Template
-- [vitesse-lite](https://github.com/antfu/vitesse-lite) - Lightweight version of Vitesse
-- [vitesse-nuxt-bridge](https://github.com/antfu/vitesse-nuxt-bridge) - Vitesse for Nuxt 2 with Bridge
-- [vitesse-webext](https://github.com/antfu/vitesse-webext) - WebExtension Vite starter template
+### 静态站点部署 (SSG)
 
-## Try it now!
+1.  **生成静态文件**:
 
-### Online
+    ```bash
+    pnpm run generate
+    ```
 
-<a href="https://stackblitz.com/github/antfu/vitesse-nuxt"><img src="https://developer.stackblitz.com/img/open_in_stackblitz.svg" alt=""></a>
+    此命令会预渲染所有页面，并将结果输出到 `.output/public` 目录。
 
-### GitHub Template
+2.  **部署**:
+    将 `.output/public` 目录下的所有内容部署到任何静态网站托管平台，如 Netlify, Vercel, GitHub Pages 等。
 
-[Create a repo from this template on GitHub](https://github.com/antfu/vitesse-nuxt/generate).
+### Node.js 服务器部署 (SSR)
 
-### Clone to local
+1.  **构建应用**:
 
-If you prefer to do it manually with the cleaner git history
+    ```bash
+    pnpm run build
+    ```
 
-```bash
-npx degit antfu/vitesse-nuxt my-nuxt-app
-cd my-nuxt-app
-pnpm i # If you don't have pnpm installed, run: npm install -g pnpm
-```
+    此命令会构建一个优化的 Node.js 服务器，产物位于 `.output` 目录。
+
+2.  **启动服务器**:
+    ```bash
+    pnpm run start
+    ```
+    或者将整个 `.output` 目录部署到您的服务器，并运行 `node .output/server/index.mjs`。
+
+### Docker 部署
+
+项目包含一个 `Dockerfile`，用于将应用打包成一个独立的 Docker 镜像。
+
+1.  **构建镜像**:
+
+    ```bash
+    docker build -t fund-frontend:latest .
+    ```
+
+2.  **运行容器**:
+    ```bash
+    docker run -p 3000:3000 fund-frontend:latest
+    ```
+    应用将在容器的 3000 端口运行，并通过 `-p` 映射到主机的 3000 端口。
+
+## 🏗️ 项目结构
+
+- `app/`: 应用的核心代码目录。
+  - `components/`: Vue 组件。
+  - `composables/`: Vue 组合式函数 (如 Pinia stores)。
+  - `layouts/`: 布局组件。
+  - `pages/`: 页面和路由。
+  - `types/`: TypeScript 类型定义。
+- `public/`: 静态资源，会被直接复制到根目录。
+- `server/`: 服务器端代码 (API 路由、中间件)。
+- `nuxt.config.ts`: Nuxt 的主配置文件。
+- `uno.config.ts`: UnoCSS 的配置文件。
+
+## 📄 License
+
+MIT
