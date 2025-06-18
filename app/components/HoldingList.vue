@@ -64,8 +64,7 @@ function formatCurrency(value: number) {
             </td>
             <!-- 持有份额 -->
             <td class="text-sm font-mono p-4 text-right">
-              <!-- {{ h.shares.toFixed(2) }} -->
-              {{ h.shares }}
+              {{ h.shares.toFixed(2) }}
             </td>
             <!-- 持有金额 -->
             <td class="font-mono p-4 text-right">
@@ -77,7 +76,7 @@ function formatCurrency(value: number) {
             </td>
             <!-- 估算涨跌幅 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              <!-- {{ h.percentage_change !== null ? `${h.percentage_change.toFixed(2)}%` : '-' }} -->
+              {{ h.percentage_change !== null ? `${h.percentage_change.toFixed(2)}%` : '-' }}
             </td>
             <td class="p-4 text-right space-x-2">
               <button class="icon-btn" title="修改" @click="emit('edit', h)">

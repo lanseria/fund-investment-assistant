@@ -1,41 +1,95 @@
+<!-- app/pages/fund/[code].vue -->
 <script setup lang="ts">
-// app/pages/fund/[code].vue
+import type { Dayjs } from 'dayjs'
 import type { HoldingHistoryPoint } from '~/types/holding'
-import { computed, ref, watch } from 'vue' // 1. 导入 ref, watch, computed
+import { computed, ref, watch } from 'vue'
 import { appName } from '~/constants'
 
+// 1. 引入 dayjs composable
+const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
-const router = useRouter() // 2. 获取 router 实例，用于更新 URL
+const router = useRouter()
 const code = route.params.code as string
 
-// 3. 创建响应式 ref 来管理日期范围
-// 从 URL 查询参数初始化，如果不存在则为 null
 const startDate = ref<string | null>(route.query.start_date as string || null)
 const endDate = ref<string | null>(route.query.end_date as string || null)
 
-// 4. 创建一个计算属性，用于 useFetch 的 params
+const activeFilter = ref<string | null>(null)
+const dateFilters = [
+  { label: '近1个月', value: '1m' },
+  { label: '近3个月', value: '3m' },
+  { label: '近6个月', value: '6m' },
+  { label: '近1年', value: '1y' },
+  { label: '近2年', value: '2y' },
+  { label: '近5年', value: '5y' },
+  { label: '全部', value: 'all' },
+]
+
+// 2. 使用 dayjs 重构 setDateRange 函数
+function setDateRange(period: string) {
+  activeFilter.value = period
+  const end = dayjs()
+
+  if (period === 'all') {
+    startDate.value = null
+    endDate.value = null
+    return
+  }
+
+  let start: Dayjs
+
+  switch (period) {
+    case '1m':
+      start = end.subtract(1, 'month')
+      break
+    case '3m':
+      start = end.subtract(3, 'months')
+      break
+    case '6m':
+      start = end.subtract(6, 'months')
+      break
+    case '1y':
+      start = end.subtract(1, 'year')
+      break
+    case '2y':
+      start = end.subtract(2, 'years')
+      break
+    case '5y':
+      start = end.subtract(5, 'years')
+      break
+    default:
+      // 默认情况，以防万一
+      start = end.subtract(1, 'month')
+      break
+  }
+
+  startDate.value = start.format('YYYY-MM-DD')
+  endDate.value = end.format('YYYY-MM-DD')
+}
+// 移除了旧的 formatDate 函数，因为 dayjs().format() 已经替代了它
+
+if (!route.query.start_date && !route.query.end_date)
+  setDateRange('1m')
+
 const queryParams = computed(() => {
   return {
-    ma: [5, 10, 20], // 始终请求均线
-    start_date: startDate.value || undefined, // 如果为 null，则为 undefined，useFetch会忽略它
+    ma: [5, 10, 20],
+    start_date: startDate.value || undefined,
     end_date: endDate.value || undefined,
   }
 })
 
-// 5. 使用 useFetch，并将其 key 和 params 设为响应式的
-const { data: history, pending, error, refresh } = await useAsyncData(
-  `fund-history-${code}`, // 创建一个唯一的 key
+const { data: history, pending, error } = await useAsyncData(
+  `fund-history-${code}`,
   () => $fetch<HoldingHistoryPoint[]>(`/api/fund/holdings/${code}/history`, {
-    params: queryParams.value, // 使用计算属性作为参数
+    params: queryParams.value,
   }),
   {
-    watch: [queryParams], // 告诉 useAsyncData 监听 queryParams 的变化
+    watch: [queryParams],
   },
 )
 
-// --- 动态标题和名称逻辑 (保持不变，但可以优化) ---
 const holdingStore = useHoldingStore()
-// 从 store 中查找基金名称，比占位符更好
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
   return holding ? holding.name : code
@@ -45,15 +99,16 @@ useHead({
   title: () => `详情: ${fundName.value} (${code}) - ${appName}`,
 })
 
-// 6. 监听日期变化，并更新 URL，但不触发导航
-watch([startDate, endDate], () => {
+watch([startDate, endDate], ([newStart, newEnd]) => {
   router.replace({
     query: {
-      ...route.query, // 保留其他可能的查询参数
-      start_date: startDate.value || undefined,
-      end_date: endDate.value || undefined,
+      ...route.query,
+      start_date: newStart || undefined,
+      end_date: newEnd || undefined,
     },
   })
+  if (activeFilter.value)
+    activeFilter.value = null
 })
 </script>
 
@@ -66,9 +121,23 @@ watch([startDate, endDate], () => {
       </NuxtLink>
     </header>
 
-    <!-- 日期选择器区域 -->
-    <div class="card mb-8 p-4">
-      <div class="gap-4 grid grid-cols-1 sm:grid-cols-3">
+    <div class="mb-8 p-4 space-y-4 card">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="filter in dateFilters"
+          :key="filter.value"
+          class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[
+            activeFilter === filter.value
+              ? 'bg-teal-600 text-white'
+              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600',
+          ]"
+          @click="setDateRange(filter.value)"
+        >
+          {{ filter.label }}
+        </button>
+      </div>
+
+      <div class="gap-4 grid grid-cols-1 sm:grid-cols-2">
         <div>
           <label for="start-date" class="text-sm font-medium mb-1 block">开始日期</label>
           <input
@@ -87,23 +156,20 @@ watch([startDate, endDate], () => {
             class="input-base"
           >
         </div>
-        <!-- 占位符，让清除按钮在右边 -->
-        <div class="hidden sm:flex sm:items-end sm:justify-end" />
       </div>
     </div>
 
-    <!-- 图表和状态显示区域 -->
-    <div v-if="pending" class="card flex h-100 items-center justify-center">
+    <div v-if="pending" class="flex h-100 items-center justify-center card">
       <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
-    <div v-else-if="error" class="card text-red-500 py-20 text-center">
+    <div v-else-if="error" class="text-red-500 py-20 text-center card">
       <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
-      <p>加载失败: {{ error.data?.detail || error.message }}</p>
+      <p>加载失败: {{ error.message }}</p>
     </div>
-    <div v-else-if="history && history.length > 0" class="card p-4">
+    <div v-else-if="history && history.length > 0" class="p-4 card">
       <FundChart :history="history" :title="`基金 ${fundName} 历史走势`" />
     </div>
-    <div v-else class="card text-gray-500 py-20 text-center">
+    <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>在指定的时间范围内没有找到数据。</p>
     </div>

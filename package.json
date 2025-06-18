@@ -27,6 +27,7 @@
     "@vite-pwa/nuxt": "catalog:build",
     "@vueuse/core": "catalog:frontend",
     "@vueuse/nuxt": "catalog:build",
+    "dayjs-nuxt": "^2.1.11",
     "echarts": "^5.6.0",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
