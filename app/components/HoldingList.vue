@@ -47,6 +47,9 @@ function formatCurrency(value: number) {
               估算涨跌
             </th>
             <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
+              更新时间
+            </th>
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
               操作
             </th>
           </tr>
@@ -77,6 +80,10 @@ function formatCurrency(value: number) {
             <!-- 估算涨跌幅 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               {{ h.percentage_change !== null ? `${h.percentage_change.toFixed(2)}%` : '-' }}
+            </td>
+            <!-- 估算涨跌幅 -->
+            <td class="font-mono p-4 text-right">
+              {{ h.today_estimate_update_time }}
             </td>
             <td class="p-4 text-right space-x-2">
               <button class="icon-btn" title="修改" @click="emit('edit', h)">

@@ -1,3 +1,4 @@
+import { env } from 'node:process'
 import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
 
@@ -56,8 +57,7 @@ export default defineNuxtConfig({
     routeRules: {
       // 将所有 /api/fund/** 的请求代理到 Python 后端
       '/api/fund/**': {
-        proxy: 'http://127.0.0.1:8000/**',
-        // proxy: 'http://bmcr1-wtr-r1:8888/**',
+        proxy: `${env.API_BASE_URL || 'http://127.0.0.1:8000'}/**`,
       },
     },
     esbuild: {
