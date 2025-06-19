@@ -1,11 +1,10 @@
-<!-- app/pages/fund/[code].vue -->
+<!-- File: app/pages/fund/[code].vue -->
 <script setup lang="ts">
 import type { Dayjs } from 'dayjs'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import { computed, ref, watch } from 'vue'
 import { appName } from '~/constants'
 
-// 1. 引入 dayjs composable
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
 const router = useRouter()
@@ -13,8 +12,26 @@ const code = route.params.code as string
 
 const startDate = ref<string | null>(route.query.start_date as string || null)
 const endDate = ref<string | null>(route.query.end_date as string || null)
-
 const activeFilter = ref<string | null>(null)
+
+// [新增] 策略选择
+const availableStrategies = [
+  { label: '不显示策略', value: '' },
+  { label: 'RSI 策略', value: 'rsi' },
+  { label: '布林带策略', value: 'bollinger_bands' },
+]
+const selectedStrategy = ref(route.query.strategy as string || '')
+
+// [新增] 策略详情模态框状态
+const isStrategyModalOpen = ref(false)
+const selectedSignal = ref<Record<string, any> | null>(null)
+
+function openSignalDetails(signal: Record<string, any>) {
+  selectedSignal.value = signal
+  isStrategyModalOpen.value = true
+}
+
+// ... (setDateRange 等函数保持不变) ...
 const dateFilters = [
   { label: '近1个月', value: '1m' },
   { label: '近3个月', value: '3m' },
@@ -25,48 +42,28 @@ const dateFilters = [
   { label: '全部', value: 'all' },
 ]
 let skipReset = false
-// 2. 使用 dayjs 重构 setDateRange 函数
 function setDateRange(period: string) {
-  skipReset = true // 标记为按钮触发
+  skipReset = true
   activeFilter.value = period
   const end = dayjs()
-
   if (period === 'all') {
     startDate.value = null
     endDate.value = null
     return
   }
-
   let start: Dayjs
-
   switch (period) {
-    case '1m':
-      start = end.subtract(1, 'month')
-      break
-    case '3m':
-      start = end.subtract(3, 'months')
-      break
-    case '6m':
-      start = end.subtract(6, 'months')
-      break
-    case '1y':
-      start = end.subtract(1, 'year')
-      break
-    case '2y':
-      start = end.subtract(2, 'years')
-      break
-    case '5y':
-      start = end.subtract(5, 'years')
-      break
-    default:
-      // 默认情况，以防万一
-      start = end.subtract(1, 'month')
-      break
+    case '1m': start = end.subtract(1, 'month'); break
+    case '3m': start = end.subtract(3, 'months'); break
+    case '6m': start = end.subtract(6, 'months'); break
+    case '1y': start = end.subtract(1, 'year'); break
+    case '2y': start = end.subtract(2, 'years'); break
+    case '5y': start = end.subtract(5, 'years'); break
+    default: start = end.subtract(1, 'month'); break
   }
-
   startDate.value = start.format('YYYY-MM-DD')
   endDate.value = end.format('YYYY-MM-DD')
-  nextTick(() => (skipReset = false)) // 下一个事件循环解锁
+  nextTick(() => (skipReset = false))
 }
 
 if (!route.query.start_date && !route.query.end_date)
@@ -77,12 +74,14 @@ const queryParams = computed(() => {
     ma: [5, 10, 20],
     start_date: startDate.value || undefined,
     end_date: endDate.value || undefined,
+    strategy: selectedStrategy.value || undefined, // [修改] 添加策略参数
   }
 })
 
-const { data: history, pending, error } = await useAsyncData(
-  `fund-history-${code}`,
-  () => $fetch<HoldingHistoryPoint[]>(`/api/fund/holdings/${code}/history`, {
+// [修改] 更新 useAsyncData 来处理新的返回结构
+const { data, pending, error } = await useAsyncData(
+  `fund-data-${code}`, // Key should be unique, combining history and signals
+  () => $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
     params: queryParams.value,
   }),
   {
@@ -100,18 +99,20 @@ useHead({
   title: () => `详情: ${fundName.value} (${code}) - ${appName}`,
 })
 
-watch([startDate, endDate], ([newStart, newEnd]) => {
+// [修改] 监听 selectedStrategy 的变化
+watch([startDate, endDate, selectedStrategy], ([newStart, newEnd, newStrategy]) => {
   router.replace({
     query: {
       ...route.query,
       start_date: newStart || undefined,
       end_date: newEnd || undefined,
+      strategy: newStrategy || undefined,
     },
   })
 
   if (skipReset)
-    return // 跳过按钮触发的重置
-  activeFilter.value = null // 仅手动输入时重置
+    return
+  activeFilter.value = null
 })
 </script>
 
@@ -125,39 +126,29 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
     </header>
 
     <div class="mb-8 p-4 space-y-4 card">
+      <!-- ... (日期筛选按钮) ... -->
       <div class="flex flex-wrap gap-2">
-        <button
-          v-for="filter in dateFilters"
-          :key="filter.value"
-          class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[
-            activeFilter === filter.value
-              ? 'bg-teal-600 text-white'
-              : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600',
-          ]"
-          @click="setDateRange(filter.value)"
-        >
+        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
           {{ filter.label }}
         </button>
       </div>
-
-      <div class="gap-4 grid grid-cols-1 sm:grid-cols-2">
+      <!-- [新增] 策略选择器 -->
+      <div class="gap-4 grid grid-cols-1 sm:grid-cols-3">
         <div>
           <label for="start-date" class="text-sm font-medium mb-1 block">开始日期</label>
-          <input
-            id="start-date"
-            v-model="startDate"
-            type="date"
-            class="input-base"
-          >
+          <input id="start-date" v-model="startDate" type="date" class="input-base">
         </div>
         <div>
           <label for="end-date" class="text-sm font-medium mb-1 block">结束日期</label>
-          <input
-            id="end-date"
-            v-model="endDate"
-            type="date"
-            class="input-base"
-          >
+          <input id="end-date" v-model="endDate" type="date" class="input-base">
+        </div>
+        <div>
+          <label for="strategy-select" class="text-sm font-medium mb-1 block">叠加策略</label>
+          <select id="strategy-select" v-model="selectedStrategy" class="input-base">
+            <option v-for="s in availableStrategies" :key="s.value" :value="s.value">
+              {{ s.label }}
+            </option>
+          </select>
         </div>
       </div>
     </div>
@@ -169,12 +160,18 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
       <p>加载失败: {{ error.message }}</p>
     </div>
-    <div v-else-if="history && history.length > 0" class="p-4 card">
-      <FundChart :history="history" :title="`基金 ${fundName} 历史走势`" />
+    <!-- [修改] 将 data.history 和 data.signals 传递给 FundChart -->
+    <div v-else-if="data && data.history.length > 0" class="p-4 card">
+      <FundChart :history="data.history" :signals="data.signals" :title="`基金 ${fundName} 历史走势`" @signal-click="openSignalDetails" />
     </div>
     <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>在指定的时间范围内没有找到数据。</p>
     </div>
+
+    <!-- [新增] 策略详情模态框 -->
+    <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
+      <StrategyDetailModal :signal="selectedSignal" />
+    </Modal>
   </div>
 </template>

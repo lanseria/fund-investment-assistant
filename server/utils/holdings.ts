@@ -166,6 +166,7 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
       skippedCount++
       continue
     }
+    item.shares = Number(item.shares)
 
     if (!overwrite) {
       const existing = await db.query.holdings.findFirst({ where: eq(holdings.code, item.code) })
@@ -182,6 +183,7 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
     }
 
     const nav = Number(realtimeData.dwjz)
+    // console.warn('item: ', item)
     const newHolding = {
       code: item.code,
       name: realtimeData.name,

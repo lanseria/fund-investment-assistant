@@ -15,7 +15,9 @@
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage"
+    "coverage": "vitest run --coverage",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",

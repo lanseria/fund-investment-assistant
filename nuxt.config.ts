@@ -7,6 +7,7 @@ const scheduledTasks: Record<string, string[]> = {}
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY
 const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE
+const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES
 
 // 只有当环境变量中设置了有效的 Cron 表达式时，才添加任务
 if (syncHistoryCron) {
@@ -14,6 +15,9 @@ if (syncHistoryCron) {
 }
 if (syncEstimateCron) {
   scheduledTasks[syncEstimateCron] = ['fund:syncEstimate']
+}
+if (runStrategiesCron) {
+  scheduledTasks[runStrategiesCron] = ['fund:runStrategies']
 }
 export default defineNuxtConfig({
   modules: [
@@ -54,6 +58,7 @@ export default defineNuxtConfig({
 
   runtimeConfig: {
     dbUrl: '', // can be overridden by NUXT_DB_URL environment variable
+    strategyApiUrl: '', // can be overridden by NUXT_STRATEGY_API_URL environment variable
   },
 
   future: {

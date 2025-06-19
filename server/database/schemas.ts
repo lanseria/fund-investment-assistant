@@ -1,4 +1,4 @@
-import { date, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigserial, date, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称，与原 Python 项目保持一致
 export const fundSchema = pgSchema('fund_app')
@@ -30,4 +30,20 @@ export const navHistory = fundSchema.table('fund_nav_history', {
   return {
     pk: primaryKey({ columns: [table.code, table.navDate] }),
   }
+})
+
+/**
+ * [新增] 策略信号表 (strategy_signals)
+ * 存储每日策略执行的结果
+ */
+export const strategySignals = fundSchema.table('strategy_signals', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  fundCode: varchar('fund_code', { length: 10 }).notNull(),
+  strategyName: text('strategy_name').notNull(),
+  signal: text('signal').notNull(), // '买入', '卖出', '持有/观望'
+  reason: text('reason').notNull(),
+  latestDate: date('latest_date').notNull(),
+  latestClose: numeric('latest_close', { precision: 10, scale: 4 }).notNull(),
+  metrics: jsonb('metrics').notNull(), // 存储策略的具体指标
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
