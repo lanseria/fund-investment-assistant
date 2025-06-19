@@ -19,3 +19,11 @@ export interface HoldingHistoryPoint {
   ma20?: number | null
   // ... 其他可能的均线
 }
+
+export interface HoldingSummary {
+  totalHoldingAmount: number
+  totalEstimateAmount: number
+  totalProfitLoss: number
+  totalPercentageChange: number
+  count: number
+}

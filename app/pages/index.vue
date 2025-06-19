@@ -1,3 +1,4 @@
+<!-- File: app/pages/index.vue -->
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
@@ -7,7 +8,8 @@ useHead({
   title: `持仓列表 - ${appName}`,
 })
 const holdingStore = useHoldingStore()
-const { holdings, isLoading, isRefreshing } = storeToRefs(holdingStore)
+// [修改] 从 store 中获取 summary
+const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
 const { refreshAllEstimates } = holdingStore
 
 // 使用 useAsyncData 确保在服务端也能获取数据
@@ -18,6 +20,24 @@ const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
+
+// [新增] 格式化货币的辅助函数
+function formatCurrency(value: number | undefined) {
+  if (value === undefined)
+    return '-'
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
+}
+
+// [新增] 获取涨跌颜色的辅助函数
+function getChangeClass(value: number | undefined) {
+  if (value === undefined || value === null)
+    return 'text-gray'
+  if (value > 0)
+    return 'text-red-500 dark:text-red-400'
+  if (value < 0)
+    return 'text-green-500 dark:text-green-400'
+  return 'text-gray'
+}
 
 function openAddModal() {
   editingHolding.value = null
@@ -36,23 +56,19 @@ function closeModal() {
 async function handleSubmit(formData: any) {
   try {
     if (editingHolding.value) {
-      // 编辑模式
       await holdingStore.updateHolding(formData.code, formData.holding_amount)
     }
     else {
-      // 添加模式
       await holdingStore.addHolding(formData)
     }
     closeModal()
   }
   catch (error) {
     console.error(error)
-    // 错误处理，例如显示一个 toast 通知
     alert('操作失败，请查看控制台获取更多信息。')
   }
 }
 
-// [新增] 刷新按钮的处理器
 async function handleRefresh() {
   await refreshAllEstimates()
 }
@@ -69,7 +85,6 @@ async function handleDelete(holding: Holding) {
   }
 }
 
-// --- 新的导入/导出状态和逻辑 ---
 const isImportModalOpen = ref(false)
 
 async function handleExport() {
@@ -85,7 +100,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 </script>
 
 <template>
-  <!-- 调整整体内边距，使其在手机和桌面都合适 -->
   <div class="p-4 lg:p-8 sm:p-6">
     <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
       <div>
@@ -97,24 +111,60 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
         </p>
       </div>
       <div class="flex gap-2 items-center sm:gap-4">
-        <!-- [新增] 刷新按钮 -->
         <button class="icon-btn" title="刷新所有估值" :disabled="isRefreshing" @click="handleRefresh">
           <div i-carbon-renew :class="{ 'animate-spin': isRefreshing }" />
         </button>
-        <!-- 新增的导入/导出按钮 -->
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
         </button>
         <button class="icon-btn" title="导出数据" @click="handleExport">
           <div i-carbon-download />
         </button>
-        <DarkToggle /> <!-- 将暗色模式切换按钮移到这里 -->
+        <DarkToggle />
         <button class="flex items-center btn" @click="openAddModal">
           <div i-carbon-add mr-1 />
           添加基金
         </button>
       </div>
     </header>
+
+    <!-- [新增] 投资组合总览卡片 -->
+    <div v-if="summary && summary.count > 0" class="mb-8 p-4 card">
+      <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
+        <div class="p-2">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            持仓总成本
+          </p>
+          <p class="text-lg font-semibold sm:text-xl">
+            {{ formatCurrency(summary.totalHoldingAmount) }}
+          </p>
+        </div>
+        <div class="p-2">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            预估总市值
+          </p>
+          <p class="text-lg font-semibold sm:text-xl">
+            {{ formatCurrency(summary.totalEstimateAmount) }}
+          </p>
+        </div>
+        <div class="p-2">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            预估总盈亏
+          </p>
+          <p class="text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
+            {{ summary.totalProfitLoss.toFixed(2) }}
+          </p>
+        </div>
+        <div class="p-2">
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            预估涨跌幅
+          </p>
+          <p class="text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
+            {{ summary.totalPercentageChange.toFixed(2) }}%
+          </p>
+        </div>
+      </div>
+    </div>
 
     <!-- 主体内容 -->
     <div v-if="isLoading" class="flex h-64 items-center justify-center card">
@@ -125,9 +175,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       <p>暂无持仓数据，请先添加基金。</p>
     </div>
     <HoldingList v-else :holdings="holdings" @edit="openEditModal" @delete="handleDelete" />
-
-    <!-- 移除 Footer，让页面更专注 -->
-    <!-- <Footer /> -->
 
     <!-- 模态框组件 (保持不变) -->
     <Modal v-model="isModalOpen" :title="modalTitle">

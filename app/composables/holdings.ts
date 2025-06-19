@@ -1,13 +1,15 @@
+// File: app/composables/holdings.ts
+
 /* eslint-disable no-alert */
-import type { Holding } from '~/types/holding'
-// app/composables/holdings.ts
+import type { Holding, HoldingSummary } from '~/types/holding' // [修改] 导入新类型
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
 export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
   const holdings = ref<Holding[]>([])
+  const summary = ref<HoldingSummary | null>(null) // [新增] summary state
   const isLoading = ref(false)
-  const isRefreshing = ref(false) // [新增] 刷新状态
+  const isRefreshing = ref(false)
 
   // --- Actions ---
 
@@ -17,18 +19,20 @@ export const useHoldingStore = defineStore('holding', () => {
   async function fetchHoldings() {
     isLoading.value = true
     try {
-      const data = await $fetch<Holding[]>('/api/fund/holdings/')
-      holdings.value = data
+      // [修改] API 现在返回一个包含 holdings 和 summary 的对象
+      const data = await $fetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
+      holdings.value = data.holdings
+      summary.value = data.summary // [新增] 更新 summary
     }
     catch (error) {
       console.error('获取持仓数据失败:', error)
-      // 在这里可以添加错误提示，例如使用 nuxt-primevue 的 toast
     }
     finally {
       isLoading.value = false
     }
   }
 
+  // --- 其他函数 (addHolding, updateHolding, etc.) 保持不变 ---
   /**
    * 添加一个新的持仓基金
    * @param newHolding - 要添加的基金数据 { code, holding_amount }
@@ -75,7 +79,9 @@ export const useHoldingStore = defineStore('holding', () => {
         method: 'DELETE',
       })
       // 删除成功后，从本地列表中移除，避免重新请求网络
-      holdings.value = holdings.value.filter(h => h.code !== code)
+      // holdings.value = holdings.value.filter(h => h.code !== code)
+      // [修改] 删除后也需要刷新，以更新汇总信息
+      await fetchHoldings()
     }
     catch (error) {
       console.error('删除基金失败:', error)
@@ -118,6 +124,8 @@ export const useHoldingStore = defineStore('holding', () => {
       })
 
       // 创建一个临时的 URL 来触发浏览器下载
+      // eslint-disable-next-line ts/ban-ts-comment
+      // @ts-ignore
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
@@ -164,19 +172,19 @@ export const useHoldingStore = defineStore('holding', () => {
       isLoading.value = false
     }
   }
-
   return {
     holdings,
+    summary, // [新增] 导出 summary
     isLoading,
     totalCost,
-    isRefreshing, // [新增] 导出新状态
+    isRefreshing,
     fetchHoldings,
     addHolding,
     updateHolding,
     deleteHolding,
     exportHoldings,
     importHoldings,
-    refreshAllEstimates, // [新增] 导出新 action
+    refreshAllEstimates,
   }
 })
 

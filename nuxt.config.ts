@@ -1,6 +1,20 @@
+import { env } from 'node:process'
 import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
+// [新增] 在 defineNuxtConfig 外部，动态构建 scheduledTasks 对象
+const scheduledTasks: Record<string, string[]> = {}
 
+// 从环境变量读取 Cron 表达式
+const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY
+const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE
+
+// 只有当环境变量中设置了有效的 Cron 表达式时，才添加任务
+if (syncHistoryCron) {
+  scheduledTasks[syncHistoryCron] = ['fund:syncHistory']
+}
+if (syncEstimateCron) {
+  scheduledTasks[syncEstimateCron] = ['fund:syncEstimate']
+}
 export default defineNuxtConfig({
   modules: [
     '@vueuse/nuxt',
@@ -21,7 +35,7 @@ export default defineNuxtConfig({
       viewport: 'width=device-width,initial-scale=1',
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
-        { rel: 'icon', type: 'image/svg+xml', href: '/nuxt.svg' },
+        { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
         { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' },
       ],
       meta: [
@@ -69,12 +83,7 @@ export default defineNuxtConfig({
       },
     },
     // [重要修改] 新增定时任务配置
-    scheduledTasks: {
-      // 每天凌晨 2:00 执行历史数据同步任务
-      '0 2 * * *': ['fund:syncHistory'],
-      // 在周一至周五的 9:30 到 14:30 之间，每小时的30分执行实时估值同步任务
-      '*/5 9-14 * * 1-5': ['fund:syncEstimate'],
-    },
+    scheduledTasks,
     // [重要修改] 开启实验性的 tasks 功能
     experimental: {
       database: true,
