@@ -8,12 +8,12 @@ defineProps<{
 const emit = defineEmits(['edit', 'delete'])
 
 function getChangeClass(holding: Holding) {
-  // 使用新的 percentage_change 字段
-  if (holding.percentage_change === null || holding.percentage_change === undefined)
+  // 使用新的 percentageChange 字段
+  if (holding.percentageChange === null || holding.percentageChange === undefined)
     return 'text-gray'
-  if (holding.percentage_change > 0)
+  if (holding.percentageChange > 0)
     return 'text-red-500 dark:text-red-400'
-  if (holding.percentage_change < 0)
+  if (holding.percentageChange < 0)
     return 'text-green-500 dark:text-green-400'
   return 'text-gray'
 }
@@ -71,19 +71,19 @@ function formatCurrency(value: number) {
             </td>
             <!-- 持有金额 -->
             <td class="font-mono p-4 text-right">
-              {{ formatCurrency(h.holding_amount) }}
+              {{ formatCurrency(h.holdingAmount) }}
             </td>
             <!-- 估算金额 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              {{ h.today_estimate_amount ? formatCurrency(h.today_estimate_amount) : '-' }}
+              {{ h.todayEstimateAmount ? formatCurrency(h.todayEstimateAmount) : '-' }}
             </td>
             <!-- 估算涨跌幅 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              {{ h.percentage_change !== null ? `${h.percentage_change.toFixed(2)}%` : '-' }}
+              {{ h.percentageChange !== null ? `${h.percentageChange.toFixed(2)}%` : '-' }}
             </td>
             <!-- 估算涨跌幅 -->
             <td class="font-mono p-4 text-right">
-              {{ h.today_estimate_update_time }}
+              {{ useDayjs()(h.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}
             </td>
             <td class="p-4 text-right space-x-2">
               <button class="icon-btn" title="修改" @click="emit('edit', h)">

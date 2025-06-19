@@ -83,7 +83,7 @@ export const useHoldingStore = defineStore('holding', () => {
   }
 
   // --- Getters (Computed) ---
-  const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + h.holding_amount, 0))
+  const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + h.holdingAmount, 0))
 
   /**
    * 导出持仓数据
