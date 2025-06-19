@@ -4,7 +4,7 @@ import { createNewHolding, HoldingExistsError } from '~~/server/utils/holdings'
 const holdingCreateSchema = z.object({
   code: z.string().min(6).max(6),
   name: z.string().optional(),
-  holding_amount: z.number().positive(),
+  holdingAmount: z.number().nonnegative(),
 })
 
 export default defineEventHandler(async (event) => {

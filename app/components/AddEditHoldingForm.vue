@@ -9,7 +9,7 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formData = reactive({
   code: '',
-  holding_amount: null as number | null,
+  holdingAmount: null as number | null,
   name: '', // 可选的名称
 })
 
@@ -19,18 +19,18 @@ const isEditing = computed(() => !!props.initialData)
 watch(() => props.initialData, (newData) => {
   if (newData) {
     formData.code = newData.code
-    formData.holding_amount = newData.holding_amount
+    formData.holdingAmount = newData.holdingAmount
     formData.name = newData.name
   }
   else {
     // 如果是添加模式，重置表单
     formData.code = ''
-    formData.holding_amount = null
+    formData.holdingAmount = null
     formData.name = ''
   }
 }, { immediate: true })
 
-const canSubmit = computed(() => formData.code && formData.holding_amount && formData.holding_amount > 0)
+const canSubmit = computed(() => formData.code && formData.holdingAmount !== null && formData.holdingAmount >= 0)
 
 function handleSubmit() {
   if (canSubmit.value) {
@@ -62,7 +62,7 @@ function handleSubmit() {
         <label for="holding-amount" class="text-sm font-medium mb-1 block">持有金额 (元)</label>
         <input
           id="holding-amount"
-          v-model.number="formData.holding_amount"
+          v-model.number="formData.holdingAmount"
           type="number"
           step="0.01"
           placeholder="例如: 5000.00"
