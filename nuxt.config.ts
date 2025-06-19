@@ -1,4 +1,3 @@
-import { env } from 'node:process'
 import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
 
@@ -11,6 +10,7 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxt/eslint',
     'dayjs-nuxt',
+    '@nuxt/test-utils/module',
   ],
   ssr: false,
   devtools: {
