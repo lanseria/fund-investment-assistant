@@ -1,7 +1,7 @@
 {
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "build": "nuxt build",
     "dev:pwa": "VITE_PLUGIN_PWA=true nuxt dev",
@@ -35,11 +35,12 @@
     "@vitest/coverage-v8": "catalog:tests",
     "@vueuse/core": "catalog:frontend",
     "@vueuse/nuxt": "catalog:build",
-    "dayjs-nuxt": "catalog:",
+    "bignumber.js": "catalog:utils",
+    "dayjs-nuxt": "catalog:utils",
     "drizzle-kit": "catalog:backend",
     "drizzle-orm": "catalog:backend",
     "echarts": "catalog:frontend",
-    "es-toolkit": "catalog:",
+    "es-toolkit": "catalog:utils",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "happy-dom": "catalog:tests",
@@ -52,7 +53,7 @@
     "vue": "catalog:frontend",
     "vue-echarts": "catalog:frontend",
     "vue-tsc": "catalog:dev",
-    "zod": "catalog:"
+    "zod": "catalog:utils"
   },
   "resolutions": {
     "@nuxt/devtools": "catalog:build",

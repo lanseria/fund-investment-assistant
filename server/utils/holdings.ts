@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { holdings, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher' // 确保 fetchFundHistory 已导入
@@ -123,20 +124,40 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
   if (!records.length)
     return []
 
-  // Drizzle doesn't have a direct window function equivalent to pandas rolling.
-  // We'll calculate it manually. It's efficient enough for typical history lengths.
-  const data = records.map(r => ({ date: r.navDate, nav: Number(r.nav) })).reverse() // Sort ascending for MA calc
+  // [重要修改] 1. 将数据库中的字符串净值直接转换为 BigNumber 对象，以保持完整精度
+  const data = records.map(r => ({
+    date: r.navDate,
+    nav: new BigNumber(r.nav), // 使用 new BigNumber()
+  })).reverse() // 按日期升序排列，以便计算MA
 
   for (const ma of maOptions) {
     if (ma > 0 && data.length >= ma) {
       for (let i = ma - 1; i < data.length; i++) {
-        const sum = data.slice(i - ma + 1, i + 1).reduce((acc, val) => acc + val.nav, 0);
-        (data[i] as any)[`ma${ma}`] = sum / ma
+        // 截取计算 MA 所需的数据窗口
+        const window = data.slice(i - ma + 1, i + 1)
+
+        // [重要修改] 2. 使用 BigNumber.sum() 进行精确求和，或者使用 reduce + plus
+        const sum = window.reduce(
+          (acc, val) => acc.plus(val.nav), // 使用 .plus() 方法
+          new BigNumber(0), // 初始值也是 BigNumber 对象
+        )
+
+        // [重要修改] 3. 使用 .dividedBy() 进行精确除法
+        const movingAverage = sum.dividedBy(ma)
+
+        // [重要修改] 4. 将计算结果（BigNumber对象）转换回普通数字，并赋给新属性
+        // ECharts 等前端库需要的是普通数字
+        ;(data[i] as any)[`ma${ma}`] = movingAverage.toNumber()
       }
     }
   }
 
-  return data
+  // [重要修改] 5. 在最终返回前，将所有 nav 从 BigNumber 对象转换回普通数字
+  // 这样可以确保返回给前端的接口数据是纯净的、可直接使用的 JSON
+  return data.map(point => ({
+    ...point,
+    nav: point.nav.toNumber(),
+  }))
 }
 
 /**
