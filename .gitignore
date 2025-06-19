@@ -8,3 +8,4 @@ dist
 .idea/
 public/assets/fonts
 ai/project_context.txt
+.env.prod

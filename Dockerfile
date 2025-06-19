@@ -1,4 +1,4 @@
-FROM node:20-alpine AS build-stage
+FROM m.daocloud.io/docker.io/library/node:22 AS build-stage
 
 WORKDIR /app
 RUN corepack enable
@@ -11,7 +11,12 @@ COPY . .
 RUN pnpm build
 
 # SSR
-FROM node:20-alpine AS production-stage
+FROM m.daocloud.io/docker.io/library/node:22 AS production-stage
+
+# 设置时区
+ENV TZ=Asia/Shanghai
+RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime \ 
+    && echo $TZ > /etc/timezone
 
 WORKDIR /app
 
