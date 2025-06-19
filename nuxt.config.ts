@@ -73,7 +73,7 @@ export default defineNuxtConfig({
       // 每天凌晨 2:00 执行历史数据同步任务
       '0 2 * * *': ['fund:syncHistory'],
       // 在周一至周五的 9:30 到 14:30 之间，每小时的30分执行实时估值同步任务
-      '30 9-14 * * 1-5': ['fund:syncEstimate'],
+      '*/5 9-14 * * 1-5': ['fund:syncEstimate'],
     },
     // [重要修改] 开启实验性的 tasks 功能
     experimental: {

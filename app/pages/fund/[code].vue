@@ -24,9 +24,10 @@ const dateFilters = [
   { label: '近5年', value: '5y' },
   { label: '全部', value: 'all' },
 ]
-
+let skipReset = false
 // 2. 使用 dayjs 重构 setDateRange 函数
 function setDateRange(period: string) {
+  skipReset = true // 标记为按钮触发
   activeFilter.value = period
   const end = dayjs()
 
@@ -65,11 +66,11 @@ function setDateRange(period: string) {
 
   startDate.value = start.format('YYYY-MM-DD')
   endDate.value = end.format('YYYY-MM-DD')
+  nextTick(() => (skipReset = false)) // 下一个事件循环解锁
 }
-// 移除了旧的 formatDate 函数，因为 dayjs().format() 已经替代了它
 
 if (!route.query.start_date && !route.query.end_date)
-  setDateRange('1m')
+  setDateRange('1y')
 
 const queryParams = computed(() => {
   return {
@@ -107,8 +108,10 @@ watch([startDate, endDate], ([newStart, newEnd]) => {
       end_date: newEnd || undefined,
     },
   })
-  if (activeFilter.value)
-    activeFilter.value = null
+
+  if (skipReset)
+    return // 跳过按钮触发的重置
+  activeFilter.value = null // 仅手动输入时重置
 })
 </script>
 

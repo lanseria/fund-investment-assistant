@@ -1,6 +1,7 @@
+/* eslint-disable no-console */
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { holdings, navHistory } from '~~/server/database/schemas'
-import { fetchFundHistory, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
+import { fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
 // 自定义错误类型
@@ -214,4 +215,26 @@ export async function syncSingleFundEstimate(code: string) {
       todayEstimateAmount: (Number(holding.shares) * estimateNav).toFixed(2),
     }).where(eq(holdings.code, code))
   }
+}
+
+/**
+ * [新增] 同步所有持仓基金的最新估值
+ */
+export async function syncAllHoldingsEstimates() {
+  const db = useDb()
+  const allHoldings = await db.query.holdings.findMany()
+
+  if (allHoldings.length === 0)
+    return { total: 0, success: 0, failed: 0 }
+
+  // 使用 Promise.all 并发执行所有更新任务
+  const results = await Promise.allSettled(
+    allHoldings.map(holding => syncSingleFundEstimate(holding.code)),
+  )
+
+  const successCount = results.filter(r => r.status === 'fulfilled').length
+  const failedCount = results.length - successCount
+
+  console.log(`[Estimate Sync] Completed. Total: ${results.length}, Success: ${successCount}, Failed: ${failedCount}`)
+  return { total: results.length, success: successCount, failed: failedCount }
 }

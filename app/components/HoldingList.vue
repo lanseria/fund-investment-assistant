@@ -83,15 +83,17 @@ function formatCurrency(value: number) {
             </td>
             <!-- 估算涨跌幅 -->
             <td class="font-mono p-4 text-right">
-              {{ useDayjs()(h.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') }}
+              {{ useDayjs()(h.todayEstimateUpdateTime).format('MM-DD HH:mm:ss') }}
             </td>
-            <td class="p-4 text-right space-x-2">
-              <button class="icon-btn" title="修改" @click="emit('edit', h)">
-                <div i-carbon-edit />
-              </button>
-              <button class="hover:text-red-500 icon-btn" title="删除" @click="emit('delete', h)">
-                <div i-carbon-trash-can />
-              </button>
+            <td class="p-4 text-right">
+              <div class="flex gap-2">
+                <button class="icon-btn" title="修改" @click="emit('edit', h)">
+                  <div i-carbon-edit />
+                </button>
+                <button class="hover:text-red-500 icon-btn" title="删除" @click="emit('delete', h)">
+                  <div i-carbon-trash-can />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>

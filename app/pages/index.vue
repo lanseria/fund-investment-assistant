@@ -7,7 +7,8 @@ useHead({
   title: `持仓列表 - ${appName}`,
 })
 const holdingStore = useHoldingStore()
-const { holdings, isLoading } = storeToRefs(holdingStore)
+const { holdings, isLoading, isRefreshing } = storeToRefs(holdingStore)
+const { refreshAllEstimates } = holdingStore
 
 // 使用 useAsyncData 确保在服务端也能获取数据
 await useAsyncData('holdings', () => holdingStore.fetchHoldings())
@@ -51,6 +52,11 @@ async function handleSubmit(formData: any) {
   }
 }
 
+// [新增] 刷新按钮的处理器
+async function handleRefresh() {
+  await refreshAllEstimates()
+}
+
 async function handleDelete(holding: Holding) {
   if (confirm(`确定要删除基金 ${holding.name} (${holding.code}) 吗？`)) {
     try {
@@ -91,6 +97,10 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
         </p>
       </div>
       <div class="flex gap-2 items-center sm:gap-4">
+        <!-- [新增] 刷新按钮 -->
+        <button class="icon-btn" title="刷新所有估值" :disabled="isRefreshing" @click="handleRefresh">
+          <div i-carbon-renew :class="{ 'animate-spin': isRefreshing }" />
+        </button>
         <!-- 新增的导入/导出按钮 -->
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />

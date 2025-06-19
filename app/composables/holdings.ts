@@ -7,6 +7,7 @@ export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
   const holdings = ref<Holding[]>([])
   const isLoading = ref(false)
+  const isRefreshing = ref(false) // [新增] 刷新状态
 
   // --- Actions ---
 
@@ -81,6 +82,27 @@ export const useHoldingStore = defineStore('holding', () => {
       throw error
     }
   }
+  /**
+   * [新增] 刷新所有基金的实时估值
+   */
+  async function refreshAllEstimates() {
+    isRefreshing.value = true
+    try {
+      // 调用新创建的后端 API
+      await $fetch('/api/fund/utils/refresh-estimates', {
+        method: 'POST',
+      })
+      // 成功后，重新获取整个列表以更新UI
+      await fetchHoldings()
+    }
+    catch (error) {
+      console.error('刷新估值失败:', error)
+      alert('刷新估值失败，请查看控制台！')
+    }
+    finally {
+      isRefreshing.value = false
+    }
+  }
 
   // --- Getters (Computed) ---
   const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + h.holdingAmount, 0))
@@ -147,12 +169,14 @@ export const useHoldingStore = defineStore('holding', () => {
     holdings,
     isLoading,
     totalCost,
+    isRefreshing, // [新增] 导出新状态
     fetchHoldings,
     addHolding,
     updateHolding,
     deleteHolding,
     exportHoldings,
     importHoldings,
+    refreshAllEstimates, // [新增] 导出新 action
   }
 })
 

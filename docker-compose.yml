@@ -1,0 +1,17 @@
+# docker-compose.yml (简化后)
+services:
+  fund_app: # 将两个服务合并成一个
+    image: fund-frontend:latest
+    container_name: fund_app # 新的容器名
+    env_file:
+      - .env.prod
+    ports:
+      - "8888:3000"
+    restart: unless-stopped
+    networks:
+      - shared_app_net
+
+networks:
+  shared_app_net:
+    external: true
+    name: shared-db-network
