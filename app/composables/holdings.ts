@@ -172,6 +172,26 @@ export const useHoldingStore = defineStore('holding', () => {
       isLoading.value = false
     }
   }
+  /**
+   * [新增] 手动同步单个基金的历史净值
+   * @param code 基金代码
+   */
+  async function syncHistory(code: string) {
+    try {
+      const result = await $fetch(`/api/fund/holdings/${code}/sync-history`, {
+        method: 'POST',
+      })
+      alert(result.message) // 简单的成功提示
+      return result
+    }
+    catch (error: any) {
+      console.error(`同步基金 ${code} 历史数据失败:`, error)
+      const detail = error.data?.statusMessage || '发生未知错误'
+      alert(`同步失败: ${detail}`) // 简单的失败提示
+      throw error
+    }
+  }
+
   return {
     holdings,
     summary, // [新增] 导出 summary
@@ -185,6 +205,7 @@ export const useHoldingStore = defineStore('holding', () => {
     exportHoldings,
     importHoldings,
     refreshAllEstimates,
+    syncHistory,
   }
 })
 

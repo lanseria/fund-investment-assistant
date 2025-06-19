@@ -78,9 +78,9 @@ const queryParams = computed(() => {
   }
 })
 
-// [修改] 更新 useAsyncData 来处理新的返回结构
-const { data, pending, error } = await useAsyncData(
-  `fund-data-${code}`, // Key should be unique, combining history and signals
+// [修改] 解构出 refresh 方法，用于刷新图表数据
+const { data, pending, error, refresh } = await useAsyncData(
+  `fund-data-${code}`,
   () => $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
     params: queryParams.value,
   }),
@@ -94,6 +94,20 @@ const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
   return holding ? holding.name : code
 })
+
+// [新增] 手动同步逻辑
+const isSyncing = ref(false)
+async function handleSyncHistory() {
+  isSyncing.value = true
+  try {
+    await holdingStore.syncHistory(code)
+    // 同步成功后，调用 refresh 方法重新获取图表数据
+    await refresh()
+  }
+  finally {
+    isSyncing.value = false
+  }
+}
 
 useHead({
   title: () => `详情: ${fundName.value} (${code}) - ${appName}`,
@@ -118,11 +132,17 @@ watch([startDate, endDate, selectedStrategy], ([newStart, newEnd, newStrategy]) 
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <header class="mb-8">
+    <!-- [修改] 头部布局 -->
+    <header class="mb-8 flex items-center justify-between">
       <NuxtLink to="/" class="text-sm text-gray-500 inline-flex gap-2 transition-colors items-center hover:text-teal-500">
         <div i-carbon-arrow-left />
         返回持仓列表
       </NuxtLink>
+      <!-- [新增] 手动同步按钮 -->
+      <button class="flex items-center btn" :disabled="isSyncing" @click="handleSyncHistory">
+        <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
+        {{ isSyncing ? '同步中...' : '同步历史数据' }}
+      </button>
     </header>
 
     <div class="mb-8 p-4 space-y-4 card">

@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
 import { holdings, navHistory } from '~~/server/database/schemas'
-import { fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
+import { fetchFundHistory } from '~~/server/utils/dataFetcher' // 确保 fetchFundHistory 已导入
 import { useDb } from '~~/server/utils/db'
 
 // 自定义错误类型
@@ -239,4 +239,53 @@ export async function syncAllHoldingsEstimates() {
 
   console.log(`[Estimate Sync] Completed. Total: ${results.length}, Success: ${successCount}, Failed: ${failedCount}`)
   return { total: results.length, success: successCount, failed: failedCount }
+}
+
+/**
+ * [新增] 同步单个基金的历史净值数据
+ * @param code 基金代码
+ * @returns 返回同步的记录数量
+ */
+export async function syncSingleFundHistory(code: string): Promise<number> {
+  const db = useDb()
+  const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
+
+  if (!holding)
+    throw new HoldingNotFoundError(code)
+
+  // 查找本地最新的历史记录
+  const latestRecord = await db.query.navHistory.findFirst({
+    where: eq(navHistory.code, code),
+    orderBy: [desc(navHistory.navDate)],
+  })
+
+  // 从最新记录的后一天开始获取，如果没有记录则从头获取
+  const startDate = latestRecord ? useDayjs()(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
+
+  const historyData = await fetchFundHistory(code, startDate)
+  if (!historyData.length)
+    return 0 // 没有新数据需要同步
+
+  const newRecords = historyData
+    .map(r => ({
+      code,
+      navDate: r.FSRQ,
+      nav: r.DWJZ,
+    }))
+    .filter(r => Number(r.nav) > 0)
+
+  if (newRecords.length > 0) {
+    await db.insert(navHistory).values(newRecords).onConflictDoNothing()
+
+    // 更新持仓的最新净值和金额（以防万一）
+    const latestNav = Number(newRecords[0]!.nav) // API返回是降序的
+    const newAmount = Number(holding.shares) * latestNav
+
+    await db.update(holdings).set({
+      yesterdayNav: latestNav.toFixed(4),
+      holdingAmount: newAmount.toFixed(2),
+    }).where(eq(holdings.code, code))
+  }
+
+  return newRecords.length
 }
