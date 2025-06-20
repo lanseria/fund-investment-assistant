@@ -34,7 +34,7 @@ export default defineTask({
 
           // 布林带策略需要 is_holding 参数，我们默认已持有
           if (strategyName === 'bollinger_bands') {
-            params.is_holding = true
+            params.is_holding = +holding.shares > 0
           }
 
           const signalData = await ofetch(url, { params })
