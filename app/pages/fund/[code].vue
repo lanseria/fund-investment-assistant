@@ -63,21 +63,33 @@ const { data, pending, error, refresh } = await useAsyncData(
 )
 
 const holdingStore = useHoldingStore()
+const { syncHistory: triggerSyncHistory, runAllStrategies: triggerRunStrategies } = holdingStore
+
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
   return holding ? holding.name : code
 })
 
-// --- Sync Logic (remains the same) ---
 const isSyncing = ref(false)
 async function handleSyncHistory() {
   isSyncing.value = true
   try {
-    await holdingStore.syncHistory(code)
+    await triggerSyncHistory(code)
     await refresh()
   }
   finally {
     isSyncing.value = false
+  }
+}
+const isRunningStrategies = ref(false)
+async function handleRunStrategies() {
+  isRunningStrategies.value = true
+  try {
+    await triggerRunStrategies()
+    await refresh()
+  }
+  finally {
+    isRunningStrategies.value = false
   }
 }
 
@@ -131,10 +143,17 @@ watch(data, (newData) => {
         <div i-carbon-arrow-left />
         返回持仓列表
       </NuxtLink>
-      <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
-        <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
-        {{ isSyncing ? '同步中...' : '同步历史数据' }}
-      </button>
+      <!-- [修改] 将按钮组放在一个 div 中 -->
+      <div class="flex gap-2 items-center">
+        <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
+          <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
+          {{ isRunningStrategies ? '分析中...' : '执行策略分析' }}
+        </button>
+        <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
+          <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
+          {{ isSyncing ? '同步中...' : '同步历史数据' }}
+        </button>
+      </div>
     </header>
 
     <!-- [修改] 控制面板不再有策略选择器 -->

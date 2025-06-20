@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { $fetch } from 'ofetch'
 
 // 天天基金网实时估值返回的类型
