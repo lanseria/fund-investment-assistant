@@ -4,7 +4,7 @@ services:
     image: fund-frontend:latest
     container_name: fund_app # 新的容器名
     env_file:
-      - .env.prod
+      - .env.production
     ports:
       - "8888:3000"
     restart: unless-stopped
