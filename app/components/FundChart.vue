@@ -1,10 +1,9 @@
 <!-- File: app/components/FundChart.vue -->
 <script setup lang="ts">
-import type { EChartsOption, SeriesOption } from 'echarts'
+import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import { LineChart } from 'echarts/charts'
-// [最终修正] 1. 从 echarts/components 中导入 MarkPointComponent
 import {
   DataZoomComponent,
   GridComponent,
@@ -22,11 +21,13 @@ const props = defineProps<{
   history: HoldingHistoryPoint[]
   signals: any[]
   title: string
+  // [新增] 接收用于控制 dataZoom 的 props
+  dataZoomStart: number
+  dataZoomEnd: number
 }>()
 
 const emit = defineEmits(['signal-click'])
 
-// [最终修正] 2. 在 use() 函数中注册 MarkPointComponent
 use([
   CanvasRenderer,
   LineChart,
@@ -35,7 +36,7 @@ use([
   GridComponent,
   LegendComponent,
   DataZoomComponent,
-  MarkPointComponent, // 注册组件
+  MarkPointComponent,
 ])
 
 const colorMode = useColorMode()
@@ -56,7 +57,7 @@ function mapSignalsToMarkPoints(signalType: '买入' | '卖出'): MarkPointCompo
 
       return {
         name: signalType,
-        coord: [dateStr, closeValue], // 使用 coord 精确定位
+        coord: [dateStr, closeValue],
         fullData: s,
         id: s.id,
         symbol,
@@ -72,8 +73,6 @@ function mapSignalsToMarkPoints(signalType: '买入' | '卖出'): MarkPointCompo
           formatter: isBuy ? 'B' : 'S',
           color: '#fff',
           fontSize: 12,
-          // [核心修复] 将 'bold' 断言为 const，或直接写 'bold' as 'bold'
-          // 这告诉 TypeScript，这个值永远是 'bold'，而不是一个普通的 string
           fontWeight: 'bold' as const,
         },
       }
@@ -97,11 +96,13 @@ const chartOption = computed<EChartsOption>(() => {
     grid: { top: 70, left: '10%', right: '10%', bottom: '15%' },
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },
+    // [修改] 使用 props 控制 dataZoom 的 start 和 end
     dataZoom: [
-      { type: 'inside', start: 50, end: 100 },
-      { type: 'slider', start: 50, end: 100, top: 'auto', bottom: 10, height: 25 },
+      { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd },
+      { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
     ],
     series: [
+      // ... series configuration remains the same ...
       {
         name: '净值',
         type: 'line',

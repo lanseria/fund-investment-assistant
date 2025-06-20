@@ -1,8 +1,6 @@
 <!-- File: app/pages/fund/[code].vue -->
 <script setup lang="ts">
-import type { Dayjs } from 'dayjs'
 import type { HoldingHistoryPoint } from '~/types/holding'
-import { computed, ref, watch } from 'vue'
 import { appName } from '~/constants'
 
 const dayjs = useDayjs()
@@ -10,19 +8,17 @@ const route = useRoute<'fund-code'>()
 const router = useRouter()
 const code = route.params.code as string
 
-const startDate = ref<string | null>(route.query.start_date as string || null)
-const endDate = ref<string | null>(route.query.end_date as string || null)
 const activeFilter = ref<string | null>(null)
 
-// [新增] 策略选择
 const availableStrategies = [
   { label: '不显示策略', value: '' },
   { label: 'RSI 策略', value: 'rsi' },
   { label: '布林带策略', value: 'bollinger_bands' },
+  { label: '双均线交叉策略', value: 'ma_cross' },
+  { label: '双重确认策略', value: 'dual_confirmation' },
 ]
 const selectedStrategy = ref(route.query.strategy as string || '')
 
-// [新增] 策略详情模态框状态
 const isStrategyModalOpen = ref(false)
 const selectedSignal = ref<Record<string, any> | null>(null)
 
@@ -31,61 +27,35 @@ function openSignalDetails(signal: Record<string, any>) {
   isStrategyModalOpen.value = true
 }
 
-// ... (setDateRange 等函数保持不变) ...
+// [新增] 用于控制图表缩放的状态
+const dataZoomStart = ref(50)
+const dataZoomEnd = ref(100)
+
 const dateFilters = [
-  { label: '近1个月', value: '1m' },
-  { label: '近3个月', value: '3m' },
-  { label: '近6个月', value: '6m' },
-  { label: '近1年', value: '1y' },
-  { label: '近2年', value: '2y' },
-  { label: '近5年', value: '5y' },
+  { label: '近1个月', value: '1m', amount: 1, unit: 'month' },
+  { label: '近3个月', value: '3m', amount: 3, unit: 'months' },
+  { label: '近6个月', value: '6m', amount: 6, unit: 'months' },
+  { label: '近1年', value: '1y', amount: 1, unit: 'year' },
+  { label: '近2年', value: '2y', amount: 2, unit: 'years' },
+  { label: '近5年', value: '5y', amount: 5, unit: 'years' },
   { label: '全部', value: 'all' },
 ]
-let skipReset = false
-function setDateRange(period: string) {
-  skipReset = true
-  activeFilter.value = period
-  const end = dayjs()
-  if (period === 'all') {
-    startDate.value = null
-    endDate.value = null
-    return
-  }
-  let start: Dayjs
-  switch (period) {
-    case '1m': start = end.subtract(1, 'month'); break
-    case '3m': start = end.subtract(3, 'months'); break
-    case '6m': start = end.subtract(6, 'months'); break
-    case '1y': start = end.subtract(1, 'year'); break
-    case '2y': start = end.subtract(2, 'years'); break
-    case '5y': start = end.subtract(5, 'years'); break
-    default: start = end.subtract(1, 'month'); break
-  }
-  startDate.value = start.format('YYYY-MM-DD')
-  endDate.value = end.format('YYYY-MM-DD')
-  nextTick(() => (skipReset = false))
-}
 
-if (!route.query.start_date && !route.query.end_date)
-  setDateRange('1y')
+// [修改] 简化 queryParams，只包含策略和MA
+const queryParams = computed(() => ({
+  ma: [5, 10, 20],
+  // 移除 start_date 和 end_date
+  strategy: selectedStrategy.value || undefined,
+}))
 
-const queryParams = computed(() => {
-  return {
-    ma: [5, 10, 20],
-    start_date: startDate.value || undefined,
-    end_date: endDate.value || undefined,
-    strategy: selectedStrategy.value || undefined, // [修改] 添加策略参数
-  }
-})
-
-// [修改] 解构出 refresh 方法，用于刷新图表数据
+// [修改] useAsyncData 不再监听 queryParams 的 start/end date 变化
 const { data, pending, error, refresh } = await useAsyncData(
-  `fund-data-${code}`,
+  `fund-data-${code}-${selectedStrategy.value}`, // key 中包含 strategy 以便在切换策略时刷新
   () => $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
-    params: queryParams.value,
+    params: queryParams.value, // 只传递 ma 和 strategy
   }),
   {
-    watch: [queryParams],
+    // [重要] 移除 watch，因为 selectedStrategy 已经包含在 key 中，切换时会自动触发刷新
   },
 )
 
@@ -95,13 +65,11 @@ const fundName = computed(() => {
   return holding ? holding.name : code
 })
 
-// [新增] 手动同步逻辑
 const isSyncing = ref(false)
 async function handleSyncHistory() {
   isSyncing.value = true
   try {
     await holdingStore.syncHistory(code)
-    // 同步成功后，调用 refresh 方法重新获取图表数据
     await refresh()
   }
   finally {
@@ -113,55 +81,81 @@ useHead({
   title: () => `详情: ${fundName.value} (${code}) - ${appName}`,
 })
 
-// [修改] 监听 selectedStrategy 的变化
-watch([startDate, endDate, selectedStrategy], ([newStart, newEnd, newStrategy]) => {
+// [修改] 简化 watcher，只用于同步 URL
+watch(selectedStrategy, (newStrategy) => {
   router.replace({
     query: {
       ...route.query,
-      start_date: newStart || undefined,
-      end_date: newEnd || undefined,
       strategy: newStrategy || undefined,
     },
   })
-
-  if (skipReset)
-    return
-  activeFilter.value = null
 })
+
+// [新增] 页面加载或数据获取完成后，设置一个默认的缩放范围
+watch(data, (newData) => {
+  if (newData && newData.history.length > 0)
+    setDateRange('1y') // 默认显示近1年
+}, { immediate: true })
+
+// [修改] 重写 setDateRange 函数，使其控制 dataZoom 而不是重新获取数据
+function setDateRange(period: string) {
+  activeFilter.value = period
+  const historyData = data.value?.history
+  if (!historyData || historyData.length === 0)
+    return
+
+  const totalPoints = historyData.length
+  if (period === 'all') {
+    dataZoomStart.value = 0
+    dataZoomEnd.value = 100
+    return
+  }
+
+  const filter = dateFilters.find(f => f.value === period)
+  if (!filter || !filter.unit)
+    return
+
+  // 从最后一天（今天）开始计算目标日期
+  const targetDate = dayjs(historyData[totalPoints - 1]!.date).subtract(filter.amount, filter.unit as any)
+
+  // 找到离目标日期最近的数据点索引 (数据是升序的)
+  const startIndex = historyData.findIndex(p => dayjs(p.date).isAfter(targetDate))
+
+  if (startIndex !== -1) {
+    // 将索引转换为百分比
+    dataZoomStart.value = (startIndex / totalPoints) * 100
+    dataZoomEnd.value = 100
+  }
+  else {
+    // 如果找不到（例如数据不足1年），则显示全部
+    dataZoomStart.value = 0
+    dataZoomEnd.value = 100
+  }
+}
 </script>
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <!-- [修改] 头部布局 -->
     <header class="mb-8 flex items-center justify-between">
       <NuxtLink to="/" class="text-sm text-gray-500 inline-flex gap-2 transition-colors items-center hover:text-teal-500">
         <div i-carbon-arrow-left />
         返回持仓列表
       </NuxtLink>
-      <!-- [新增] 手动同步按钮 -->
-      <button class="flex items-center btn" :disabled="isSyncing" @click="handleSyncHistory">
+      <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
         <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
         {{ isSyncing ? '同步中...' : '同步历史数据' }}
       </button>
     </header>
 
-    <div class="mb-8 p-4 space-y-4 card">
-      <!-- ... (日期筛选按钮) ... -->
+    <div class="mb-8 p-4 card space-y-4">
+      <!-- 时间范围筛选按钮 (功能已在 script 中重写) -->
       <div class="flex flex-wrap gap-2">
         <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
           {{ filter.label }}
         </button>
       </div>
-      <!-- [新增] 策略选择器 -->
-      <div class="gap-4 grid grid-cols-1 sm:grid-cols-3">
-        <div>
-          <label for="start-date" class="text-sm font-medium mb-1 block">开始日期</label>
-          <input id="start-date" v-model="startDate" type="date" class="input-base">
-        </div>
-        <div>
-          <label for="end-date" class="text-sm font-medium mb-1 block">结束日期</label>
-          <input id="end-date" v-model="endDate" type="date" class="input-base">
-        </div>
+      <!-- 策略选择器 (保持不变) -->
+      <div class="gap-4 grid">
         <div>
           <label for="strategy-select" class="text-sm font-medium mb-1 block">叠加策略</label>
           <select id="strategy-select" v-model="selectedStrategy" class="input-base">
@@ -173,23 +167,29 @@ watch([startDate, endDate, selectedStrategy], ([newStart, newEnd, newStrategy]) 
       </div>
     </div>
 
-    <div v-if="pending" class="flex h-100 items-center justify-center card">
+    <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
     <div v-else-if="error" class="text-red-500 py-20 text-center card">
       <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
       <p>加载失败: {{ error.message }}</p>
     </div>
-    <!-- [修改] 将 data.history 和 data.signals 传递给 FundChart -->
+    <!-- [修改] 将 dataZoomStart 和 dataZoomEnd 传递给 FundChart -->
     <div v-else-if="data && data.history.length > 0" class="p-4 card">
-      <FundChart :history="data.history" :signals="data.signals" :title="`基金 ${fundName} 历史走势`" @signal-click="openSignalDetails" />
+      <FundChart
+        :history="data.history"
+        :signals="data.signals"
+        :title="`基金 ${fundName} 历史走势`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
     </div>
     <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
-      <p>在指定的时间范围内没有找到数据。</p>
+      <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- [新增] 策略详情模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
     </Modal>

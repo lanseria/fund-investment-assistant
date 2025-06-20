@@ -4,7 +4,13 @@ import { ofetch } from 'ofetch'
 import { strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
-const STRATEGIES_TO_RUN = ['rsi', 'bollinger_bands']
+const STRATEGIES_TO_RUN = ['rsi', 'bollinger_bands', 'ma_cross', 'dual_confirmation']
+
+const STRATEGIES_REQUIRING_HOLDING_STATUS = [
+  'bollinger_bands',
+  'ma_cross',
+  'dual_confirmation',
+]
 
 export default defineTask({
   meta: {
@@ -15,7 +21,7 @@ export default defineTask({
     console.log('开始执行基金策略分析任务...')
     const db = useDb()
     const config = useRuntimeConfig()
-    const strategyApiBaseUrl = config.strategyApiUrl // 从 public runtimeConfig 获取
+    const strategyApiBaseUrl = config.strategyApiUrl // 从 runtimeConfig 获取
 
     if (!strategyApiBaseUrl) {
       console.error('策略 API 地址 (NUXT_PUBLIC_STRATEGY_API_URL) 未配置，任务终止。')
@@ -32,8 +38,8 @@ export default defineTask({
           const url = `${strategyApiBaseUrl}/strategies/${strategyName}/${holding.code}`
           const params: Record<string, any> = {}
 
-          // 布林带策略需要 is_holding 参数，我们默认已持有
-          if (strategyName === 'bollinger_bands') {
+          // [修改] 使用新的列表来判断是否需要添加 is_holding 参数
+          if (STRATEGIES_REQUIRING_HOLDING_STATUS.includes(strategyName)) {
             params.is_holding = +holding.shares > 0
           }
 
