@@ -56,7 +56,10 @@ function closeModal() {
 async function handleSubmit(formData: any) {
   try {
     if (editingHolding.value) {
-      await holdingStore.updateHolding(formData.code, formData.holding_amount)
+      await holdingStore.updateHolding(formData.code, {
+        holdingAmount: formData.holdingAmount,
+        holdingProfitRate: formData.holdingProfitRate,
+      })
     }
     else {
       await holdingStore.addHolding(formData)
@@ -121,7 +124,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
           <div i-carbon-download />
         </button>
         <DarkToggle />
-        <button class="flex items-center btn" @click="openAddModal">
+        <button class="btn flex items-center" @click="openAddModal">
           <div i-carbon-add mr-1 />
           添加基金
         </button>
@@ -167,7 +170,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
     </div>
 
     <!-- 主体内容 -->
-    <div v-if="isLoading" class="flex h-64 items-center justify-center card">
+    <div v-if="isLoading" class="card flex h-64 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
     <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">

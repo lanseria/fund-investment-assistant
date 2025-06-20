@@ -5,6 +5,7 @@ const holdingCreateSchema = z.object({
   code: z.string().min(6).max(6),
   name: z.string().optional(),
   holdingAmount: z.number().nonnegative(),
+  holdingProfitRate: z.number().optional().nullable(),
 })
 
 export default defineEventHandler(async (event) => {

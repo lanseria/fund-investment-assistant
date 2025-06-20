@@ -1,42 +1,40 @@
+<!-- app/components/AddEditHoldingForm.vue -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 
-const props = defineProps<{
-  initialData?: Holding | null // 接收初始数据，用于编辑模式
-}>()
-
+const props = defineProps<{ initialData?: Holding | null }>()
 const emit = defineEmits(['submit', 'cancel'])
 
 const formData = reactive({
   code: '',
   holdingAmount: null as number | null,
-  name: '', // 可选的名称
+  name: '',
+  holdingProfitRate: null as number | null,
 })
 
 const isEditing = computed(() => !!props.initialData)
 
-// 当 initialData 变化时（例如，从添加到编辑），填充表单
 watch(() => props.initialData, (newData) => {
   if (newData) {
     formData.code = newData.code
     formData.holdingAmount = newData.holdingAmount
     formData.name = newData.name
+    formData.holdingProfitRate = newData.holdingProfitRate
   }
   else {
-    // 如果是添加模式，重置表单
     formData.code = ''
     formData.holdingAmount = null
     formData.name = ''
+    // [新增]
+    formData.holdingProfitRate = null
   }
 }, { immediate: true })
 
 const canSubmit = computed(() => formData.code && formData.holdingAmount !== null && formData.holdingAmount >= 0)
 
 function handleSubmit() {
-  if (canSubmit.value) {
-    // 触发 submit 事件，并将表单数据传递给父组件
+  if (canSubmit.value)
     emit('submit', { ...formData })
-  }
 }
 </script>
 
@@ -68,6 +66,18 @@ function handleSubmit() {
           placeholder="例如: 5000.00"
           class="input-base"
           required
+        >
+      </div>
+
+      <div>
+        <label for="profit-rate" class="text-sm font-medium mb-1 block">持有收益率 (%) (可选)</label>
+        <input
+          id="profit-rate"
+          v-model.number="formData.holdingProfitRate"
+          type="number"
+          step="0.01"
+          placeholder="例如: 10.5 (代表 10.5%)"
+          class="input-base"
         >
       </div>
 

@@ -32,18 +32,15 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
 
-  // --- 其他函数 (addHolding, updateHolding, etc.) 保持不变 ---
   /**
    * 添加一个新的持仓基金
-   * @param newHolding - 要添加的基金数据 { code, holding_amount }
    */
-  async function addHolding(newHolding: { code: string, holding_amount: number, name?: string }) {
+  async function addHolding(newHolding: { code: string, name?: string, holdingAmount: number, holdingProfitRate?: number | null }) {
     try {
       await $fetch('/api/fund/holdings/', {
         method: 'POST',
         body: newHolding,
       })
-      // 添加成功后，刷新整个列表以获取最新数据
       await fetchHoldings()
     }
     catch (error) {
@@ -56,11 +53,11 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 更新持仓金额
    */
-  async function updateHolding(code: string, amount: number) {
+  async function updateHolding(code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
     try {
       await $fetch(`/api/fund/holdings/${code}`, {
         method: 'PUT',
-        body: { holding_amount: amount },
+        body: data,
       })
       await fetchHoldings()
     }

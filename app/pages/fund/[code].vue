@@ -5,29 +5,19 @@ import { appName } from '~/constants'
 
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
-const router = useRouter()
 const code = route.params.code as string
 
-const activeFilter = ref<string | null>(null)
-
-const availableStrategies = [
-  { label: '不显示策略', value: '' },
-  { label: 'RSI 策略', value: 'rsi' },
-  { label: '布林带策略', value: 'bollinger_bands' },
-  { label: '双均线交叉策略', value: 'ma_cross' },
-  { label: '双重确认策略', value: 'dual_confirmation' },
+// [修改] 定义需要展示的所有策略图表
+const strategiesToDisplay = [
+  { value: '', label: '基础走势' },
+  { value: 'rsi', label: 'RSI 策略' },
+  { value: 'bollinger_bands', label: '布林带策略' },
+  { value: 'ma_cross', label: '双均线交叉策略' },
+  { value: 'dual_confirmation', label: '双重确认策略' },
 ]
-const selectedStrategy = ref(route.query.strategy as string || '')
 
-const isStrategyModalOpen = ref(false)
-const selectedSignal = ref<Record<string, any> | null>(null)
-
-function openSignalDetails(signal: Record<string, any>) {
-  selectedSignal.value = signal
-  isStrategyModalOpen.value = true
-}
-
-// [新增] 用于控制图表缩放的状态
+// --- State for Chart Controls (remains the same) ---
+const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
 const dataZoomEnd = ref(100)
 
@@ -41,21 +31,34 @@ const dateFilters = [
   { label: '全部', value: 'all' },
 ]
 
-// [修改] 简化 queryParams，只包含策略和MA
-const queryParams = computed(() => ({
-  ma: [5, 10, 20],
-  // 移除 start_date 和 end_date
-  strategy: selectedStrategy.value || undefined,
-}))
+// --- Modal State (remains the same) ---
+const isStrategyModalOpen = ref(false)
+const selectedSignal = ref<Record<string, any> | null>(null)
+function openSignalDetails(signal: Record<string, any>) {
+  selectedSignal.value = signal
+  isStrategyModalOpen.value = true
+}
 
-// [修改] useAsyncData 不再监听 queryParams 的 start/end date 变化
+// [重大修改] 使用 useAsyncData 和 Promise.all 一次性获取所有策略的数据
 const { data, pending, error, refresh } = await useAsyncData(
-  `fund-data-${code}-${selectedStrategy.value}`, // key 中包含 strategy 以便在切换策略时刷新
-  () => $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
-    params: queryParams.value, // 只传递 ma 和 strategy
-  }),
-  {
-    // [重要] 移除 watch，因为 selectedStrategy 已经包含在 key 中，切换时会自动触发刷新
+  `fund-all-strategies-${code}`,
+  async () => {
+    // 为每个策略创建一个 fetch Promise
+    const promises = strategiesToDisplay.map(strategy =>
+      $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
+        params: {
+          ma: [5, 10, 20],
+          strategy: strategy.value || undefined,
+        },
+      }).then(response => ({
+        // 将策略的元信息（label, value）和API返回的数据合并
+        ...strategy,
+        history: response.history,
+        signals: response.signals,
+      })),
+    )
+    // 并发执行所有请求并等待结果
+    return Promise.all(promises)
   },
 )
 
@@ -65,6 +68,7 @@ const fundName = computed(() => {
   return holding ? holding.name : code
 })
 
+// --- Sync Logic (remains the same) ---
 const isSyncing = ref(false)
 async function handleSyncHistory() {
   isSyncing.value = true
@@ -78,29 +82,14 @@ async function handleSyncHistory() {
 }
 
 useHead({
-  title: () => `详情: ${fundName.value} (${code}) - ${appName}`,
+  title: () => `策略分析: ${fundName.value} (${code}) - ${appName}`,
 })
 
-// [修改] 简化 watcher，只用于同步 URL
-watch(selectedStrategy, (newStrategy) => {
-  router.replace({
-    query: {
-      ...route.query,
-      strategy: newStrategy || undefined,
-    },
-  })
-})
-
-// [新增] 页面加载或数据获取完成后，设置一个默认的缩放范围
-watch(data, (newData) => {
-  if (newData && newData.history.length > 0)
-    setDateRange('1y') // 默认显示近1年
-}, { immediate: true })
-
-// [修改] 重写 setDateRange 函数，使其控制 dataZoom 而不是重新获取数据
+// [修改] setDateRange 现在作用于所有图表
 function setDateRange(period: string) {
   activeFilter.value = period
-  const historyData = data.value?.history
+  // 使用第一个图表的历史数据来计算，因为所有图表的 history 是一样的
+  const historyData = data.value?.[0]?.history
   if (!historyData || historyData.length === 0)
     return
 
@@ -115,23 +104,24 @@ function setDateRange(period: string) {
   if (!filter || !filter.unit)
     return
 
-  // 从最后一天（今天）开始计算目标日期
   const targetDate = dayjs(historyData[totalPoints - 1]!.date).subtract(filter.amount, filter.unit as any)
-
-  // 找到离目标日期最近的数据点索引 (数据是升序的)
   const startIndex = historyData.findIndex(p => dayjs(p.date).isAfter(targetDate))
 
   if (startIndex !== -1) {
-    // 将索引转换为百分比
     dataZoomStart.value = (startIndex / totalPoints) * 100
     dataZoomEnd.value = 100
   }
   else {
-    // 如果找不到（例如数据不足1年），则显示全部
     dataZoomStart.value = 0
     dataZoomEnd.value = 100
   }
 }
+
+// [修改] 页面加载或数据获取完成后，设置一个默认的缩放范围
+watch(data, (newData) => {
+  if (newData && newData.length > 0)
+    setDateRange('1y') // 默认显示近1年
+}, { immediate: true })
 </script>
 
 <template>
@@ -147,26 +137,16 @@ function setDateRange(period: string) {
       </button>
     </header>
 
-    <div class="mb-8 p-4 card space-y-4">
-      <!-- 时间范围筛选按钮 (功能已在 script 中重写) -->
+    <!-- [修改] 控制面板不再有策略选择器 -->
+    <div class="mb-8 p-4 card">
       <div class="flex flex-wrap gap-2">
         <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
           {{ filter.label }}
         </button>
       </div>
-      <!-- 策略选择器 (保持不变) -->
-      <div class="gap-4 grid">
-        <div>
-          <label for="strategy-select" class="text-sm font-medium mb-1 block">叠加策略</label>
-          <select id="strategy-select" v-model="selectedStrategy" class="input-base">
-            <option v-for="s in availableStrategies" :key="s.value" :value="s.value">
-              {{ s.label }}
-            </option>
-          </select>
-        </div>
-      </div>
     </div>
 
+    <!-- --- Loading and Error States --- -->
     <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
     </div>
@@ -174,22 +154,30 @@ function setDateRange(period: string) {
       <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
       <p>加载失败: {{ error.message }}</p>
     </div>
-    <!-- [修改] 将 dataZoomStart 和 dataZoomEnd 传递给 FundChart -->
-    <div v-else-if="data && data.history.length > 0" class="p-4 card">
-      <FundChart
-        :history="data.history"
-        :signals="data.signals"
-        :title="`基金 ${fundName} 历史走势`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
-        @signal-click="openSignalDetails"
-      />
+
+    <!-- [重大修改] 使用 v-for 循环渲染所有图表 -->
+    <div v-else-if="data && data.length > 0" class="space-y-8">
+      <div
+        v-for="chartData in data"
+        :key="chartData.value"
+        class="p-4 card"
+      >
+        <FundChart
+          :history="chartData.history"
+          :signals="chartData.signals"
+          :title="`基金 ${fundName} - ${chartData.label}`"
+          :data-zoom-start="dataZoomStart"
+          :data-zoom-end="dataZoomEnd"
+          @signal-click="openSignalDetails"
+        />˚
+      </div>
     </div>
     <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>没有找到该基金的历史数据。</p>
     </div>
 
+    <!-- --- Modal (remains the same) --- -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
     </Modal>

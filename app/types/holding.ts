@@ -5,10 +5,12 @@ export interface Holding {
   shares: number
   yesterdayNav: number
   holdingAmount: number
+  holdingProfitAmount: number | null
+  holdingProfitRate: number | null
   todayEstimateNav: number | null
   todayEstimateAmount: number | null
   percentageChange: number | null
-  todayEstimateUpdateTime: string | null // datetime 字符串
+  todayEstimateUpdateTime: string | null
 }
 
 export interface HoldingHistoryPoint {
@@ -17,7 +19,6 @@ export interface HoldingHistoryPoint {
   ma5?: number | null
   ma10?: number | null
   ma20?: number | null
-  // ... 其他可能的均线
 }
 
 export interface HoldingSummary {

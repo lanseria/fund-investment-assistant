@@ -24,6 +24,7 @@ interface HoldingCreateData {
   code: string
   name?: string
   holdingAmount: number
+  holdingProfitRate?: number | null
 }
 
 /**
@@ -48,12 +49,22 @@ export async function createNewHolding(data: HoldingCreateData) {
 
   const shares = data.holdingAmount / yesterdayNav
 
+  let profitAmount: number | null = null
+  if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
+    // 根据公式: 成本 = 市值 / (1 + 收益率)
+    // 收益 = 市值 - 成本
+    const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
+    profitAmount = data.holdingAmount - cost
+  }
+
   const newHolding = {
     code: data.code,
     name: finalName,
     shares: shares.toFixed(4),
     yesterdayNav: yesterdayNav.toFixed(4),
     holdingAmount: data.holdingAmount.toFixed(2),
+    holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
+    holdingProfitRate: data.holdingProfitRate ?? null,
     todayEstimateNav: Number(realtimeData.gsz) || null,
     todayEstimateAmount: (shares * Number(realtimeData.gsz)).toFixed(2) || null,
     percentageChange: Number(realtimeData.gszzl) || null,
@@ -65,9 +76,9 @@ export async function createNewHolding(data: HoldingCreateData) {
 }
 
 /**
- * 更新持仓金额
+ * [修改] 更新持仓记录，函数名和参数都已修改
  */
-export async function updateHoldingAmount(code: string, newAmount: number) {
+export async function updateHolding(code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
   const db = useDb()
   const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
   if (!holding)
@@ -77,13 +88,22 @@ export async function updateHoldingAmount(code: string, newAmount: number) {
   if (yesterdayNav <= 0)
     throw new Error(`基金 ${code} 的昨日净值为零或无效，无法重新计算份额。`)
 
-  const newShares = newAmount / yesterdayNav
+  const newShares = data.holdingAmount / yesterdayNav
+
+  // [新增] 重新计算收益金额
+  let profitAmount: number | null = null
+  if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
+    const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
+    profitAmount = data.holdingAmount - cost
+  }
 
   // eslint-disable-next-line unused-imports/no-unused-vars
   const [updatedHolding] = await db.update(holdings)
     .set({
-      holdingAmount: newAmount.toFixed(2),
+      holdingAmount: data.holdingAmount.toFixed(2),
       shares: newShares.toFixed(4),
+      holdingProfitRate: data.holdingProfitRate ?? null,
+      holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
     })
     .where(eq(holdings.code, code))
     .returning()

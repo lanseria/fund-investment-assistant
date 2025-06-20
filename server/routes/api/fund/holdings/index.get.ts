@@ -6,7 +6,6 @@ export default defineEventHandler(async () => {
   const db = useDb()
   const holdings = await db.query.holdings.findMany()
 
-  // [新增] 如果没有持仓记录，直接返回空结构
   if (holdings.length === 0) {
     return {
       holdings: [],
@@ -20,11 +19,9 @@ export default defineEventHandler(async () => {
     }
   }
 
-  // [新增] 初始化统计变量
   let totalHoldingAmount = 0
   let totalEstimateAmount = 0
 
-  // [修改] 遍历原始数据进行计算，并格式化列表
   const formattedHoldings = holdings.map((h) => {
     const holdingAmount = Number(h.holdingAmount)
     const estimateAmount = h.todayEstimateAmount ? Number(h.todayEstimateAmount) : holdingAmount
@@ -38,6 +35,8 @@ export default defineEventHandler(async () => {
       shares: Number(h.shares),
       yesterdayNav: Number(h.yesterdayNav),
       holdingAmount,
+      holdingProfitAmount: h.holdingProfitAmount ? Number(h.holdingProfitAmount) : null,
+      holdingProfitRate: h.holdingProfitRate,
       todayEstimateNav: h.todayEstimateNav,
       todayEstimateAmount: h.todayEstimateAmount ? Number(h.todayEstimateAmount) : null,
       todayEstimateUpdateTime: h.todayEstimateUpdateTime?.toISOString() || null,

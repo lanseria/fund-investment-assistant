@@ -13,6 +13,8 @@ export const holdings = fundSchema.table('my_holdings', {
   shares: numeric('shares', { precision: 18, scale: 4 }).notNull(),
   yesterdayNav: numeric('yesterday_nav', { precision: 10, scale: 4 }).notNull(),
   holdingAmount: numeric('holding_amount', { precision: 12, scale: 2 }).notNull(),
+  holdingProfitAmount: numeric('holding_profit_amount', { precision: 12, scale: 2 }),
+  holdingProfitRate: real('holding_profit_rate'),
   todayEstimateNav: real('today_estimate_nav'),
   todayEstimateAmount: numeric('today_estimate_amount', { precision: 12, scale: 2 }),
   percentageChange: real('percentage_change'),

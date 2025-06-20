@@ -1,8 +1,10 @@
+// server/routes/api/fund/holdings/[code].put.ts
 import { z } from 'zod'
-import { HoldingNotFoundError, updateHoldingAmount } from '~~/server/utils/holdings'
+import { HoldingNotFoundError, updateHolding } from '~~/server/utils/holdings'
 
 const holdingUpdateSchema = z.object({
   holdingAmount: z.number().positive(),
+  holdingProfitRate: z.number().optional().nullable(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -13,7 +15,7 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const data = await holdingUpdateSchema.parseAsync(body)
-    const updated = await updateHoldingAmount(code, data.holdingAmount)
+    const updated = await updateHolding(code, data)
     return updated
   }
   catch (error) {
