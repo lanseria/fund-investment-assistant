@@ -1,5 +1,5 @@
-<!-- File: app/pages/index.vue -->
 <!-- eslint-disable no-alert -->
+<!-- File: app/pages/index.vue -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import { appName } from '~/constants'
@@ -8,9 +8,9 @@ useHead({
   title: `持仓列表 - ${appName}`,
 })
 const holdingStore = useHoldingStore()
-// [修改] 从 store 中获取 summary
-const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
-const { refreshAllEstimates } = holdingStore
+// [修改] 从 store 中解构出策略相关的状态和 action
+const { holdings, isLoading, isRefreshing, summary, isRunningStrategies } = storeToRefs(holdingStore)
+const { refreshAllEstimates, runAllStrategies, fetchHoldings } = holdingStore
 
 // 使用 useAsyncData 确保在服务端也能获取数据
 await useAsyncData('holdings', () => holdingStore.fetchHoldings())
@@ -56,10 +56,7 @@ function closeModal() {
 async function handleSubmit(formData: any) {
   try {
     if (editingHolding.value) {
-      await holdingStore.updateHolding(formData.code, {
-        holdingAmount: formData.holdingAmount,
-        holdingProfitRate: formData.holdingProfitRate,
-      })
+      await holdingStore.updateHolding(formData.code, { holdingAmount: formData.holdingAmount, holdingProfitRate: formData.holdingProfitRate })
     }
     else {
       await holdingStore.addHolding(formData)
@@ -74,6 +71,13 @@ async function handleSubmit(formData: any) {
 
 async function handleRefresh() {
   await refreshAllEstimates()
+}
+
+// [新增] 手动执行策略分析的处理函数
+async function handleRunStrategies() {
+  await runAllStrategies()
+  // 策略执行后，刷新列表以显示最新的信号标签
+  await fetchHoldings()
 }
 
 async function handleDelete(holding: Holding) {
@@ -116,6 +120,10 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       <div class="flex gap-2 items-center sm:gap-4">
         <button class="icon-btn" title="刷新所有估值" :disabled="isRefreshing" @click="handleRefresh">
           <div i-carbon-renew :class="{ 'animate-spin': isRefreshing }" />
+        </button>
+        <!-- [新增] 执行策略分析按钮 -->
+        <button class="icon-btn" title="执行所有策略分析" :disabled="isRunningStrategies" @click="handleRunStrategies">
+          <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" />
         </button>
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
