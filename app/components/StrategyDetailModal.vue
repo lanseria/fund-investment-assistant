@@ -39,7 +39,7 @@ const signalColorClass = computed(() => {
         </div>
         <div class="flex justify-between">
           <span class="text-gray-500 dark:text-gray-400">latest_close</span>
-          <span class="font-mono">{{ signal.latest_close.toFixed(4) }}</span>
+          <span class="font-mono">{{ (+signal.latestClose).toFixed(4) }}</span>
         </div>
       </div>
     </div>

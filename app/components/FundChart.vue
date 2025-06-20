@@ -1,9 +1,18 @@
 <!-- File: app/components/FundChart.vue -->
 <script setup lang="ts">
-import type { EChartsOption } from 'echarts'
+import type { EChartsOption, SeriesOption } from 'echarts'
+import type { MarkPointComponentOption } from 'echarts/components'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import { LineChart } from 'echarts/charts'
-import { GridComponent, LegendComponent, TitleComponent, TooltipComponent } from 'echarts/components'
+// [最终修正] 1. 从 echarts/components 中导入 MarkPointComponent
+import {
+  DataZoomComponent,
+  GridComponent,
+  LegendComponent,
+  MarkPointComponent,
+  TitleComponent,
+  TooltipComponent,
+} from 'echarts/components'
 import { use } from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { provide } from 'vue'
@@ -11,42 +20,68 @@ import VChart, { THEME_KEY } from 'vue-echarts'
 
 const props = defineProps<{
   history: HoldingHistoryPoint[]
-  signals: any[] // [新增] 接收策略信号
+  signals: any[]
   title: string
 }>()
 
-const emit = defineEmits(['signal-click']) // [新增] 定义事件
+const emit = defineEmits(['signal-click'])
 
-use([CanvasRenderer, LineChart, TitleComponent, TooltipComponent, GridComponent, LegendComponent])
+// [最终修正] 2. 在 use() 函数中注册 MarkPointComponent
+use([
+  CanvasRenderer,
+  LineChart,
+  TitleComponent,
+  TooltipComponent,
+  GridComponent,
+  LegendComponent,
+  DataZoomComponent,
+  MarkPointComponent, // 注册组件
+])
 
 const colorMode = useColorMode()
-// [修改] 让 ECharts 感知主题变化
 provide(THEME_KEY, computed(() => colorMode.value))
 
-// [新增] 将信号数据转换为 ECharts 的 markPoint 格式
-function mapSignalsToMarkPoints(signalType: '买入' | '卖出') {
-  const color = signalType === '买入' ? '#ef4444' : '#22c55e' // red-500, green-500
-  const symbol = signalType === '买入' ? 'pin' : 'arrow'
+function mapSignalsToMarkPoints(signalType: '买入' | '卖出'): MarkPointComponentOption['data'] {
+  const isBuy = signalType === '买入'
+  const isDark = colorMode.value === 'dark'
+  const color = isBuy ? (isDark ? '#f87171' : '#ef4444') : (isDark ? '#4ade80' : '#22c55e')
+  const symbol = isBuy ? 'pin' : 'triangle'
+  const symbolRotate = isBuy ? 0 : 180
 
   return props.signals
-    .filter(s => s.signal === signalType)
-    .map(s => ({
-      name: signalType,
-      // `value` 用于 tooltip 显示, `id` 和 `data` 用于点击事件
-      value: `${signalType}: ${s.latest_close.toFixed(4)}`,
-      id: s.id,
-      data: s, // 将完整的信号对象附加到数据点上
-      xAxis: s.latest_date,
-      yAxis: s.latest_close,
-      itemStyle: { color },
-      symbol,
-      symbolSize: 15,
-      label: { show: false },
-    }))
+    .filter(s => s.signal.trim() === signalType)
+    .map((s) => {
+      const dateStr = useDayjs()(s.latestDate).format('YYYY-MM-DD')
+      const closeValue = Number(s.latestClose)
+
+      return {
+        name: signalType,
+        coord: [dateStr, closeValue], // 使用 coord 精确定位
+        fullData: s,
+        id: s.id,
+        symbol,
+        symbolRotate,
+        symbolSize: 32,
+        itemStyle: {
+          color,
+          borderColor: isDark ? '#1f2937' : '#ffffff',
+          borderWidth: 1,
+        },
+        label: {
+          show: true,
+          formatter: isBuy ? 'B' : 'S',
+          color: '#fff',
+          fontSize: 12,
+          // [核心修复] 将 'bold' 断言为 const，或直接写 'bold' as 'bold'
+          // 这告诉 TypeScript，这个值永远是 'bold'，而不是一个普通的 string
+          fontWeight: 'bold' as const,
+        },
+      }
+    })
 }
 
 const chartOption = computed<EChartsOption>(() => {
-  const dates = props.history.map(p => p.date.slice(0, 10))
+  const dates = props.history.map(p => p.date)
   const navs = props.history.map(p => p.nav)
   const ma5 = props.history.map(p => p.ma5)
   const ma10 = props.history.map(p => p.ma10)
@@ -59,21 +94,34 @@ const chartOption = computed<EChartsOption>(() => {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     tooltip: { trigger: 'axis' },
     legend: { data: ['净值', 'MA5', 'MA10', 'MA20'], top: 30, textStyle: { color: textColor } },
-    grid: { top: 70, left: '10%', right: '10%', bottom: '10%' },
+    grid: { top: 70, left: '10%', right: '10%', bottom: '15%' },
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },
+    dataZoom: [
+      { type: 'inside', start: 50, end: 100 },
+      { type: 'slider', start: 50, end: 100, top: 'auto', bottom: 10, height: 25 },
+    ],
     series: [
       {
         name: '净值',
         type: 'line',
         data: navs,
         showSymbol: false,
-        // [新增] 在净值线上标记买卖点
         markPoint: {
+          symbolKeepAspect: true,
           data: [
-            ...mapSignalsToMarkPoints('买入'),
-            ...mapSignalsToMarkPoints('卖出'),
+            ...mapSignalsToMarkPoints('买入')!,
+            ...mapSignalsToMarkPoints('卖出')!,
           ],
+          tooltip: {
+            formatter: (params: any) => {
+              const data = params.data.fullData
+              if (!data)
+                return ''
+              return `<b>${data.signal}信号 (ID: ${data.id})</b><br/>日期: ${data.latestDate}<br/>净值: ${Number(data.latestClose).toFixed(4)}<br/>原因: ${data.reason}`
+            },
+          },
+          zlevel: 10,
         },
       },
       { name: 'MA5', type: 'line', data: ma5, showSymbol: false, lineStyle: { type: 'dashed' } },
@@ -83,17 +131,13 @@ const chartOption = computed<EChartsOption>(() => {
   }
 })
 
-// [新增] ECharts 点击事件处理
 function handleChartClick(params: any) {
-  // 检查点击的是否是我们的策略信号点 (markPoint)
-  if (params.componentType === 'markPoint' && params.data && params.data.data) {
-    // 触发 'signal-click' 事件，并将完整的信号对象传递给父组件
-    emit('signal-click', params.data.data)
+  if (params.componentType === 'markPoint' && params.data && params.data.fullData) {
+    emit('signal-click', params.data.fullData)
   }
 }
 </script>
 
 <template>
-  <!-- [修改] 添加 @click 事件监听 -->
   <VChart class="h-100 w-full" :option="chartOption" autoresize @click="handleChartClick" />
 </template>

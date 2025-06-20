@@ -69,7 +69,7 @@ function formatCurrency(value: number) {
 </script>
 
 <template>
-  <div class="overflow-hidden card">
+  <div class="card overflow-hidden">
     <div class="overflow-x-auto">
       <table class="text-left w-full table-auto">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
@@ -134,7 +134,7 @@ function formatCurrency(value: number) {
                 </div>
               </NuxtLink>
             </td>
-            <td class="text-sm font-mono p-4 text-right">
+            <td class="font-mono p-4 text-right">
               {{ h.shares.toFixed(2) }}
             </td>
             <td class="font-mono p-4 text-right">
@@ -146,15 +146,15 @@ function formatCurrency(value: number) {
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               {{ h.percentageChange !== null ? `${h.percentageChange.toFixed(2)}%` : '-' }}
             </td>
-            <td class="font-mono p-4 text-right">
-              {{ useDayjs()(h.todayEstimateUpdateTime).format('MM-DD HH:mm:ss') }}
+            <td class="p-4 text-right">
+              {{ useDayjs()(h.todayEstimateUpdateTime).format('MM-DD HH:mm') }}
             </td>
             <td class="p-4 text-right">
               <div class="flex gap-2 justify-end">
                 <button class="icon-btn" title="修改" @click="emit('edit', h)">
                   <div i-carbon-edit />
                 </button>
-                <button class="hover:text-red-500 icon-btn" title="删除" @click="emit('delete', h)">
+                <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
                   <div i-carbon-trash-can />
                 </button>
               </div>
