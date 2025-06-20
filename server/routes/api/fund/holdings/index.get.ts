@@ -1,12 +1,14 @@
 // File: server/routes/api/fund/holdings/index.get.ts
-
+import { desc, eq, inArray } from 'drizzle-orm'
+import { strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async () => {
   const db = useDb()
-  const holdings = await db.query.holdings.findMany()
+  const holdingsList = await db.query.holdings.findMany()
 
-  if (holdings.length === 0) {
+  // 如果没有持仓记录，直接返回空结构
+  if (holdingsList.length === 0) {
     return {
       holdings: [],
       summary: {
@@ -19,17 +21,44 @@ export default defineEventHandler(async () => {
     }
   }
 
+  // [新增] 一次性获取所有持仓基金的最新策略信号
+  const holdingCodes = holdingsList.map(h => h.code)
+  const latestSignalsRaw = await db
+    .selectDistinctOn([strategySignals.fundCode, strategySignals.strategyName], {
+      fundCode: strategySignals.fundCode,
+      strategyName: strategySignals.strategyName,
+      signal: strategySignals.signal,
+      latestDate: strategySignals.latestDate,
+    })
+    .from(strategySignals)
+    .where(inArray(strategySignals.fundCode, holdingCodes))
+    .orderBy(
+      desc(strategySignals.fundCode),
+      desc(strategySignals.strategyName),
+      desc(strategySignals.latestDate),
+    )
+
+  // [新增] 将信号数据处理成更易于前端使用的 Map 结构
+  // 结构: Map<fundCode, Record<strategyName, signal>>
+  const signalsMap = new Map<string, Record<string, string>>()
+  for (const s of latestSignalsRaw) {
+    if (!signalsMap.has(s.fundCode))
+      signalsMap.set(s.fundCode, {})
+    signalsMap.get(s.fundCode)![s.strategyName] = s.signal
+  }
+
+  // ... (summary calculation remains the same)
   let totalHoldingAmount = 0
   let totalEstimateAmount = 0
 
-  const formattedHoldings = holdings.map((h) => {
+  // [修改] 遍历持仓列表，附加信号并格式化
+  const formattedHoldings = holdingsList.map((h) => {
     const holdingAmount = Number(h.holdingAmount)
     const estimateAmount = h.todayEstimateAmount ? Number(h.todayEstimateAmount) : holdingAmount
 
     totalHoldingAmount += holdingAmount
     totalEstimateAmount += estimateAmount
 
-    // 返回给前端的列表项
     return {
       ...h,
       shares: Number(h.shares),
@@ -40,14 +69,15 @@ export default defineEventHandler(async () => {
       todayEstimateNav: h.todayEstimateNav,
       todayEstimateAmount: h.todayEstimateAmount ? Number(h.todayEstimateAmount) : null,
       todayEstimateUpdateTime: h.todayEstimateUpdateTime?.toISOString() || null,
+      // [新增] 附加处理好的策略信号
+      signals: signalsMap.get(h.code) || {},
     }
   })
 
-  // [新增] 计算最终的汇总数据
+  // ... (return statement remains the same)
   const totalProfitLoss = totalEstimateAmount - totalHoldingAmount
   const totalPercentageChange = totalHoldingAmount > 0 ? (totalProfitLoss / totalHoldingAmount) * 100 : 0
 
-  // [修改] 返回新的数据结构
   return {
     holdings: formattedHoldings,
     summary: {
@@ -55,7 +85,7 @@ export default defineEventHandler(async () => {
       totalEstimateAmount,
       totalProfitLoss,
       totalPercentageChange,
-      count: holdings.length,
+      count: holdingsList.length,
     },
   }
 })

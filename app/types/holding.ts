@@ -11,6 +11,8 @@ export interface Holding {
   todayEstimateAmount: number | null
   percentageChange: number | null
   todayEstimateUpdateTime: string | null
+  // 策略信号
+  signals: Record<string, string>
 }
 
 export interface HoldingHistoryPoint {
