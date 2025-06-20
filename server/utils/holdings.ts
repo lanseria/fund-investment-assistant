@@ -185,14 +185,19 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
  */
 export async function exportHoldingsData() {
   const db = useDb()
-  const allHoldings = await db.select({ code: holdings.code, shares: holdings.shares }).from(holdings)
+  // [修改] 在 SELECT 中添加 holdingProfitRate 字段
+  const allHoldings = await db.select({
+    code: holdings.code,
+    shares: holdings.shares,
+    holdingProfitRate: holdings.holdingProfitRate,
+  }).from(holdings)
   return allHoldings
 }
 
 /**
  * 导入持仓数据
  */
-export async function importHoldingsData(dataToImport: { code: string, shares: number }[], overwrite: boolean) {
+export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean) {
   const db = useDb()
   if (overwrite) {
     await db.delete(navHistory)
@@ -218,22 +223,38 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
     }
 
     const realtimeData = await fetchFundRealtimeEstimate(item.code)
-    if (!realtimeData || Number(realtimeData.dwjz) <= 0) {
+    if (!realtimeData || new BigNumber(realtimeData.dwjz).isLessThanOrEqualTo(0)) {
       skippedCount++
       continue
     }
 
-    const nav = Number(realtimeData.dwjz)
-    // console.warn('item: ', item)
+    // [修改] 使用 BigNumber.js 进行计算
+    const sharesBN = new BigNumber(item.shares)
+    const navBN = new BigNumber(realtimeData.dwjz)
+    const holdingAmountBN = sharesBN.times(navBN)
+
+    // [修改] 根据导入的收益率计算收益金额
+    let profitAmountBN: BigNumber | null = null
+    if (item.holdingProfitRate !== null && item.holdingProfitRate !== undefined) {
+      const profitRateBN = new BigNumber(item.holdingProfitRate).dividedBy(100)
+      const costBasisBN = holdingAmountBN.dividedBy(profitRateBN.plus(1))
+      profitAmountBN = holdingAmountBN.minus(costBasisBN)
+    }
+
     const newHolding = {
       code: item.code,
       name: realtimeData.name,
-      shares: item.shares.toFixed(4),
-      yesterdayNav: nav.toFixed(4),
-      holdingAmount: (item.shares * nav).toFixed(2),
+      shares: sharesBN.toFixed(4),
+      yesterdayNav: navBN.toFixed(4),
+      holdingAmount: holdingAmountBN.toFixed(2),
+      // [修改] 存储收益数据
+      holdingProfitAmount: profitAmountBN ? profitAmountBN.toFixed(2) : null,
+      holdingProfitRate: item.holdingProfitRate ?? null,
     }
 
-    await db.insert(holdings).values(newHolding).onConflictDoNothing()
+    // 注意：这里没有使用 onConflictDoUpdate 是因为如果 overwrite=false，我们已经手动跳过了
+    // 如果 overwrite=true，表已经是空的。
+    await db.insert(holdings).values(newHolding)
     importedCount++
   }
   return { imported: importedCount, skipped: skippedCount }
