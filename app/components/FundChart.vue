@@ -3,19 +3,6 @@
 import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
 import type { HoldingHistoryPoint } from '~/types/holding'
-import { LineChart } from 'echarts/charts'
-import {
-  DataZoomComponent,
-  GridComponent,
-  LegendComponent,
-  MarkPointComponent,
-  TitleComponent,
-  TooltipComponent,
-} from 'echarts/components'
-import { use } from 'echarts/core'
-import { CanvasRenderer } from 'echarts/renderers'
-import { provide } from 'vue'
-import VChart, { THEME_KEY } from 'vue-echarts'
 
 const props = defineProps<{
   history: HoldingHistoryPoint[]
@@ -27,17 +14,6 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits(['signal-click'])
-
-use([
-  CanvasRenderer,
-  LineChart,
-  TitleComponent,
-  TooltipComponent,
-  GridComponent,
-  LegendComponent,
-  DataZoomComponent,
-  MarkPointComponent,
-])
 
 const colorMode = useColorMode()
 provide(THEME_KEY, computed(() => colorMode.value))

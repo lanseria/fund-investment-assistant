@@ -28,6 +28,7 @@ export default defineNuxtConfig({
     '@vite-pwa/nuxt',
     '@nuxt/eslint',
     'dayjs-nuxt',
+    'nuxt-echarts',
   ],
   ssr: false,
   devtools: {
@@ -98,6 +99,18 @@ export default defineNuxtConfig({
       routes: ['/'],
     },
   },
+  echarts: {
+    renderer: ['canvas'],
+    charts: ['LineChart'],
+    components: [
+      'DataZoomComponent',
+      'GridComponent',
+      'LegendComponent',
+      'MarkPointComponent',
+      'TitleComponent',
+      'TooltipComponent',
+    ],
+  },
 
   eslint: {
     config: {
@@ -107,6 +120,5 @@ export default defineNuxtConfig({
       },
     },
   },
-
   pwa,
 })

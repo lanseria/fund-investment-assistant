@@ -40,12 +40,12 @@
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "nuxt": "catalog:build",
+    "nuxt-echarts": "catalog:frontend",
     "pg": "catalog:backend",
     "pinia": "catalog:frontend",
     "typescript": "catalog:dev",
     "unocss": "catalog:build",
     "vue": "catalog:frontend",
-    "vue-echarts": "catalog:frontend",
     "vue-tsc": "catalog:dev",
     "zod": "catalog:utils"
   },
