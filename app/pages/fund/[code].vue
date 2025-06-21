@@ -13,7 +13,7 @@ const strategiesToDisplay = [
   { value: 'rsi', label: 'RSI 策略' },
   { value: 'bollinger_bands', label: '布林带策略' },
   { value: 'ma_cross', label: '双均线交叉策略' },
-  { value: 'dual_confirmation', label: '双重确认策略' },
+  { value: 'macd', label: 'MACD 策略' },
 ]
 
 // --- State for Chart Controls (remains the same) ---

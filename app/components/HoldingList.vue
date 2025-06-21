@@ -81,7 +81,7 @@ const strategiesForTags = {
   rsi: 'RSI',
   bollinger_bands: '布林',
   ma_cross: '均线',
-  dual_confirmation: '双重',
+  macd: 'MACD',
 }
 </script>
 
@@ -177,7 +177,7 @@ const strategiesForTags = {
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
               <div class="text-xs">
-                {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
+                {{ formatCurrency(h.todayEstimateAmount ?? 0 - h.holdingAmount) }}
               </div>
             </td>
 
