@@ -72,13 +72,12 @@ const chartOption = computed<EChartsOption>(() => {
     grid: { top: 70, left: '10%', right: '10%', bottom: '15%' },
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },
-    // [修改] 使用 props 控制 dataZoom 的 start 和 end
     dataZoom: [
-      { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd },
+      // [修改] 在 inside 类型的 dataZoom 中禁用滚轮缩放
+      { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
       { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
     ],
     series: [
-      // ... series configuration remains the same ...
       {
         name: '净值',
         type: 'line',
