@@ -8,7 +8,6 @@ const props = defineProps<{
   history: HoldingHistoryPoint[]
   signals: any[]
   title: string
-  // [新增] 接收用于控制 dataZoom 的 props
   dataZoomStart: number
   dataZoomEnd: number
 }>()
@@ -73,7 +72,6 @@ const chartOption = computed<EChartsOption>(() => {
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },
     dataZoom: [
-      // [修改] 在 inside 类型的 dataZoom 中禁用滚轮缩放
       { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
       { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
     ],

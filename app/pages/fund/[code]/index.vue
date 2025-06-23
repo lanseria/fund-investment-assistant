@@ -121,7 +121,7 @@ function setDateRange(period: string) {
 // [修改] 页面加载或数据获取完成后，设置一个默认的缩放范围
 watch(data, (newData) => {
   if (newData && newData.length > 0)
-    setDateRange('1y') // 默认显示近1年
+    setDateRange('3m') // 默认显示近1年
 }, { immediate: true })
 </script>
 
@@ -171,6 +171,13 @@ watch(data, (newData) => {
           :data-zoom-end="dataZoomEnd"
           @signal-click="openSignalDetails"
         />
+        <!-- [新增] 如果是 RSI 策略，则显示详情按钮 -->
+        <div v-if="chartData.value === 'rsi'" class="mt-4 flex justify-end">
+          <NuxtLink :to="`/fund/${code}/rsi-details`" class="text-sm btn flex">
+            <div i-carbon-analytics mr-1 />
+            查看 RSI 详情分析
+          </NuxtLink>
+        </div>
       </div>
     </div>
     <div v-else class="text-gray-500 py-20 text-center card">
