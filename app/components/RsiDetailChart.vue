@@ -1,14 +1,14 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+// ... imports from echarts
 
-// 定义接收的 props 类型，与 API 响应匹配
 interface ChartData {
   dates: string[]
   netValues: (number | null)[]
   rsiValues: (number | null)[]
   signals: {
-    buy: any[]
-    sell: any[]
+    buy: { coord: [string, number], value: string }[]
+    sell: { coord: [string, number], value: string }[]
   }
   config: {
     rsiPeriod: number
@@ -20,6 +20,9 @@ interface ChartData {
 const props = defineProps<{
   data: ChartData
   title: string
+  // [新增] 接收 dataZoom 控制参数
+  dataZoomStart: number
+  dataZoomEnd: number
 }>()
 
 const colorMode = useColorMode()
@@ -34,29 +37,25 @@ const chartOption = computed<EChartsOption>(() => {
 
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
-    // 关键：将两个图表的 tooltip 和 dataZoom 联动
     axisPointer: { link: { xAxisIndex: 'all' } },
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    legend: { top: 35, textStyle: { color: textColor } },
-    // 关键：定义两个 grid，一个上一个下
+    legend: { top: 35, textStyle: { color: textColor }, data: ['基金净值', `RSI(${config.rsiPeriod})`] },
     grid: [
-      { top: '12%', left: '8%', right: '8%', height: '50%' }, // 上图：净值
-      { top: '68%', left: '8%', right: '8%', height: '20%' }, // 下图：RSI
+      { top: '12%', left: '8%', right: '8%', height: '50%' },
+      { top: '68%', left: '8%', right: '8%', height: '20%' },
     ],
-    // 关键：定义两个 x 轴
     xAxis: [
-      { type: 'category', gridIndex: 0, data: dates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } }, // 上图x轴
-      { type: 'category', gridIndex: 1, data: dates, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } }, // 下图x轴
+      { type: 'category', gridIndex: 0, data: dates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
+      { type: 'category', gridIndex: 1, data: dates, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
     ],
-    // 关键：定义两个 y 轴
     yAxis: [
-      { type: 'value', gridIndex: 0, scale: true, axisLine: { show: true, lineStyle: { color: gridColor } }, splitLine: { lineStyle: { color: [gridColor] } }, axisLabel: { color: textColor } }, // 上图y轴
-      { type: 'value', gridIndex: 1, min: 0, max: 100, axisLine: { show: true, lineStyle: { color: gridColor } }, splitLine: { lineStyle: { color: [gridColor] } }, axisLabel: { color: textColor } }, // 下图y轴
+      { type: 'value', gridIndex: 0, scale: true, axisLine: { show: true, lineStyle: { color: gridColor } }, splitLine: { lineStyle: { color: [gridColor] } }, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } }, // 格式化净值
+      { type: 'value', gridIndex: 1, min: 0, max: 100, axisLine: { show: true, lineStyle: { color: gridColor } }, splitLine: { lineStyle: { color: [gridColor] } }, axisLabel: { color: textColor } },
     ],
-    // 关键：dataZoom 控制所有 x 轴
+    // [修改] 使用 props 控制 dataZoom
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1], zoomOnMouseWheel: false },
-      { type: 'slider', xAxisIndex: [0, 1], top: '92%', height: 20 },
+      { type: 'inside', xAxisIndex: [0, 1], start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
+      { type: 'slider', xAxisIndex: [0, 1], top: '92%', height: 20, start: props.dataZoomStart, end: props.dataZoomEnd },
     ],
     series: [
       // 上图系列：净值曲线
@@ -68,6 +67,30 @@ const chartOption = computed<EChartsOption>(() => {
         yAxisIndex: 0,
         showSymbol: false,
         lineStyle: { color: '#3b82f6' },
+        // [修改] 将买卖点标记移到这里
+        markPoint: {
+          symbolSize: 32,
+          data: [
+            // API返回的signals.buy的coord是 [date, rsiValue]，我们需要找到那天的净值来定位
+            ...signals.buy.map((p) => {
+              const dateIndex = dates.indexOf(p.coord[0])
+              const netValue = dateIndex !== -1 ? netValues[dateIndex] : null
+              return netValue ? { name: '买入', coord: [p.coord[0], netValue], symbol: 'pin', itemStyle: { color: '#ef4444' } } : null
+            }).filter(p => p),
+            ...signals.sell.map((p) => {
+              const dateIndex = dates.indexOf(p.coord[0])
+              const netValue = dateIndex !== -1 ? netValues[dateIndex] : null
+              return netValue ? { name: '卖出', coord: [p.coord[0], netValue], symbol: 'triangle', symbolRotate: 180, itemStyle: { color: '#22c55e' } } : null
+            }).filter(p => p),
+          ],
+          label: {
+            show: true,
+            formatter: (p: any) => p.name === '买入' ? 'B' : 'S',
+            color: '#fff',
+            fontSize: 12,
+            fontWeight: 'bold' as const,
+          },
+        },
       },
       // 下图系列：RSI 曲线
       {
@@ -78,14 +101,7 @@ const chartOption = computed<EChartsOption>(() => {
         yAxisIndex: 1,
         showSymbol: false,
         lineStyle: { color: '#8b5cf6' },
-        // RSI 曲线上的买卖点
-        markPoint: {
-          data: [
-            ...signals.buy.map(p => ({ ...p, symbol: 'pin', itemStyle: { color: '#ef4444' } })),
-            ...signals.sell.map(p => ({ ...p, symbol: 'triangle', symbolRotate: 180, itemStyle: { color: '#22c55e' } })),
-          ],
-        },
-        // RSI 曲线的超买超卖线和区域填充
+        // [移除] markPoint 从这里移除
         markLine: {
           silent: true,
           symbol: 'none',
