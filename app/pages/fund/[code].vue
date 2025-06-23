@@ -170,7 +170,7 @@ watch(data, (newData) => {
           :data-zoom-start="dataZoomStart"
           :data-zoom-end="dataZoomEnd"
           @signal-click="openSignalDetails"
-        />˚
+        />
       </div>
     </div>
     <div v-else class="text-gray-500 py-20 text-center card">
