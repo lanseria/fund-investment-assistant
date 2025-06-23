@@ -26,14 +26,9 @@ const dateFilters = [
   { label: '全部', value: 'all' },
 ]
 
-// [修改] 数据获取逻辑：一次性获取全部数据（或一个很长的时间段）
-// 我们假设"全部"数据从一个固定的远期开始，例如10年前，以避免数据量过大
-const fetchStartDate = dayjs().subtract(8, 'year').format('YYYY-MM-DD')
 const { data, pending, error } = await useAsyncData(
   `rsi-chart-data-full-${code}`,
-  () => $fetch(`/api/charts/rsi/${code}`, {
-    params: { start_date: fetchStartDate },
-  }),
+  () => $fetch(`/api/charts/rsi/${code}`),
 )
 
 // [新增] setDateRange 函数，用于控制 dataZoom
