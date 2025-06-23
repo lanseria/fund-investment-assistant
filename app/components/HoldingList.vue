@@ -177,7 +177,7 @@ const strategiesForTags = {
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
               <div class="text-xs">
-                {{ formatCurrency(h.todayEstimateAmount ?? 0 - h.holdingAmount) }}
+                {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
               </div>
             </td>
 
