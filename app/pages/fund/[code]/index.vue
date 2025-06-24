@@ -11,9 +11,9 @@ const code = route.params.code as string
 const strategiesToDisplay = [
   { value: '', label: '基础走势' },
   { value: 'rsi', label: 'RSI 策略' },
-  { value: 'bollinger_bands', label: '布林带策略' },
-  { value: 'ma_cross', label: '双均线交叉策略' },
   { value: 'macd', label: 'MACD 策略' },
+  { value: 'ma_cross', label: '双均线交叉策略' },
+  { value: 'bollinger_bands', label: '布林带策略' },
 ]
 
 // --- State for Chart Controls (remains the same) ---

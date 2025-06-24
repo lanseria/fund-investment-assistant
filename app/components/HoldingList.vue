@@ -56,7 +56,7 @@ function formatCurrency(value: number | null | undefined) {
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
 }
 
-// [新增] 获取信号标签样式的辅助函数
+// 获取信号标签样式的辅助函数
 function getSignalTagClass(signal: string) {
   if (signal.includes('买入'))
     return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
@@ -66,12 +66,12 @@ function getSignalTagClass(signal: string) {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300'
 }
 
-// [新增] 定义要显示的策略及其简称
+// 定义要显示的策略及其简称
 const strategiesForTags = {
   rsi: 'RSI',
-  bollinger_bands: '布林',
-  ma_cross: '均线',
   macd: 'MACD',
+  ma_cross: '均线',
+  bollinger_bands: '布林',
 }
 </script>
 
@@ -85,7 +85,7 @@ const strategiesForTags = {
               基金名称 / 策略信号
             </th>
 
-            <!-- [修改] 合并 "持有金额" 和 "持有份额" 的表头，排序按 holdingAmount -->
+            <!-- 合并 "持有金额" 和 "持有份额" 的表头，排序按 holdingAmount -->
             <th class="text-sm text-gray-600 font-semibold p-4 text-right cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingAmount')">
               持有市值 / 份额
               <span v-if="sortKey === 'holdingAmount'" class="ml-1 align-middle inline-block">
@@ -101,7 +101,7 @@ const strategiesForTags = {
               </span>
             </th>
 
-            <!-- [修改] 合并 "估算涨跌" 和 "估算金额" 的表头，排序按 percentageChange -->
+            <!-- 合并 "估算涨跌" 和 "估算金额" 的表头，排序按 percentageChange -->
             <th class="text-sm text-gray-600 font-semibold p-4 text-right cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('percentageChange')">
               估算涨跌 / 收益
               <span v-if="sortKey === 'percentageChange'" class="ml-1 align-middle inline-block">
@@ -128,7 +128,7 @@ const strategiesForTags = {
                   {{ h.code }}
                 </div>
               </NuxtLink>
-              <!-- [新增] 策略信号标签容器 -->
+              <!-- 策略信号标签容器 -->
               <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
                 <span
                   v-for="(name, key) in strategiesForTags"
@@ -141,7 +141,7 @@ const strategiesForTags = {
               </div>
             </td>
 
-            <!-- [修改] 持有市值和份额合并在一个单元格 -->
+            <!-- 持有市值和份额合并在一个单元格 -->
             <td class="font-mono p-4 text-right">
               <div class="font-semibold">
                 {{ formatCurrency(h.holdingAmount) }}
@@ -151,7 +151,7 @@ const strategiesForTags = {
               </div>
             </td>
 
-            <!-- [新增] 持有收益和收益率 -->
+            <!-- 持有收益和收益率 -->
             <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
               <div class="font-semibold">
                 {{ formatCurrency(h.holdingProfitAmount) }}
@@ -161,7 +161,7 @@ const strategiesForTags = {
               </div>
             </td>
 
-            <!-- [修改] 估算涨跌和市值合并在一个单元格 -->
+            <!-- 估算涨跌和市值合并在一个单元格 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               <div class="font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
