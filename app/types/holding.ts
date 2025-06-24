@@ -15,6 +15,8 @@ export interface Holding {
   signals: Record<string, string>
 }
 
+export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate'
+
 export interface HoldingHistoryPoint {
   date: string
   nav: number

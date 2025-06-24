@@ -1,8 +1,11 @@
 <!-- eslint-disable no-alert -->
 <!-- File: app/pages/index.vue -->
 <script setup lang="ts">
-import type { Holding } from '~/types/holding'
+import type { Holding, SortableKey } from '~/types/holding'
 import { appName } from '~/constants'
+
+const router = useRouter()
+const route = useRoute()
 
 useHead({
   title: `持仓列表 - ${appName}`,
@@ -15,20 +18,33 @@ const { refreshAllEstimates, runAllStrategies, fetchHoldings } = holdingStore
 // 使用 useAsyncData 确保在服务端也能获取数据
 await useAsyncData('holdings', () => holdingStore.fetchHoldings())
 
+const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
+const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
+function handleSetSort(key: SortableKey) {
+  // 如果点击的是当前排序列，则切换顺序
+  if (sortKey.value === key) {
+    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+  }
+  // 否则，切换到新的排序列，并默认为降序
+  else {
+    sortKey.value = key
+    sortOrder.value = 'desc'
+  }
+  // 使用 router.replace 更新 URL，不产生新的历史记录
+  router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
+}
 // --- 模态框状态管理 ---
 const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
 
-// [新增] 格式化货币的辅助函数
 function formatCurrency(value: number | undefined) {
   if (value === undefined)
     return '-'
   return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
 }
 
-// [新增] 获取涨跌颜色的辅助函数
 function getChangeClass(value: number | undefined) {
   if (value === undefined || value === null)
     return 'text-gray'
@@ -73,10 +89,8 @@ async function handleRefresh() {
   await refreshAllEstimates()
 }
 
-// [新增] 手动执行策略分析的处理函数
 async function handleRunStrategies() {
   await runAllStrategies()
-  // 策略执行后，刷新列表以显示最新的信号标签
   await fetchHoldings()
 }
 
@@ -185,7 +199,15 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>暂无持仓数据，请先添加基金。</p>
     </div>
-    <HoldingList v-else :holdings="holdings" @edit="openEditModal" @delete="handleDelete" />
+    <HoldingList
+      v-else
+      :holdings="holdings"
+      :sort-key="sortKey"
+      :sort-order="sortOrder"
+      @edit="openEditModal"
+      @delete="handleDelete"
+      @set-sort="handleSetSort"
+    />
 
     <!-- 模态框组件 (保持不变) -->
     <Modal v-model="isModalOpen" :title="modalTitle">

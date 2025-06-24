@@ -1,4 +1,4 @@
-<!-- File: app/pages/fund/[code].vue -->
+<!-- File: app/pages/fund/[code]/index.vue -->
 <script setup lang="ts">
 import type { HoldingHistoryPoint } from '~/types/holding'
 import { appName } from '~/constants'

@@ -1,39 +1,29 @@
 <!-- File: app/components/HoldingList.vue -->
 <script setup lang="ts">
-import type { Holding } from '~/types/holding'
+import type { Holding, SortableKey } from '~/types/holding'
 
 const props = defineProps<{
   holdings: Holding[]
+  sortKey: SortableKey | null
+  sortOrder: 'asc' | 'desc'
 }>()
 
-const emit = defineEmits(['edit', 'delete'])
-
-// [修改] 简化 SortableKey，因为排序逻辑被合并了
-type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate'
-
-const sortKey = ref<SortableKey | null>('holdingAmount') // [修改] 默认按持有金额排序
-const sortOrder = ref<'asc' | 'desc'>('desc')
+const emit = defineEmits(['edit', 'delete', 'set-sort'])
 
 function setSort(key: SortableKey) {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  }
-  else {
-    sortKey.value = key
-    sortOrder.value = 'desc'
-  }
+  emit('set-sort', key)
 }
 
 const sortedHoldings = computed(() => {
-  if (!sortKey.value)
+  if (!props.sortKey)
     return props.holdings
 
   return [...props.holdings].sort((a, b) => {
-    const key = sortKey.value!
+    const key = props.sortKey!
     const valA = a[key] ?? -Infinity
     const valB = b[key] ?? -Infinity
 
-    if (sortOrder.value === 'asc')
+    if (props.sortOrder === 'asc')
       return Number(valA) - Number(valB)
     else
       return Number(valB) - Number(valA)
@@ -177,7 +167,7 @@ const strategiesForTags = {
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
               <div class="text-xs">
-                {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
+                {{ formatCurrency(h.todayEstimateAmount! - h.holdingAmount) }}
               </div>
             </td>
 
