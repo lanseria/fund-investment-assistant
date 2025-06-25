@@ -45,7 +45,7 @@ const { data, pending, error, refresh } = await useAsyncData(
   async () => {
     // 为每个策略创建一个 fetch Promise
     const promises = strategiesToDisplay.map(strategy =>
-      $fetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
+      apiFetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
         params: {
           ma: [5, 10, 20],
           strategy: strategy.value || undefined,

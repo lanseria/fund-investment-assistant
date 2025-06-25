@@ -81,7 +81,7 @@ const strategiesForTags = {
       <table class="text-left w-full table-fixed">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <th class="text-sm text-gray-600 font-semibold p-4 w-[180px] dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 w-260px dark:text-gray-300">
               基金名称 / 策略信号
             </th>
 

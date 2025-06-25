@@ -27,7 +27,7 @@ const dateFilters = [
 
 const { data, pending, error } = await useAsyncData(
   `rsi-chart-data-full-${code}`,
-  () => apiFetch('/api/charts/rsi/:code', { params: { code } }),
+  () => apiFetch(`/api/charts/rsi/${code}`),
 )
 
 function setDateRange(period: string) {
@@ -77,7 +77,7 @@ useHead({
       <div class="flex gap-4 items-center">
         <!-- 1. 返回按钮：更清晰的图标按钮样式 -->
         <button
-          class="text-2xl icon-btn"
+          class="icon-btn text-2xl"
           title="返回策略概览"
           @click="$router.back()"
         >
