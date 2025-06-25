@@ -128,10 +128,10 @@ watch(data, (newData) => {
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
     <header class="mb-8 flex items-center justify-between">
-      <NuxtLink to="/" class="text-sm text-gray-500 inline-flex gap-2 transition-colors items-center hover:text-teal-500">
+      <div class="text-sm text-gray-500 inline-flex gap-2 transition-colors items-center hover:text-teal-500" @click="$router.back()">
         <div i-carbon-arrow-left />
         返回持仓列表
-      </NuxtLink>
+      </div>
       <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
         <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
         {{ isSyncing ? '同步中...' : '同步历史数据' }}
