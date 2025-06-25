@@ -11,7 +11,6 @@ const fundName = computed(() => {
   return holding ? holding.name : `基金 ${code}`
 })
 
-// [新增] 引入与详情页相同的交互状态
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
 const dataZoomEnd = ref(100)
@@ -31,7 +30,6 @@ const { data, pending, error } = await useAsyncData(
   () => $fetch(`/api/charts/rsi/${code}`),
 )
 
-// [新增] setDateRange 函数，用于控制 dataZoom
 function setDateRange(period: string) {
   activeFilter.value = period
   const allDates = data.value?.dates
@@ -62,10 +60,9 @@ function setDateRange(period: string) {
   }
 }
 
-// [新增] 页面加载或数据获取完成后，设置一个默认的缩放范围
 watch(data, (newData) => {
   if (newData)
-    setDateRange('3m') // 默认显示近1年
+    setDateRange('3m') // 默认显示近3个月
 }, { immediate: true })
 
 useHead({
@@ -75,19 +72,31 @@ useHead({
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
-      <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">
-          {{ fundName }} - RSI 策略详情
-        </h1>
-        <NuxtLink :to="`/fund/${code}`" class="text-sm text-teal-500 mt-1 inline-flex gap-1 items-center hover:underline">
+    <!-- [修改] 重新设计的 Header -->
+    <header class="mb-8 flex items-center justify-between">
+      <div class="flex gap-4 items-center">
+        <!-- 1. 返回按钮：更清晰的图标按钮样式 -->
+        <div
+          class="icon-btn cursor-pointer !text-2xl"
+          title="返回策略概览"
+          @click="$router.back()"
+        >
           <div i-carbon-arrow-left />
-          返回策略概览
-        </NuxtLink>
+        </div>
+
+        <!-- 2. 标题组：更清晰的层级关系 -->
+        <div>
+          <h1 class="text-xl text-gray-800 font-bold sm:text-2xl dark:text-gray-100">
+            RSI 策略详情
+          </h1>
+          <p class="text-sm text-gray-500 dark:text-gray-400">
+            {{ fundName }} - {{ code }}
+          </p>
+        </div>
       </div>
+      <!-- 这里可以为未来右侧的操作按钮留出位置 -->
     </header>
 
-    <!-- [修改] 移除日期选择器，替换为快速筛选按钮 -->
     <div class="mb-8 p-4 card">
       <div class="flex flex-wrap gap-2">
         <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
@@ -104,7 +113,6 @@ useHead({
         <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
         <p>加载图表数据失败: {{ error.message }}</p>
       </div>
-      <!-- [修改] 传递 dataZoom props -->
       <RsiDetailChart
         v-else-if="data"
         :data="data"
