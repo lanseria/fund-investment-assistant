@@ -49,7 +49,7 @@ onUnmounted(() => {
           <h3 class="text-xl font-bold">
             {{ title }}
           </h3>
-          <button class="icon-btn !text-2xl" @click="closeModal">
+          <button class="icon-btn text-2xl" @click="closeModal">
             <div i-carbon-close />
           </button>
         </div>

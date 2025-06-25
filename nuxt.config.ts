@@ -1,7 +1,6 @@
 import { env } from 'node:process'
-import { pwa } from './app/config/pwa'
 import { appDescription } from './app/constants/index'
-// [新增] 在 defineNuxtConfig 外部，动态构建 scheduledTasks 对象
+
 const scheduledTasks: Record<string, string[]> = {}
 
 // 从环境变量读取 Cron 表达式
@@ -36,7 +35,6 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      viewport: 'width=device-width,initial-scale=1',
       link: [
         { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
         { rel: 'icon', type: 'image/svg+xml', href: '/logo.svg' },
@@ -70,8 +68,6 @@ export default defineNuxtConfig({
   },
 
   experimental: {
-    // when using generate, payload js assets included in sw precache manifest
-    // but missing on offline, disabling extraction it until fixed
     payloadExtraction: false,
     renderJsonPayloads: true,
     typedPages: true,
@@ -80,27 +76,15 @@ export default defineNuxtConfig({
   compatibilityDate: '2025-06-25',
 
   nitro: {
-    // routeRules: {
-    //   // 将所有 /api/fund/** 的请求代理到 Python 后端
-    //   '/api/fund/**': {
-    //     proxy: `${env.API_BASE_URL || 'http://127.0.0.1:8000'}/**`,
-    //   },
-    // },
     esbuild: {
       options: {
         target: 'esnext',
       },
     },
-    // [重要修改] 新增定时任务配置
     scheduledTasks,
-    // [重要修改] 开启实验性的 tasks 功能
     experimental: {
       database: true,
       tasks: true,
-    },
-    prerender: {
-      crawlLinks: false,
-      routes: ['/'],
     },
   },
   echarts: {
@@ -125,5 +109,4 @@ export default defineNuxtConfig({
       },
     },
   },
-  pwa,
 })

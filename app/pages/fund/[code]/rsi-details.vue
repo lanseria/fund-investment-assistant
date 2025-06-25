@@ -76,13 +76,13 @@ useHead({
     <header class="mb-8 flex items-center justify-between">
       <div class="flex gap-4 items-center">
         <!-- 1. 返回按钮：更清晰的图标按钮样式 -->
-        <div
-          class="text-2xl icon-btn cursor-pointer"
+        <button
+          class="text-2xl icon-btn"
           title="返回策略概览"
           @click="$router.back()"
         >
           <div i-carbon-arrow-left />
-        </div>
+        </button>
 
         <!-- 2. 标题组：更清晰的层级关系 -->
         <div>
