@@ -59,6 +59,10 @@ export default defineNuxtConfig({
   runtimeConfig: {
     dbUrl: '', // can be overridden by NUXT_DB_URL environment variable
     strategyApiUrl: '', // can be overridden by NUXT_STRATEGY_API_URL environment variable
+    redis: {
+      host: '',
+      password: '',
+    },
   },
 
   future: {
@@ -73,7 +77,7 @@ export default defineNuxtConfig({
     typedPages: true,
   },
 
-  compatibilityDate: '2024-08-14',
+  compatibilityDate: '2025-06-25',
 
   nitro: {
     // routeRules: {

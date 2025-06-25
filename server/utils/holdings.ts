@@ -25,6 +25,7 @@ interface HoldingCreateData {
   name?: string
   holdingAmount: number
   holdingProfitRate?: number | null
+  userId: number
 }
 
 /**
@@ -33,7 +34,10 @@ interface HoldingCreateData {
 export async function createNewHolding(data: HoldingCreateData) {
   const db = useDb()
   const existing = await db.query.holdings.findFirst({
-    where: eq(holdings.code, data.code),
+    where: and(
+      eq(holdings.code, data.code),
+      eq(holdings.userId, data.userId),
+    ),
   })
   if (existing)
     throw new HoldingExistsError(data.code)
@@ -59,6 +63,7 @@ export async function createNewHolding(data: HoldingCreateData) {
 
   const newHolding = {
     code: data.code,
+    userId: data.userId,
     name: finalName,
     shares: shares.toFixed(4),
     yesterdayNav: yesterdayNav.toFixed(4),
@@ -196,12 +201,14 @@ export async function exportHoldingsData() {
 
 /**
  * 导入持仓数据
+ * [修改] 函数签名增加了 userId 参数
  */
-export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean) {
+export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean, userId: number) {
   const db = useDb()
   if (overwrite) {
-    await db.delete(navHistory)
-    await db.delete(holdings)
+    // [重要修改] 只删除当前用户的持仓数据，而不是所有数据
+    // 注意：我们不再删除 navHistory，因为它是所有用户共享的全局数据。
+    await db.delete(holdings).where(eq(holdings.userId, userId))
   }
 
   let importedCount = 0
@@ -215,7 +222,13 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
     item.shares = Number(item.shares)
 
     if (!overwrite) {
-      const existing = await db.query.holdings.findFirst({ where: eq(holdings.code, item.code) })
+      // [修改] 检查持仓是否存在时，必须同时匹配 code 和 userId
+      const existing = await db.query.holdings.findFirst({
+        where: and(
+          eq(holdings.code, item.code),
+          eq(holdings.userId, userId),
+        ),
+      })
       if (existing) {
         skippedCount++
         continue
@@ -228,12 +241,10 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
       continue
     }
 
-    // [修改] 使用 BigNumber.js 进行计算
     const sharesBN = new BigNumber(item.shares)
     const navBN = new BigNumber(realtimeData.dwjz)
     const holdingAmountBN = sharesBN.times(navBN)
 
-    // [修改] 根据导入的收益率计算收益金额
     let profitAmountBN: BigNumber | null = null
     if (item.holdingProfitRate !== null && item.holdingProfitRate !== undefined) {
       const profitRateBN = new BigNumber(item.holdingProfitRate).dividedBy(100)
@@ -243,11 +254,11 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
 
     const newHolding = {
       code: item.code,
+      userId, // [新增] 关联用户 ID
       name: realtimeData.name,
       shares: sharesBN.toFixed(4),
       yesterdayNav: navBN.toFixed(4),
       holdingAmount: holdingAmountBN.toFixed(2),
-      // [修改] 存储收益数据
       holdingProfitAmount: profitAmountBN ? profitAmountBN.toFixed(2) : null,
       holdingProfitRate: item.holdingProfitRate ?? null,
     }

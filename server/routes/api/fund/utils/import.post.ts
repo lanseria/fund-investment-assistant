@@ -1,6 +1,7 @@
 // File: server/routes/api/fund/utils/import.post.ts
 import { Buffer } from 'node:buffer'
 import { z } from 'zod'
+import { getUserFromEvent } from '~~/server/utils/auth' // [新增] 导入认证工具
 import { importHoldingsData } from '~~/server/utils/holdings'
 
 // [重要修改] 创建一个更健壮、将被实际使用的 Zod schema
@@ -14,6 +15,8 @@ const importSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  // [新增] 首先获取当前用户信息，如果未登录，中间件会在此之前抛出错误
+  const user = getUserFromEvent(event)
   // 1. 读取 multipart form data
   const formData = await readMultipartFormData(event)
   if (!formData)
@@ -36,7 +39,7 @@ export default defineEventHandler(async (event) => {
     const jsonContent = JSON.parse(file.toString())
 
     // 5. 调用核心业务逻辑
-    const result = await importHoldingsData(jsonContent, overwrite)
+    const result = await importHoldingsData(jsonContent, overwrite, user.id)
     return { message: '导入完成', ...result }
   }
   catch (error) {

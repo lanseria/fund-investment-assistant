@@ -1,11 +1,16 @@
 // File: server/routes/api/fund/holdings/index.get.ts
 import { desc, eq, inArray } from 'drizzle-orm'
-import { strategySignals } from '~~/server/database/schemas'
+import { holdings as holdingsTable, strategySignals } from '~~/server/database/schemas'
+import { getUserFromEvent } from '~~/server/utils/auth' // [新增]
 import { useDb } from '~~/server/utils/db'
 
-export default defineEventHandler(async () => {
+export default defineEventHandler(async (event) => {
+  const user = getUserFromEvent(event) // [新增] 获取当前用户
   const db = useDb()
-  const holdingsList = await db.query.holdings.findMany()
+  // [修改] 查询时加入 userId 条件
+  const holdingsList = await db.query.holdings.findMany({
+    where: eq(holdingsTable.userId, user.id),
+  })
 
   // 如果没有持仓记录，直接返回空结构
   if (holdingsList.length === 0) {

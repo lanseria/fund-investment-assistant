@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { getUserFromEvent } from '~~/server/utils/auth'
 import { createNewHolding, HoldingExistsError } from '~~/server/utils/holdings'
 
 const holdingCreateSchema = z.object({
@@ -9,10 +10,11 @@ const holdingCreateSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  const user = getUserFromEvent(event) // [新增] 获取当前用户
   try {
     const body = await readBody(event)
     const data = await holdingCreateSchema.parseAsync(body)
-    const newHolding = await createNewHolding(data)
+    const newHolding = await createNewHolding({ ...data, userId: user.id })
     return newHolding
   }
   catch (error) {

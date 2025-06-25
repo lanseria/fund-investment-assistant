@@ -20,7 +20,7 @@ export const useHoldingStore = defineStore('holding', () => {
     isLoading.value = true
     try {
       // [修改] API 现在返回一个包含 holdings 和 summary 的对象
-      const data = await $fetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
+      const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
       holdings.value = data.holdings
       summary.value = data.summary // [新增] 更新 summary
     }
@@ -37,7 +37,7 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function addHolding(newHolding: { code: string, name?: string, holdingAmount: number, holdingProfitRate?: number | null }) {
     try {
-      await $fetch('/api/fund/holdings/', {
+      await apiFetch('/api/fund/holdings/', {
         method: 'POST',
         body: newHolding,
       })
@@ -55,7 +55,7 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function updateHolding(code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
     try {
-      await $fetch(`/api/fund/holdings/${code}`, {
+      await apiFetch(`/api/fund/holdings/${code}`, {
         method: 'PUT',
         body: data,
       })
@@ -72,7 +72,7 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function deleteHolding(code: string) {
     try {
-      await $fetch(`/api/fund/holdings/${code}`, {
+      await apiFetch(`/api/fund/holdings/${code}`, {
         method: 'DELETE',
       })
       // 删除成功后，从本地列表中移除，避免重新请求网络
@@ -92,7 +92,7 @@ export const useHoldingStore = defineStore('holding', () => {
     isRefreshing.value = true
     try {
       // 调用新创建的后端 API
-      await $fetch('/api/fund/utils/refresh-estimates', {
+      await apiFetch('/api/fund/utils/refresh-estimates', {
         method: 'POST',
       })
       // 成功后，重新获取整个列表以更新UI
@@ -115,8 +115,8 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function exportHoldings() {
     try {
-      // $fetch 返回的是一个 Blob 对象
-      const blob = await $fetch('/api/fund/utils/export', {
+      // apiFetch 返回的是一个 Blob 对象
+      const blob = await apiFetch('/api/fund/utils/export', {
         responseType: 'blob',
       })
 
@@ -150,7 +150,7 @@ export const useHoldingStore = defineStore('holding', () => {
     formData.append('overwrite', String(overwrite)) // 布尔值需要转为字符串
 
     try {
-      const result = await $fetch<{ message: string, imported: number, skipped: number }>('/api/fund/utils/import', {
+      const result = await apiFetch<{ message: string, imported: number, skipped: number }>('/api/fund/utils/import', {
         method: 'POST',
         body: formData,
       })
@@ -175,7 +175,7 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function runStrategiesForFund(code: string) {
     try {
-      const result = await $fetch(`/api/fund/holdings/${code}/run-strategies`, {
+      const result = await apiFetch(`/api/fund/holdings/${code}/run-strategies`, {
         method: 'POST',
       })
       alert(`策略分析完成！\n成功: ${result.success}, 失败: ${result.failed}`)
@@ -195,7 +195,7 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function syncHistory(code: string) {
     try {
-      const result = await $fetch(`/api/fund/holdings/${code}/sync-history`, {
+      const result = await apiFetch(`/api/fund/holdings/${code}/sync-history`, {
         method: 'POST',
       })
       alert(result.message) // 简单的成功提示

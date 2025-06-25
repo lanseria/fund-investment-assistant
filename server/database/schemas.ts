@@ -1,7 +1,19 @@
-import { bigserial, date, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, date, jsonb, numeric, pgEnum, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称，与原 Python 项目保持一致
 export const fundSchema = pgSchema('fund_app')
+
+export const userRoleEnum = pgEnum('user_role', ['admin', 'user'])
+/**
+ * [新增] 用户表
+ */
+export const users = fundSchema.table('users', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  username: text('username').notNull().unique(),
+  password: text('password').notNull(),
+  role: userRoleEnum('role').notNull().default('user'),
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
 
 /**
  * 持仓表 (my_holdings)
@@ -9,6 +21,7 @@ export const fundSchema = pgSchema('fund_app')
  */
 export const holdings = fundSchema.table('my_holdings', {
   code: varchar('code', { length: 10 }).primaryKey(),
+  userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   name: text('name').notNull(),
   shares: numeric('shares', { precision: 18, scale: 4 }).notNull(),
   yesterdayNav: numeric('yesterday_nav', { precision: 10, scale: 4 }).notNull(),

@@ -41,6 +41,7 @@
     "eslint-plugin-format": "catalog:dev",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
+    "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
     "pinia": "catalog:frontend",
     "typescript": "catalog:dev",

@@ -39,8 +39,8 @@ catalogs:
     bignumber.js: ^9.3.0
     dayjs-nuxt: ^2.1.11
     es-toolkit: ^1.39.4
+    paseto-ts: ^2.0.5
     zod: ^3.25.67
-
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
