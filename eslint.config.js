@@ -7,6 +7,13 @@ export default antfu(
     unocss: true,
     formatters: true,
     pnpm: true,
+    ignores: [
+      '**/dist/**',
+      '**/node_modules/**',
+      '**/coverage/**',
+      '**/cypress/**',
+      '**/server/database/drizzle/meta/**.json',
+    ],
     vue: {
       overrides: {
         'vue/component-name-in-template-casing': ['error', 'PascalCase', {

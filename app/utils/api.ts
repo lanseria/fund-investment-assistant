@@ -1,16 +1,13 @@
-import { ofetch } from 'ofetch'
-
-export const apiFetch = ofetch.create({
+export const apiFetch = $fetch.create({
   onRequest({ options }) {
     // 从 Cookie 获取 token
     const accessToken = useCookie('auth-token').value
     if (accessToken) {
-      options.headers = {
-        ...options.headers,
-        // 注意：这里我们不再需要手动添加 'Bearer ' 前缀
-        // 因为 ofetch 会处理好
-        Authorization: `Bearer ${accessToken}`,
-      }
+      // 使用 .set() 方法安全地添加或更新 Authorization 头
+      // 这样可以避免覆盖掉 ofetch 自动添加的其他头信息
+      const headers = new Headers(options.headers)
+      headers.set('Authorization', `Bearer ${accessToken}`)
+      options.headers = headers
     }
   },
   async onResponseError({ response }) {

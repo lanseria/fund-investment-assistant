@@ -6,7 +6,7 @@ services:
     env_file:
       - .env.production
     ports:
-      - "8888:3000"
+      - '8888:3000'
     restart: unless-stopped
     networks:
       - shared_app_net

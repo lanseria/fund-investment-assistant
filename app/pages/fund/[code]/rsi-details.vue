@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { appName } from '~/constants'
 
-const route = useRoute()
+const route = useRoute<'fund-code'>()
 const dayjs = useDayjs()
 const code = route.params.code as string
 
@@ -27,7 +27,7 @@ const dateFilters = [
 
 const { data, pending, error } = await useAsyncData(
   `rsi-chart-data-full-${code}`,
-  () => $fetch(`/api/charts/rsi/${code}`),
+  () => apiFetch('/api/charts/rsi/:code', { params: { code } }),
 )
 
 function setDateRange(period: string) {
@@ -77,7 +77,7 @@ useHead({
       <div class="flex gap-4 items-center">
         <!-- 1. 返回按钮：更清晰的图标按钮样式 -->
         <div
-          class="icon-btn cursor-pointer !text-2xl"
+          class="text-2xl icon-btn cursor-pointer"
           title="返回策略概览"
           @click="$router.back()"
         >

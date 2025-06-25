@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import { $fetch } from 'ofetch'
+import { ofetch } from 'ofetch'
 
 // 天天基金网实时估值返回的类型
 interface RealtimeEstimateResponse {
@@ -32,8 +32,8 @@ export async function fetchFundRealtimeEstimate(fundCode: string): Promise<Realt
 
   try {
     // [关键修正] 添加 `responseType: 'text'` 选项
-    // 这会强制 $fetch 将响应体作为纯文本字符串返回，无论 Content-Type 是什么。
-    const responseText = await $fetch<string>(url, {
+    // 这会强制 ofetch 将响应体作为纯文本字符串返回，无论 Content-Type 是什么。
+    const responseText = await ofetch<string>(url, {
       responseType: 'json',
       headers: { Referer: 'http://fund.eastmoney.com/' },
     })
@@ -77,7 +77,7 @@ export async function fetchFundHistory(fundCode: string, startDate?: string, end
 
   while (true) {
     try {
-      const response = await $fetch<HistoryAPIResponse>(url, {
+      const response = await ofetch<HistoryAPIResponse>(url, {
         params: {
           fundCode,
           pageIndex,

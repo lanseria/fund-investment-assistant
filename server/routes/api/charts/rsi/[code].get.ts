@@ -1,12 +1,12 @@
-// server/routes/api/charts/rsi/[code].get.ts
+import type { RsiChartData } from '~/types/chart' // 虽然是自动导入，但显式写出更清晰
 import { ofetch } from 'ofetch'
 
-export default defineEventHandler(async (event) => {
+// 为 defineEventHandler 明确指定返回的 Promise 类型
+export default defineEventHandler(async (event): Promise<RsiChartData> => {
   const code = getRouterParam(event, 'code')
   const query = getQuery(event)
-  const config = useRuntimeConfig() // 获取运行时配置
+  const config = useRuntimeConfig()
 
-  // 从配置中获取策略 API 的基地址
   const strategyApiBaseUrl = config.strategyApiUrl
   if (!strategyApiBaseUrl) {
     throw createError({
@@ -16,15 +16,17 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    // 完整地代理请求，包括路径参数和查询参数
-    return await ofetch(`/charts/rsi/${code}`, {
+    // 使用泛型来告知 ofetch 期望返回的数据类型
+    const data = await ofetch<RsiChartData>(`/charts/rsi/${code}`, {
       baseURL: strategyApiBaseUrl,
       params: query,
     })
+    return data
   }
   catch (error: any) {
     console.error(`代理请求到 /charts/rsi/${code} 失败:`, error)
-    // 将下游服务的错误信息和状态码透传给前端
+
+    // 保持现有的错误透传逻辑
     throw createError({
       statusCode: error.response?.status || 500,
       statusMessage: error.data?.detail || '获取RSI图表数据时发生错误。',

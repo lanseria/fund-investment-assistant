@@ -32,20 +32,20 @@ onUnmounted(() => {
     <!-- 模态框容器 -->
     <div
       v-if="modelValue"
-      class="fixed inset-0 z-50 flex items-center justify-center"
+      class="flex items-center inset-0 justify-center fixed z-50"
       aria-modal="true"
       role="dialog"
     >
       <!-- 背景遮罩 -->
       <div
-        class="fixed inset-0 bg-black/50"
+        class="bg-black/50 inset-0 fixed"
         @click="closeModal"
       />
 
       <!-- 模态框内容面板 -->
-      <div class="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-xl p-6 m-4">
+      <div class="m-4 p-6 rounded-lg bg-white max-w-md w-full shadow-xl relative dark:bg-gray-800">
         <!-- 头部 -->
-        <div class="flex items-center justify-between pb-4 border-b dark:border-gray-700">
+        <div class="pb-4 border-b flex items-center justify-between dark:border-gray-700">
           <h3 class="text-xl font-bold">
             {{ title }}
           </h3>

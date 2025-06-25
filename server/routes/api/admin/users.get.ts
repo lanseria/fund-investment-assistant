@@ -1,4 +1,3 @@
-import { users } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 
 export default defineEventHandler(async (event) => {

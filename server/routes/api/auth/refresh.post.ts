@@ -1,6 +1,6 @@
 import type { UserPayload } from '~~/server/utils/auth'
 import { eq } from 'drizzle-orm'
-import { encrypt, sign, verify } from 'paseto-ts/v4'
+import { encrypt, verify } from 'paseto-ts/v4'
 import { z } from 'zod'
 import { users } from '~~/server/database/schemas'
 
@@ -10,11 +10,15 @@ const refreshSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const { refreshToken } = await refreshSchema.parseAsync(await readBody(event))
+
   const refreshPublicKey = await useStorage('redis').getItem<string>('refreshPublicKey')
   if (!refreshPublicKey)
     throw new Error('Server not initialized: public key is missing.')
 
-  const { sub: userId } = await verify(refreshPublicKey, refreshToken)
+  // [修改 1] 先解构出 payload，再从中获取 sub
+  const { payload } = await verify(refreshPublicKey, refreshToken)
+  const userId = payload.sub
+
   const db = useDb()
   const user = await db.query.users.findFirst({ where: eq(users.id, Number(userId)) })
   if (!user)
@@ -26,7 +30,8 @@ export default defineEventHandler(async (event) => {
   if (!localKey)
     throw new Error('Server not initialized: localKey is missing.')
 
-  const newAccessToken = await encrypt(localKey, userPayload, { expiresIn: '15 minutes' })
+  // [修改 2] 在选项对象上使用 `as any` 来解决类型定义问题
+  const newAccessToken = await encrypt(localKey, userPayload, { expiresIn: '15 minutes' } as any)
 
   return { accessToken: newAccessToken, user: userPayload }
 })

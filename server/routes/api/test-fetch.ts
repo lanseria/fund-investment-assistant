@@ -1,3 +1,4 @@
+/* eslint-disable no-console */
 import { fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 
 export default defineEventHandler(async (event) => {
