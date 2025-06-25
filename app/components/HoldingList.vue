@@ -78,15 +78,15 @@ const strategiesForTags = {
 <template>
   <div class="card overflow-hidden">
     <div class="overflow-x-auto">
-      <table class="text-left w-full table-auto">
+      <table class="text-left w-full table-fixed">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <th class="text-sm text-gray-600 font-semibold p-4 dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 w-[180px] dark:text-gray-300">
               基金名称 / 策略信号
             </th>
 
             <!-- 合并 "持有金额" 和 "持有份额" 的表头，排序按 holdingAmount -->
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingAmount')">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingAmount')">
               持有市值 / 份额
               <span v-if="sortKey === 'holdingAmount'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up />
@@ -94,7 +94,7 @@ const strategiesForTags = {
               </span>
             </th>
 
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingProfitRate')">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingProfitRate')">
               持有收益 / 收益率
               <span v-if="sortKey === 'holdingProfitRate'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up /><div v-else i-carbon-arrow-down />
@@ -102,7 +102,7 @@ const strategiesForTags = {
             </th>
 
             <!-- 合并 "估算涨跌" 和 "估算金额" 的表头，排序按 percentageChange -->
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('percentageChange')">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('percentageChange')">
               估算涨跌 / 收益
               <span v-if="sortKey === 'percentageChange'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up />
@@ -110,10 +110,10 @@ const strategiesForTags = {
               </span>
             </th>
 
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               更新时间
             </th>
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-20 dark:text-gray-300">
               操作
             </th>
           </tr>
