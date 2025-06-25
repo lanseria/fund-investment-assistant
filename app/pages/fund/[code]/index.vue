@@ -63,7 +63,7 @@ const { data, pending, error, refresh } = await useAsyncData(
 )
 
 const holdingStore = useHoldingStore()
-const { syncHistory: triggerSyncHistory } = holdingStore
+const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
@@ -82,6 +82,19 @@ async function handleSyncHistory() {
   }
 }
 
+// [新增] 为执行策略分析添加本地加载状态
+const isRunningStrategies = ref(false)
+async function handleRunStrategies() {
+  isRunningStrategies.value = true
+  try {
+    await runStrategiesForFund(code)
+    // 成功后，刷新图表数据以显示最新的信号
+    await refresh()
+  }
+  finally {
+    isRunningStrategies.value = false
+  }
+}
 useHead({
   title: () => `策略分析: ${fundName.value} (${code}) - ${appName}`,
 })
@@ -128,14 +141,20 @@ watch(data, (newData) => {
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
     <header class="mb-8 flex items-center justify-between">
-      <div class="text-sm text-gray-500 inline-flex gap-2 transition-colors items-center hover:text-teal-500" @click="$router.back()">
+      <div class="text-sm text-gray-500 inline-flex gap-2 cursor-pointer transition-colors items-center hover:text-teal-500" @click="$router.back()">
         <div i-carbon-arrow-left />
         返回持仓列表
       </div>
-      <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
-        <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
-        {{ isSyncing ? '同步中...' : '同步历史数据' }}
-      </button>
+      <div class="flex gap-3">
+        <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
+          <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
+          {{ isRunningStrategies ? '分析中...' : '执行策略分析' }}
+        </button>
+        <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
+          <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
+          {{ isSyncing ? '同步中...' : '同步历史数据' }}
+        </button>
+      </div>
     </header>
 
     <!-- [修改] 控制面板不再有策略选择器 -->

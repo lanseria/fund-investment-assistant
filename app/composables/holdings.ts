@@ -10,7 +10,6 @@ export const useHoldingStore = defineStore('holding', () => {
   const summary = ref<HoldingSummary | null>(null) // [新增] summary state
   const isLoading = ref(false)
   const isRefreshing = ref(false)
-  const isRunningStrategies = ref(false)
 
   // --- Actions ---
 
@@ -170,20 +169,20 @@ export const useHoldingStore = defineStore('holding', () => {
       isLoading.value = false
     }
   }
-
   /**
-   * [新增] 手动触发所有基金的策略分析
+   * [修改] 手动触发单个基金的所有策略分析
+   * @param code 基金代码
    */
-  async function runAllStrategies() {
+  async function runStrategiesForFund(code: string) {
     try {
-      const result = await $fetch('/api/fund/utils/run-strategies', {
+      const result = await $fetch(`/api/fund/holdings/${code}/run-strategies`, {
         method: 'POST',
       })
       alert(`策略分析完成！\n成功: ${result.success}, 失败: ${result.failed}`)
       return result
     }
     catch (error: any) {
-      console.error('执行策略分析失败:', error)
+      console.error(`为基金 ${code} 执行策略分析失败:`, error)
       const detail = error.data?.statusMessage || '发生未知错误'
       alert(`执行失败: ${detail}`)
       throw error
@@ -216,7 +215,6 @@ export const useHoldingStore = defineStore('holding', () => {
     isLoading,
     totalCost,
     isRefreshing,
-    isRunningStrategies,
     fetchHoldings,
     addHolding,
     updateHolding,
@@ -225,7 +223,7 @@ export const useHoldingStore = defineStore('holding', () => {
     importHoldings,
     refreshAllEstimates,
     syncHistory,
-    runAllStrategies,
+    runStrategiesForFund,
   }
 })
 

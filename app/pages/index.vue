@@ -12,8 +12,8 @@ useHead({
 })
 const holdingStore = useHoldingStore()
 // [修改] 从 store 中解构出策略相关的状态和 action
-const { holdings, isLoading, isRefreshing, summary, isRunningStrategies } = storeToRefs(holdingStore)
-const { refreshAllEstimates, runAllStrategies, fetchHoldings } = holdingStore
+const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
+const { refreshAllEstimates } = holdingStore
 
 // 使用 useAsyncData 确保在服务端也能获取数据
 await useAsyncData('holdings', () => holdingStore.fetchHoldings())
@@ -89,11 +89,6 @@ async function handleRefresh() {
   await refreshAllEstimates()
 }
 
-async function handleRunStrategies() {
-  await runAllStrategies()
-  await fetchHoldings()
-}
-
 async function handleDelete(holding: Holding) {
   if (confirm(`确定要删除基金 ${holding.name} (${holding.code}) 吗？`)) {
     try {
@@ -134,10 +129,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       <div class="flex gap-2 items-center sm:gap-4">
         <button class="icon-btn" title="刷新所有估值" :disabled="isRefreshing" @click="handleRefresh">
           <div i-carbon-renew :class="{ 'animate-spin': isRefreshing }" />
-        </button>
-        <!-- [新增] 执行策略分析按钮 -->
-        <button class="icon-btn" title="执行所有策略分析" :disabled="isRunningStrategies" @click="handleRunStrategies">
-          <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" />
         </button>
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
