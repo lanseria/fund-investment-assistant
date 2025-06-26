@@ -1,7 +1,7 @@
 export const apiFetch = $fetch.create({
   onRequest({ options }) {
     // 从 Cookie 获取 token
-    const accessToken = useCookie('auth-token').value
+    const accessToken = useLocalStorage('auth-token', null).value
     if (accessToken) {
       // 使用 .set() 方法安全地添加或更新 Authorization 头
       // 这样可以避免覆盖掉 ofetch 自动添加的其他头信息

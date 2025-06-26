@@ -73,7 +73,7 @@ watch(sseData, (newData) => {
 
 // 4. 在 onMounted 中建立连接，在 onUnmounted 中断开
 onMounted(() => {
-  const authToken = useCookie('auth-token').value
+  const authToken = useLocalStorage('auth-token', null).value
   if (authToken) {
     // 动态设置带 token 的 URL
     sseUrl.value = `/api/sse/holdings?token=${authToken}`
