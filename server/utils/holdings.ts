@@ -1,108 +1,138 @@
+// server/utils/holdings.ts
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, lte } from 'drizzle-orm'
-import { holdings, navHistory } from '~~/server/database/schemas'
-import { fetchFundHistory } from '~~/server/utils/dataFetcher' // 确保 fetchFundHistory 已导入
+// [REFACTOR] 导入新的 funds 表 schema
+import { funds, holdings, navHistory } from '~~/server/database/schemas'
+import { fetchFundHistory, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
-// 自定义错误类型
+// [REFACTOR] 更新了错误类型
 export class HoldingExistsError extends Error {
   constructor(code: string) {
-    super(`基金代码 '${code}' 已存在。`)
+    super(`您已持有该基金(代码: ${code})，请勿重复添加。`)
     this.name = 'HoldingExistsError'
+  }
+}
+
+export class FundNotFoundError extends Error {
+  constructor(code: string) {
+    super(`未在系统中找到基金代码为 '${code}' 的信息。`)
+    this.name = 'FundNotFoundError'
   }
 }
 
 export class HoldingNotFoundError extends Error {
   constructor(code: string) {
-    super(`未找到基金代码为 '${code}' 的持仓记录。`)
+    super(`您未持有基金代码为 '${code}' 的持仓记录。`)
     this.name = 'HoldingNotFoundError'
   }
 }
 
+// [NEW] 内部辅助函数：查找或创建基金公共信息
+async function findOrCreateFund(code: string) {
+  const db = useDb()
+  let fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
+
+  if (!fund) {
+    const realtimeData = await fetchFundRealtimeEstimate(code)
+    if (!realtimeData)
+      throw new Error(`无法获取基金 ${code} 的初始信息。`)
+
+    const newFundData = {
+      code,
+      name: realtimeData.name,
+      yesterdayNav: realtimeData.dwjz,
+      todayEstimateNav: Number(realtimeData.gsz) || null,
+      percentageChange: Number(realtimeData.gszzl) || null,
+      todayEstimateUpdateTime: new Date(realtimeData.gztime) || null,
+    };
+    [fund] = await db.insert(funds).values(newFundData).returning()
+  }
+  return fund
+}
+
 interface HoldingCreateData {
   code: string
-  name?: string
+  name?: string // name 字段不再强制要求，因为可以从 fund 表获取
   holdingAmount: number
   holdingProfitRate?: number | null
   userId: number
 }
 
 /**
- * 创建新的基金持仓
+ * [REFACTOR] 为用户创建新的基金持仓
  */
-export async function createNewHolding(data: HoldingCreateData) {
+export async function addHolding(data: HoldingCreateData) {
   const db = useDb()
-  const existing = await db.query.holdings.findFirst({
+
+  // 1. 检查用户是否已持有该基金
+  const existingHolding = await db.query.holdings.findFirst({
     where: and(
-      eq(holdings.code, data.code),
       eq(holdings.userId, data.userId),
+      eq(holdings.fundCode, data.code),
     ),
   })
-  if (existing)
+  if (existingHolding)
     throw new HoldingExistsError(data.code)
 
-  const realtimeData = await fetchFundRealtimeEstimate(data.code)
-  if (!realtimeData)
-    throw new Error(`无法获取基金 ${data.code} 的实时信息。`)
-
-  const finalName = data.name || realtimeData.name
-  const yesterdayNav = Number(realtimeData.dwjz)
+  // 2. 查找或创建基金的公共信息
+  const fund = await findOrCreateFund(data.code)
+  const yesterdayNav = Number(fund!.yesterdayNav)
   if (Number.isNaN(yesterdayNav) || yesterdayNav <= 0)
-    throw new Error(`无法为基金 ${data.code} 获取有效的初始净值。`)
+    throw new Error(`基金 ${data.code} 的净值无效，无法计算份额。`)
 
+  // 3. 计算份额和收益
   const shares = data.holdingAmount / yesterdayNav
-
   let profitAmount: number | null = null
   if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
-    // 根据公式: 成本 = 市值 / (1 + 收益率)
-    // 收益 = 市值 - 成本
     const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
     profitAmount = data.holdingAmount - cost
   }
 
-  const newHolding = {
-    code: data.code,
+  // 4. 在 holdings 表中插入用户持仓记录
+  const newHoldingData = {
     userId: data.userId,
-    name: finalName,
+    fundCode: data.code,
     shares: shares.toFixed(4),
-    yesterdayNav: yesterdayNav.toFixed(4),
     holdingAmount: data.holdingAmount.toFixed(2),
     holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
     holdingProfitRate: data.holdingProfitRate ?? null,
-    todayEstimateNav: Number(realtimeData.gsz) || null,
-    todayEstimateAmount: (shares * Number(realtimeData.gsz)).toFixed(2) || null,
-    percentageChange: Number(realtimeData.gszzl) || null,
-    todayEstimateUpdateTime: new Date(realtimeData.gztime) || null,
   }
 
-  const [result] = await db.insert(holdings).values(newHolding).returning()
+  const [result] = await db.insert(holdings).values(newHoldingData).returning()
   return result
 }
 
 /**
- * [修改] 更新持仓记录，函数名和参数都已修改
+ * [REFACTOR] 更新用户持仓记录
  */
-export async function updateHolding(code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
+export async function updateHolding(userId: number, code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
   const db = useDb()
-  const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
+
+  // 1. 验证用户是否持有该基金
+  const holding = await db.query.holdings.findFirst({ where: and(eq(holdings.userId, userId), eq(holdings.fundCode, code)) })
   if (!holding)
     throw new HoldingNotFoundError(code)
 
-  const yesterdayNav = Number(holding.yesterdayNav)
+  // 2. 获取基金的公共信息
+  const fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
+  if (!fund)
+    throw new FundNotFoundError(code)
+
+  const yesterdayNav = Number(fund.yesterdayNav)
   if (yesterdayNav <= 0)
     throw new Error(`基金 ${code} 的昨日净值为零或无效，无法重新计算份额。`)
 
+  // 3. 计算新份额和收益
   const newShares = data.holdingAmount / yesterdayNav
-
-  // [新增] 重新计算收益金额
   let profitAmount: number | null = null
   if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
     const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
     profitAmount = data.holdingAmount - cost
   }
 
-  // eslint-disable-next-line unused-imports/no-unused-vars
+  // 4. 更新用户的持仓记录
   const [updatedHolding] = await db.update(holdings)
     .set({
       holdingAmount: data.holdingAmount.toFixed(2),
@@ -110,32 +140,168 @@ export async function updateHolding(code: string, data: { holdingAmount: number,
       holdingProfitRate: data.holdingProfitRate ?? null,
       holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
     })
-    .where(eq(holdings.code, code))
+    .where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
     .returning()
 
-  // 顺便更新一下实时估值
+  // 顺便触发一下基金公共信息的估值更新
   await syncSingleFundEstimate(code)
 
-  return await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
+  return updatedHolding
 }
 
 /**
- * 删除持仓
+ * [REFACTOR] 删除用户持仓
  */
-export async function deleteHoldingByCode(code: string) {
+export async function deleteHolding(userId: number, code: string) {
   const db = useDb()
-  const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
-  if (!holding)
+  // 直接删除用户的持仓记录，无需检查，Drizzle的delete会返回被删除的行数
+  const result = await db.delete(holdings).where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
+
+  if (result.rowCount === 0)
     throw new HoldingNotFoundError(code)
 
-  await db.delete(navHistory).where(eq(navHistory.code, code))
-  await db.delete(holdings).where(eq(holdings.code, code))
+  // 注意：不再删除 navHistory，因为它是全局共享的
 }
 
 /**
- * 获取带移动平均线的历史数据
+ * [REFACTOR] 导出指定用户的持仓数据
  */
+export async function exportHoldingsData(userId: number) {
+  const db = useDb()
+  const userHoldings = await db.select({
+    code: holdings.fundCode, // 导出 fundCode
+    shares: holdings.shares,
+    holdingProfitRate: holdings.holdingProfitRate,
+  }).from(holdings).where(eq(holdings.userId, userId))
+  return userHoldings
+}
+
+/**
+ * [REFACTOR] 导入持仓数据
+ */
+export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean, userId: number) {
+  const db = useDb()
+  if (overwrite) {
+    await db.delete(holdings).where(eq(holdings.userId, userId))
+  }
+
+  let importedCount = 0
+  let skippedCount = 0
+
+  for (const item of dataToImport) {
+    if (!item.code || item.shares === undefined) {
+      skippedCount++
+      continue
+    }
+
+    try {
+      const fund = await findOrCreateFund(item.code)
+      if (!fund || new BigNumber(fund.yesterdayNav).isLessThanOrEqualTo(0)) {
+        skippedCount++
+        continue
+      }
+
+      const holdingAmount = new BigNumber(item.shares).times(fund.yesterdayNav).toNumber()
+
+      await addHolding({
+        code: item.code,
+        holdingAmount,
+        holdingProfitRate: item.holdingProfitRate,
+        userId,
+      })
+      importedCount++
+    }
+    catch (error) {
+      if (error instanceof HoldingExistsError) {
+        skippedCount++ // 如果非覆盖模式下已存在，则跳过
+      }
+      else {
+        console.error(`导入基金 ${item.code} 失败:`, error)
+        skippedCount++
+      }
+    }
+  }
+  return { imported: importedCount, skipped: skippedCount }
+}
+
+/**
+ * [REFACTOR] 同步单个基金的最新估值 (更新 funds 表)
+ */
+export async function syncSingleFundEstimate(code: string) {
+  const db = useDb()
+  const realtimeData = await fetchFundRealtimeEstimate(code)
+  if (realtimeData && realtimeData.gsz) {
+    const estimateNav = Number(realtimeData.gsz)
+    await db.update(funds).set({
+      todayEstimateNav: estimateNav,
+      percentageChange: Number(realtimeData.gszzl),
+      todayEstimateUpdateTime: new Date(realtimeData.gztime),
+    }).where(eq(funds.code, code))
+  }
+}
+
+/**
+ * [REFACTOR] 同步所有基金的最新估值 (更新 funds 表)
+ */
+export async function syncAllFundsEstimates() {
+  const db = useDb()
+  // 从 funds 表获取所有基金
+  const allFunds = await db.query.funds.findMany()
+
+  if (allFunds.length === 0)
+    return { total: 0, success: 0, failed: 0 }
+
+  const results = await Promise.allSettled(
+    allFunds.map(fund => syncSingleFundEstimate(fund.code)),
+  )
+
+  const successCount = results.filter(r => r.status === 'fulfilled').length
+  const failedCount = results.length - successCount
+
+  console.log(`[Estimate Sync] Completed. Total: ${results.length}, Success: ${successCount}, Failed: ${failedCount}`)
+  return { total: results.length, success: successCount, failed: failedCount }
+}
+
+/**
+ * [REFACTOR] 同步单个基金的历史净值数据 (更新 navHistory 和 funds 表)
+ */
+export async function syncSingleFundHistory(code: string): Promise<number> {
+  const db = useDb()
+  const fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
+
+  if (!fund)
+    throw new FundNotFoundError(code)
+
+  const latestRecord = await db.query.navHistory.findFirst({
+    where: eq(navHistory.code, code),
+    orderBy: [desc(navHistory.navDate)],
+  })
+
+  const startDate = latestRecord ? useDayjs()(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
+
+  const historyData = await fetchFundHistory(code, startDate)
+  if (!historyData.length)
+    return 0
+
+  const newRecords = historyData
+    .map(r => ({ code, navDate: r.FSRQ, nav: r.DWJZ }))
+    .filter(r => Number(r.nav) > 0)
+
+  if (newRecords.length > 0) {
+    await db.insert(navHistory).values(newRecords).onConflictDoNothing()
+    const latestNav = newRecords[0]!.nav // API返回是降序的
+    // 更新 funds 表的最新净值
+    await db.update(funds).set({
+      yesterdayNav: latestNav,
+    }).where(eq(funds.code, code))
+  }
+
+  return newRecords.length
+}
+
+// [UNCHANGED] 获取历史和MA的函数基本不变，因为它操作的是 navHistory
 export async function getHistoryWithMA(code: string, startDate?: string, endDate?: string, maOptions: number[] = []) {
+  // ... 此函数内容保持不变 ...
   const db = useDb()
   const query = db.select().from(navHistory).where(
     and(
@@ -149,216 +315,27 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
   if (!records.length)
     return []
 
-  // [重要修改] 1. 将数据库中的字符串净值直接转换为 BigNumber 对象，以保持完整精度
   const data = records.map(r => ({
     date: r.navDate,
-    nav: new BigNumber(r.nav), // 使用 new BigNumber()
-  })).reverse() // 按日期升序排列，以便计算MA
+    nav: new BigNumber(r.nav),
+  })).reverse()
 
   for (const ma of maOptions) {
     if (ma > 0 && data.length >= ma) {
       for (let i = ma - 1; i < data.length; i++) {
-        // 截取计算 MA 所需的数据窗口
         const window = data.slice(i - ma + 1, i + 1)
-
-        // [重要修改] 2. 使用 BigNumber.sum() 进行精确求和，或者使用 reduce + plus
         const sum = window.reduce(
-          (acc, val) => acc.plus(val.nav), // 使用 .plus() 方法
-          new BigNumber(0), // 初始值也是 BigNumber 对象
+          (acc, val) => acc.plus(val.nav),
+          new BigNumber(0),
         )
-
-        // [重要修改] 3. 使用 .dividedBy() 进行精确除法
         const movingAverage = sum.dividedBy(ma)
-
-        // [重要修改] 4. 将计算结果（BigNumber对象）转换回普通数字，并赋给新属性
-        // ECharts 等前端库需要的是普通数字
         ;(data[i] as any)[`ma${ma}`] = movingAverage.toNumber()
       }
     }
   }
 
-  // [重要修改] 5. 在最终返回前，将所有 nav 从 BigNumber 对象转换回普通数字
-  // 这样可以确保返回给前端的接口数据是纯净的、可直接使用的 JSON
   return data.map(point => ({
     ...point,
     nav: point.nav.toNumber(),
   }))
-}
-
-/**
- * 导出持仓数据
- */
-export async function exportHoldingsData() {
-  const db = useDb()
-  // [修改] 在 SELECT 中添加 holdingProfitRate 字段
-  const allHoldings = await db.select({
-    code: holdings.code,
-    shares: holdings.shares,
-    holdingProfitRate: holdings.holdingProfitRate,
-  }).from(holdings)
-  return allHoldings
-}
-
-/**
- * 导入持仓数据
- * [修改] 函数签名增加了 userId 参数
- */
-export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean, userId: number) {
-  const db = useDb()
-  if (overwrite) {
-    // [重要修改] 只删除当前用户的持仓数据，而不是所有数据
-    // 注意：我们不再删除 navHistory，因为它是所有用户共享的全局数据。
-    await db.delete(holdings).where(eq(holdings.userId, userId))
-  }
-
-  let importedCount = 0
-  let skippedCount = 0
-
-  for (const item of dataToImport) {
-    if (!item.code || item.shares === undefined) {
-      skippedCount++
-      continue
-    }
-    item.shares = Number(item.shares)
-
-    if (!overwrite) {
-      // [修改] 检查持仓是否存在时，必须同时匹配 code 和 userId
-      const existing = await db.query.holdings.findFirst({
-        where: and(
-          eq(holdings.code, item.code),
-          eq(holdings.userId, userId),
-        ),
-      })
-      if (existing) {
-        skippedCount++
-        continue
-      }
-    }
-
-    const realtimeData = await fetchFundRealtimeEstimate(item.code)
-    if (!realtimeData || new BigNumber(realtimeData.dwjz).isLessThanOrEqualTo(0)) {
-      skippedCount++
-      continue
-    }
-
-    const sharesBN = new BigNumber(item.shares)
-    const navBN = new BigNumber(realtimeData.dwjz)
-    const holdingAmountBN = sharesBN.times(navBN)
-
-    let profitAmountBN: BigNumber | null = null
-    if (item.holdingProfitRate !== null && item.holdingProfitRate !== undefined) {
-      const profitRateBN = new BigNumber(item.holdingProfitRate).dividedBy(100)
-      const costBasisBN = holdingAmountBN.dividedBy(profitRateBN.plus(1))
-      profitAmountBN = holdingAmountBN.minus(costBasisBN)
-    }
-
-    const newHolding = {
-      code: item.code,
-      userId, // [新增] 关联用户 ID
-      name: realtimeData.name,
-      shares: sharesBN.toFixed(4),
-      yesterdayNav: navBN.toFixed(4),
-      holdingAmount: holdingAmountBN.toFixed(2),
-      holdingProfitAmount: profitAmountBN ? profitAmountBN.toFixed(2) : null,
-      holdingProfitRate: item.holdingProfitRate ?? null,
-    }
-
-    // 注意：这里没有使用 onConflictDoUpdate 是因为如果 overwrite=false，我们已经手动跳过了
-    // 如果 overwrite=true，表已经是空的。
-    await db.insert(holdings).values(newHolding)
-    importedCount++
-  }
-  return { imported: importedCount, skipped: skippedCount }
-}
-
-/**
- * 同步单个基金的最新估值
- */
-export async function syncSingleFundEstimate(code: string) {
-  const db = useDb()
-  const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
-  if (!holding)
-    return
-
-  const realtimeData = await fetchFundRealtimeEstimate(code)
-  if (realtimeData && realtimeData.gsz) {
-    const estimateNav = Number(realtimeData.gsz)
-    await db.update(holdings).set({
-      todayEstimateNav: estimateNav,
-      percentageChange: Number(realtimeData.gszzl),
-      todayEstimateUpdateTime: new Date(realtimeData.gztime),
-      todayEstimateAmount: (Number(holding.shares) * estimateNav).toFixed(2),
-    }).where(eq(holdings.code, code))
-  }
-}
-
-/**
- * [新增] 同步所有持仓基金的最新估值
- */
-export async function syncAllHoldingsEstimates() {
-  const db = useDb()
-  const allHoldings = await db.query.holdings.findMany()
-
-  if (allHoldings.length === 0)
-    return { total: 0, success: 0, failed: 0 }
-
-  // 使用 Promise.all 并发执行所有更新任务
-  const results = await Promise.allSettled(
-    allHoldings.map(holding => syncSingleFundEstimate(holding.code)),
-  )
-
-  const successCount = results.filter(r => r.status === 'fulfilled').length
-  const failedCount = results.length - successCount
-
-  console.log(`[Estimate Sync] Completed. Total: ${results.length}, Success: ${successCount}, Failed: ${failedCount}`)
-  return { total: results.length, success: successCount, failed: failedCount }
-}
-
-/**
- * [新增] 同步单个基金的历史净值数据
- * @param code 基金代码
- * @returns 返回同步的记录数量
- */
-export async function syncSingleFundHistory(code: string): Promise<number> {
-  const db = useDb()
-  const holding = await db.query.holdings.findFirst({ where: eq(holdings.code, code) })
-
-  if (!holding)
-    throw new HoldingNotFoundError(code)
-
-  // 查找本地最新的历史记录
-  const latestRecord = await db.query.navHistory.findFirst({
-    where: eq(navHistory.code, code),
-    orderBy: [desc(navHistory.navDate)],
-  })
-
-  // 从最新记录的后一天开始获取，如果没有记录则从头获取
-  const startDate = latestRecord ? useDayjs()(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
-
-  const historyData = await fetchFundHistory(code, startDate)
-  if (!historyData.length)
-    return 0 // 没有新数据需要同步
-
-  const newRecords = historyData
-    .map(r => ({
-      code,
-      navDate: r.FSRQ,
-      nav: r.DWJZ,
-    }))
-    .filter(r => Number(r.nav) > 0)
-
-  if (newRecords.length > 0) {
-    await db.insert(navHistory).values(newRecords).onConflictDoNothing()
-
-    // 更新持仓的最新净值和金额（以防万一）
-    const latestNav = Number(newRecords[0]!.nav) // API返回是降序的
-    const newAmount = Number(holding.shares) * latestNav
-
-    await db.update(holdings).set({
-      yesterdayNav: latestNav.toFixed(4),
-      holdingAmount: newAmount.toFixed(2),
-    }).where(eq(holdings.code, code))
-  }
-
-  return newRecords.length
 }
