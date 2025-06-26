@@ -15,7 +15,7 @@ const holdingStore = useHoldingStore()
 const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
 const { refreshAllEstimates } = holdingStore
 
-// [核心修改] 正确使用 useAsyncData
+// 正确使用 useAsyncData
 // 1. useAsyncData 的处理器直接返回 fetch 的结果
 // 2. 我们从 useAsyncData 解构出 data, pending 等状态
 const { data: asyncData, pending: isDataLoading } = await useAsyncData(
@@ -23,7 +23,7 @@ const { data: asyncData, pending: isDataLoading } = await useAsyncData(
   () => apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/'),
 )
 
-// [核心修改] 使用 watch 将 useAsyncData 获取的数据同步到 Pinia store
+// 使用 watch 将 useAsyncData 获取的数据同步到 Pinia store
 // 这样既能在 SSR 时获取数据，又能将数据保存在全局状态中
 watch(asyncData, (newData) => {
   if (newData) {
@@ -32,7 +32,7 @@ watch(asyncData, (newData) => {
   }
 }, { immediate: true }) // immediate: true 保证在组件加载时立即执行一次
 
-// [修改] isLoading 状态现在应该由 useAsyncData 的 pending 状态驱动
+// isLoading 状态现在应该由 useAsyncData 的 pending 状态驱动
 // 这样可以避免手动管理加载状态
 watch(isDataLoading, (loading) => {
   holdingStore.isLoading = loading
@@ -51,7 +51,7 @@ function handleSetSort(key: SortableKey) {
   router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
 }
 
-// --- 模态框状态管理 (保持不变) ---
+// --- 模态框状态管理 ---
 const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
@@ -163,35 +163,43 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
     <!-- 投资组合总览卡片 -->
     <div v-if="summary && summary.count > 0" class="mb-8 p-4 card">
       <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
+        <!-- 持仓总成本 -->
         <div class="p-2">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             持仓总成本
           </p>
-          <p class="text-lg font-semibold sm:text-xl">
+          <!-- 应用 font-numeric 类 -->
+          <p class="font-numeric text-lg font-semibold sm:text-xl">
             {{ formatCurrency(summary.totalHoldingAmount) }}
           </p>
         </div>
+        <!-- 预估总市值 -->
         <div class="p-2">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             预估总市值
           </p>
-          <p class="text-lg font-semibold sm:text-xl">
+          <!-- 应用 font-numeric 类 -->
+          <p class="font-numeric text-lg font-semibold sm:text-xl">
             {{ formatCurrency(summary.totalEstimateAmount) }}
           </p>
         </div>
+        <!-- 预估总盈亏 -->
         <div class="p-2">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             预估总盈亏
           </p>
-          <p class="text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
+          <!-- 应用 font-numeric 类 -->
+          <p class="font-numeric text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
             {{ summary.totalProfitLoss.toFixed(2) }}
           </p>
         </div>
+        <!-- 预估涨跌幅 -->
         <div class="p-2">
           <p class="text-sm text-gray-500 dark:text-gray-400">
             预估涨跌幅
           </p>
-          <p class="text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
+          <!-- [修改] 应用 font-numeric 类 -->
+          <p class="font-numeric text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
             {{ summary.totalPercentageChange.toFixed(2) }}%
           </p>
         </div>

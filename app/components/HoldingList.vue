@@ -124,7 +124,7 @@ const strategiesForTags = {
             <td class="font-semibold p-4">
               <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-teal-500">
                 {{ h.name }}
-                <div class="text-xs text-gray-400 font-normal dark:text-gray-500">
+                <div class="font-numeric text-xs text-gray-400 font-normal dark:text-gray-500">
                   {{ h.code }}
                 </div>
               </NuxtLink>
@@ -143,36 +143,36 @@ const strategiesForTags = {
 
             <!-- 持有市值和份额合并在一个单元格 -->
             <td class="font-mono p-4 text-right">
-              <div class="font-semibold">
+              <div class="font-numeric font-semibold">
                 {{ formatCurrency(h.holdingAmount) }}
               </div>
-              <div class="text-xs text-gray-500 dark:text-gray-400">
+              <div class="font-numeric text-xs text-gray-500 dark:text-gray-400">
                 {{ h.shares.toFixed(2) }} 份
               </div>
             </td>
 
             <!-- 持有收益和收益率 -->
             <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-              <div class="font-semibold">
+              <div class="font-numeric font-semibold">
                 {{ formatCurrency(h.holdingProfitAmount) }}
               </div>
-              <div class="text-xs">
+              <div class="font-numeric text-xs">
                 {{ h.holdingProfitRate !== null ? `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` : '-' }}
               </div>
             </td>
 
             <!-- 估算涨跌和市值合并在一个单元格 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              <div class="font-semibold">
+              <div class="font-numeric font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
-              <div class="text-xs">
+              <div class="font-numeric text-xs">
                 {{ formatCurrency(h.todayEstimateAmount! - h.holdingAmount) }}
               </div>
             </td>
 
             <!-- 更新时间 -->
-            <td class="text-sm text-gray-500 p-4 text-right">
+            <td class="font-numeric text-sm text-gray-500 p-4 text-right">
               {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
             </td>
 
