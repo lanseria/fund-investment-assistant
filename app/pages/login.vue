@@ -52,7 +52,7 @@ async function handleLogin() {
         <div class="space-y-1">
           <label for="username" class="text-sm font-medium">用户名</label>
           <div class="relative">
-            <div class="i-carbon-user text-lg opacity-50 left-3 top-1/2 absolute -translate-y-1/2" />
+            <div class="i-carbon-user text-lg op-50 left-3 top-1/2 absolute -translate-y-1/2" />
             <input
               id="username"
               v-model="credentials.username"
@@ -68,7 +68,7 @@ async function handleLogin() {
         <div class="space-y-1">
           <label for="password" class="text-sm font-medium">密码</label>
           <div class="relative">
-            <div class="i-carbon-locked text-lg opacity-50 left-3 top-1/2 absolute -translate-y-1/2" />
+            <div class="i-carbon-locked text-lg op-50 left-3 top-1/2 absolute -translate-y-1/2" />
             <input
               id="password"
               v-model="credentials.password"

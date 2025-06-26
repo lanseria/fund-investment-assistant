@@ -1,3 +1,4 @@
+<!-- eslint-disable no-console -->
 <!-- eslint-disable no-alert -->
 <!-- File: app/pages/index.vue -->
 <script setup lang="ts">
@@ -15,27 +16,80 @@ const holdingStore = useHoldingStore()
 const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
 const { refreshAllEstimates } = holdingStore
 
-// 正确使用 useAsyncData
-// 1. useAsyncData 的处理器直接返回 fetch 的结果
-// 2. 我们从 useAsyncData 解构出 data, pending 等状态
-const { data: asyncData, pending: isDataLoading } = await useAsyncData(
+// 1. [保持不变] 首次数据加载，对 SSR 和首屏至关重要
+const { pending: isDataLoading } = await useAsyncData(
   'holdings',
-  () => apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/'),
+  async () => {
+    const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
+    if (data) {
+      holdingStore.holdings = data.holdings
+      holdingStore.summary = data.summary
+    }
+    return data
+  },
 )
-
-// 使用 watch 将 useAsyncData 获取的数据同步到 Pinia store
-// 这样既能在 SSR 时获取数据，又能将数据保存在全局状态中
-watch(asyncData, (newData) => {
-  if (newData) {
-    holdingStore.holdings = newData.holdings
-    holdingStore.summary = newData.summary
-  }
-}, { immediate: true }) // immediate: true 保证在组件加载时立即执行一次
-
-// isLoading 状态现在应该由 useAsyncData 的 pending 状态驱动
-// 这样可以避免手动管理加载状态
 watch(isDataLoading, (loading) => {
   holdingStore.isLoading = loading
+})
+
+// 2. [重要修改] 使用 useEventSource
+const sseUrl = ref('')
+const { status: sseStatus, data: sseData, open: sseOpen, close: sseClose } = useEventSource(
+  sseUrl, // 使用 ref，以便在 onMounted 中动态设置
+  [],
+  {
+    // immediate: false 确保我们能先设置 URL 再连接
+    immediate: false,
+  },
+)
+const sseStatusText = computed(() => {
+  switch (sseStatus.value) {
+    case 'OPEN':
+      return '实时更新中'
+    case 'CONNECTING':
+      return '连接中...'
+    case 'CLOSED':
+      return '已断开'
+    default:
+      return '未知状态'
+  }
+})
+
+// 3. 监听 SSE 数据变化并更新 store
+watch(sseData, (newData) => {
+  if (newData) {
+    try {
+      const updatedData = JSON.parse(newData) as { holdings: Holding[], summary: HoldingSummary }
+      console.log('[SSE] Received data update via useEventSource:', updatedData)
+
+      holdingStore.holdings = updatedData.holdings
+      holdingStore.summary = updatedData.summary
+    }
+    catch (e) {
+      console.error('[SSE] Failed to parse message data:', e)
+    }
+  }
+})
+
+// 4. 在 onMounted 中建立连接，在 onUnmounted 中断开
+onMounted(() => {
+  const authToken = useCookie('auth-token').value
+  if (authToken) {
+    // 动态设置带 token 的 URL
+    sseUrl.value = `/api/sse/holdings?token=${authToken}`
+    // 手动开启连接
+    sseOpen()
+    console.log('[SSE] Opening connection to', sseUrl.value)
+  }
+  else {
+    console.warn('No auth token found, SSE connection will not be established.')
+  }
+})
+
+onUnmounted(() => {
+  // 手动关闭连接
+  sseClose()
+  console.log('[SSE] Connection closed.')
 })
 
 const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
@@ -161,7 +215,21 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
     </header>
 
     <!-- 投资组合总览卡片 -->
-    <div v-if="summary && summary.count > 0" class="mb-8 p-4 card">
+    <div v-if="summary && summary.count > 0" class="mb-8 p-4 card relative">
+      <!-- 状态指示器，放置在右上角 -->
+      <div class="flex gap-2 items-center right-4 top-4 absolute">
+        <span
+          class="rounded-full h-2 w-2"
+          :class="{
+            'bg-green-500 animate-pulse': sseStatus === 'OPEN',
+            'bg-yellow-500': sseStatus === 'CONNECTING',
+            'bg-gray-400': sseStatus === 'CLOSED',
+          }"
+        />
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ sseStatusText }}
+        </span>
+      </div>
       <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
         <!-- 持仓总成本 -->
         <div class="p-2">
@@ -169,7 +237,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
             持仓总成本
           </p>
           <!-- 应用 font-numeric 类 -->
-          <p class="font-numeric text-lg font-semibold sm:text-xl">
+          <p class="text-lg font-numeric font-semibold sm:text-xl">
             {{ formatCurrency(summary.totalHoldingAmount) }}
           </p>
         </div>
@@ -179,7 +247,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
             预估总市值
           </p>
           <!-- 应用 font-numeric 类 -->
-          <p class="font-numeric text-lg font-semibold sm:text-xl">
+          <p class="text-lg font-numeric font-semibold sm:text-xl">
             {{ formatCurrency(summary.totalEstimateAmount) }}
           </p>
         </div>
@@ -189,7 +257,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
             预估总盈亏
           </p>
           <!-- 应用 font-numeric 类 -->
-          <p class="font-numeric text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
+          <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
             {{ summary.totalProfitLoss.toFixed(2) }}
           </p>
         </div>
@@ -199,7 +267,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
             预估涨跌幅
           </p>
           <!-- [修改] 应用 font-numeric 类 -->
-          <p class="font-numeric text-lg font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
+          <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
             {{ summary.totalPercentageChange.toFixed(2) }}%
           </p>
         </div>

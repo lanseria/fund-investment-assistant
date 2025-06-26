@@ -18,7 +18,7 @@ export function useDb() {
     // 注意：在生产环境，建议使用 pg.Pool 以获得更好的性能和连接管理
     client.connect()
 
-    _db = drizzle(client, { schema, logger: true })
+    _db = drizzle(client, { schema, logger: false })
   }
   return _db
 }

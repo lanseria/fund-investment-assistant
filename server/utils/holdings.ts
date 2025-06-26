@@ -1,9 +1,9 @@
 // server/utils/holdings.ts
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
-import { and, desc, eq, gte, lte } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 // [REFACTOR] 导入新的 funds 表 schema
-import { funds, holdings, navHistory } from '~~/server/database/schemas'
+import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
@@ -338,4 +338,85 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
     ...point,
     nav: point.nav.toNumber(),
   }))
+}
+
+/**
+ * [新增] 获取指定用户的所有持仓数据及其汇总信息
+ * @param userId 用户 ID
+ */
+export async function getUserHoldingsAndSummary(userId: number) {
+  const db = useDb()
+  const userHoldings = await db.query.holdings.findMany({
+    where: eq(holdings.userId, userId),
+    with: {
+      fund: true,
+    },
+  })
+
+  if (userHoldings.length === 0) {
+    return {
+      holdings: [],
+      summary: { totalHoldingAmount: 0, totalEstimateAmount: 0, totalProfitLoss: 0, totalPercentageChange: 0, count: 0 },
+    }
+  }
+
+  const holdingCodes = userHoldings.map(h => h.fundCode)
+  const latestSignalsRaw = await db
+    .selectDistinctOn([strategySignals.fundCode, strategySignals.strategyName], {
+      fundCode: strategySignals.fundCode,
+      strategyName: strategySignals.strategyName,
+      signal: strategySignals.signal,
+      latestDate: strategySignals.latestDate,
+    })
+    .from(strategySignals)
+    .where(inArray(strategySignals.fundCode, holdingCodes))
+    .orderBy(
+      desc(strategySignals.fundCode),
+      desc(strategySignals.strategyName),
+      desc(strategySignals.latestDate),
+    )
+
+  const signalsMap = new Map<string, Record<string, string>>()
+  for (const s of latestSignalsRaw) {
+    if (!signalsMap.has(s.fundCode))
+      signalsMap.set(s.fundCode, {})
+    signalsMap.get(s.fundCode)![s.strategyName] = s.signal
+  }
+
+  let totalHoldingAmount = 0
+  let totalEstimateAmount = 0
+
+  const formattedHoldings = userHoldings.map((h) => {
+    const fundInfo = h.fund
+    const holdingAmount = Number(h.holdingAmount)
+    const estimateAmount = fundInfo.todayEstimateNav
+      ? Number(h.shares) * fundInfo.todayEstimateNav
+      : holdingAmount
+
+    totalHoldingAmount += holdingAmount
+    totalEstimateAmount += estimateAmount
+
+    return {
+      code: fundInfo.code,
+      name: fundInfo.name,
+      yesterdayNav: Number(fundInfo.yesterdayNav),
+      todayEstimateNav: fundInfo.todayEstimateNav,
+      percentageChange: fundInfo.percentageChange,
+      todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
+      shares: Number(h.shares),
+      holdingAmount,
+      holdingProfitAmount: h.holdingProfitAmount ? Number(h.holdingProfitAmount) : null,
+      holdingProfitRate: h.holdingProfitRate,
+      todayEstimateAmount: estimateAmount,
+      signals: signalsMap.get(fundInfo.code) || {},
+    }
+  })
+
+  const totalProfitLoss = totalEstimateAmount - totalHoldingAmount
+  const totalPercentageChange = totalHoldingAmount > 0 ? (totalProfitLoss / totalHoldingAmount) * 100 : 0
+
+  return {
+    holdings: formattedHoldings,
+    summary: { totalHoldingAmount, totalEstimateAmount, totalProfitLoss, totalPercentageChange, count: userHoldings.length },
+  }
 }

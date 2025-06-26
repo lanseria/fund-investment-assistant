@@ -89,6 +89,9 @@ catalogs:
     es-toolkit:
       specifier: ^1.39.5
       version: 1.39.5
+    mitt:
+      specifier: ^3.0.1
+      version: 3.0.1
     paseto-ts:
       specifier: ^2.0.5
       version: 2.0.5
@@ -167,6 +170,9 @@ importers:
       eslint-plugin-format:
         specifier: catalog:dev
         version: 1.0.1(eslint@9.29.0(jiti@2.4.2))
+      mitt:
+        specifier: catalog:utils
+        version: 3.0.1
       nuxt:
         specifier: ^3.17.5
         version: 3.17.5(@parcel/watcher@2.5.1)(@types/node@24.0.4)(db0@0.3.2(drizzle-orm@0.44.2(@types/pg@8.15.4)(pg@8.16.2)))(drizzle-orm@0.44.2(@types/pg@8.15.4)(pg@8.16.2))(eslint@9.29.0(jiti@2.4.2))(ioredis@5.6.1)(magicast@0.3.5)(optionator@0.9.4)(rollup@4.44.0)(terser@5.43.1)(typescript@5.8.3)(vite@6.3.5(@types/node@24.0.4)(jiti@2.4.2)(terser@5.43.1)(yaml@2.8.0))(vue-tsc@2.2.10(typescript@5.8.3))(yaml@2.8.0)
