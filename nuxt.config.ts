@@ -80,11 +80,6 @@ export default defineNuxtConfig({
         target: 'esnext',
       },
     },
-    prerender: {
-      crawlLinks: false,
-      routes: ['/'],
-      ignore: ['/fund'],
-    },
     scheduledTasks,
     experimental: {
       database: true,
