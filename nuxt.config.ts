@@ -24,7 +24,6 @@ export default defineNuxtConfig({
     '@unocss/nuxt',
     '@pinia/nuxt',
     '@nuxtjs/color-mode',
-    '@vite-pwa/nuxt',
     '@nuxt/eslint',
     'dayjs-nuxt',
     'nuxt-echarts',

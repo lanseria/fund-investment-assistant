@@ -14,7 +14,6 @@ catalogs:
     '@pinia/nuxt': ^0.11.1
     '@unocss/eslint-config': ^66.3.1
     '@unocss/nuxt': ^66.3.1
-    '@vite-pwa/nuxt': ^1.0.4
     '@vueuse/nuxt': ^13.4.0
     nuxt: ^3.17.5
     unocss: ^66.3.1

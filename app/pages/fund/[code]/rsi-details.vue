@@ -77,7 +77,7 @@ useHead({
       <div class="flex gap-4 items-center">
         <!-- 1. 返回按钮：更清晰的图标按钮样式 -->
         <button
-          class="icon-btn text-2xl"
+          class="text-2xl icon-btn"
           title="返回策略概览"
           @click="$router.back()"
         >
