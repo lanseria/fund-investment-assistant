@@ -4,8 +4,8 @@ import { apiFetch } from '~/utils/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserPayload | null>(null)
-  const accessToken = useCookie<string | null>('auth-token')
-  const refreshToken = useCookie<string | null>('auth-refresh-token')
+  const accessToken = useLocalStorage<string | null>('auth-token', null)
+  const refreshToken = useLocalStorage<string | null>('auth-refresh-token', null)
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
