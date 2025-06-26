@@ -1,7 +1,7 @@
 <!-- eslint-disable no-alert -->
 <!-- File: app/pages/index.vue -->
 <script setup lang="ts">
-import type { Holding, SortableKey } from '~/types/holding'
+import type { Holding, HoldingSummary, SortableKey } from '~/types/holding' // 引入 HoldingSummary
 import { appName } from '~/constants'
 
 const router = useRouter()
@@ -11,32 +11,49 @@ useHead({
   title: `持仓列表 - ${appName}`,
 })
 const holdingStore = useHoldingStore()
-// [修改] 从 store 中解构出策略相关的状态和 action
+// 从 store 中解构出状态和 action
 const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
 const { refreshAllEstimates } = holdingStore
 
-// 使用 useAsyncData 确保在服务端也能获取数据
-await useAsyncData('holdings', () => holdingStore.fetchHoldings())
+// [核心修改] 正确使用 useAsyncData
+// 1. useAsyncData 的处理器直接返回 fetch 的结果
+// 2. 我们从 useAsyncData 解构出 data, pending 等状态
+const { data: asyncData, pending: isDataLoading } = await useAsyncData(
+  'holdings',
+  () => apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/'),
+)
+
+// [核心修改] 使用 watch 将 useAsyncData 获取的数据同步到 Pinia store
+// 这样既能在 SSR 时获取数据，又能将数据保存在全局状态中
+watch(asyncData, (newData) => {
+  if (newData) {
+    holdingStore.holdings = newData.holdings
+    holdingStore.summary = newData.summary
+  }
+}, { immediate: true }) // immediate: true 保证在组件加载时立即执行一次
+
+// [修改] isLoading 状态现在应该由 useAsyncData 的 pending 状态驱动
+// 这样可以避免手动管理加载状态
+watch(isDataLoading, (loading) => {
+  holdingStore.isLoading = loading
+})
 
 const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
 function handleSetSort(key: SortableKey) {
-  // 如果点击的是当前排序列，则切换顺序
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
   }
-  // 否则，切换到新的排序列，并默认为降序
   else {
     sortKey.value = key
     sortOrder.value = 'desc'
   }
-  // 使用 router.replace 更新 URL，不产生新的历史记录
   router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
 }
-// --- 模态框状态管理 ---
+
+// --- 模态框状态管理 (保持不变) ---
 const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
-
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
 
 function formatCurrency(value: number | undefined) {
@@ -136,7 +153,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
         <button class="icon-btn" title="导出数据" @click="handleExport">
           <div i-carbon-download />
         </button>
-        <DarkToggle />
         <button class="btn flex items-center" @click="openAddModal">
           <div i-carbon-add mr-1 />
           添加基金
@@ -144,7 +160,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       </div>
     </header>
 
-    <!-- [新增] 投资组合总览卡片 -->
+    <!-- 投资组合总览卡片 -->
     <div v-if="summary && summary.count > 0" class="mb-8 p-4 card">
       <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
         <div class="p-2">
@@ -200,7 +216,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       @set-sort="handleSetSort"
     />
 
-    <!-- 模态框组件 (保持不变) -->
     <Modal v-model="isModalOpen" :title="modalTitle">
       <AddEditHoldingForm
         :initial-data="editingHolding"
@@ -209,7 +224,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       />
     </Modal>
 
-    <!-- 新的导入模态框 -->
     <Modal v-model="isImportModalOpen" title="导入持仓数据">
       <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
     </Modal>
