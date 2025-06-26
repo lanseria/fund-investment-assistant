@@ -1,4 +1,6 @@
+// File: server/routes/api/auth/login.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
+import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
@@ -40,12 +42,23 @@ export default defineEventHandler(async (event) => {
   if (!localKey || !refreshPrivateKey)
     throw new Error('Server not initialized: keys are missing.')
 
-  const accessToken = await encrypt(localKey, userPayload, { expiresIn: '15 minutes' })
-  const refreshToken = await sign(refreshPrivateKey, { sub: String(user.id) }, { expiresIn: '7 days' })
+  // 正确设置 access token 的过期时间
+  const accessTokenPayload = {
+    ...userPayload,
+    exp: dayjs().add(1, 'day').toISOString(), // 将 'exp' claim 直接加入 payload
+  }
+  const accessToken = await encrypt(localKey, accessTokenPayload) // 移除第三个参数和 as any
+
+  // 正确设置 refresh token 的过期时间
+  const refreshTokenPayload = {
+    sub: String(user.id), // 'sub' (subject) 是 refresh token 的标准 claim
+    exp: dayjs().add(7, 'day').toISOString(), // 将 'exp' claim 直接加入 payload
+  }
+  const refreshToken = await sign(refreshPrivateKey, refreshTokenPayload) // 移除第三个参数和 as any
 
   return {
     accessToken,
     refreshToken,
-    user: userPayload,
+    user: userPayload, // 返回给前端的用户信息不需要包含 exp
   }
 })

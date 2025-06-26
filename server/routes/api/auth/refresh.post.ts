@@ -1,4 +1,6 @@
+// File: server/routes/api/auth/refresh.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
+import dayjs from 'dayjs' // [修改] 导入 dayjs
 import { eq } from 'drizzle-orm'
 import { encrypt, verify } from 'paseto-ts/v4'
 import { z } from 'zod'
@@ -15,7 +17,7 @@ export default defineEventHandler(async (event) => {
   if (!refreshPublicKey)
     throw new Error('Server not initialized: public key is missing.')
 
-  // [修改 1] 先解构出 payload，再从中获取 sub
+  // verify 会自动检查 refreshToken 是否已过期
   const { payload } = await verify(refreshPublicKey, refreshToken)
   const userId = payload.sub
 
@@ -30,8 +32,12 @@ export default defineEventHandler(async (event) => {
   if (!localKey)
     throw new Error('Server not initialized: localKey is missing.')
 
-  // [修改 2] 在选项对象上使用 `as any` 来解决类型定义问题
-  const newAccessToken = await encrypt(localKey, userPayload, { expiresIn: '15 minutes' } as any)
+  // 正确设置新 access token 的过期时间
+  const newAccessTokenPayload = {
+    ...userPayload,
+    exp: dayjs().add(7, 'day').toISOString(), // 将 'exp' claim 直接加入 payload
+  }
+  const newAccessToken = await encrypt(localKey, newAccessTokenPayload) // 移除第三个参数和 as any
 
   return { accessToken: newAccessToken, user: userPayload }
 })
