@@ -2,7 +2,6 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
 import { desc, eq } from 'drizzle-orm'
-// [REFACTOR] 导入新的 funds 表
 import { funds, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
@@ -15,7 +14,7 @@ export default defineTask({
   async run() {
     console.log('开始执行基金历史净值同步任务...')
     const db = useDb()
-    // [REFACTOR] 从 funds 表获取所有需要同步的基金
+    // 从 funds 表获取所有需要同步的基金
     const allFunds = await db.query.funds.findMany()
 
     for (const fund of allFunds) {
@@ -38,7 +37,7 @@ export default defineTask({
         if (newRecords.length > 0) {
           await db.insert(navHistory).values(newRecords).onConflictDoNothing()
 
-          // [REFACTOR] 只更新 funds 表的昨日净值，不再计算每个用户的持仓
+          // 只更新 funds 表的昨日净值，不再计算每个用户的持仓
           const latestNav = newRecords[0]!.nav
           await db.update(funds)
             .set({ yesterdayNav: latestNav })

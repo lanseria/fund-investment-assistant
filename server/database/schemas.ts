@@ -48,17 +48,14 @@ export const funds = fundSchema.table('funds', {
  * 存储用户与基金的关联关系及个人持仓数据
  */
 export const holdings = fundSchema.table('holdings', {
-  // 注意：这里不再有自己的主键ID，而是使用复合主键
   /** 用户ID (复合主键之一, 外键关联 users 表) */
   userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
   /** 基金代码 (复合主键之一, 外键关联 funds 表) */
   fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
   /** 持有份额 */
   shares: numeric('shares', { precision: 18, scale: 4 }).notNull(),
-  /** 持有金额 (基于昨日净值计算) */
-  holdingAmount: numeric('holding_amount', { precision: 12, scale: 2 }).notNull(),
   /** 持有总盈亏金额 */
-  holdingProfitAmount: numeric('holding_profit_amount', { precision: 12, scale: 2 }),
+  // holdingProfitAmount: numeric('holding_profit_amount', { precision: 12, scale: 2 }),
   /** 持有总盈亏率 (%) */
   holdingProfitRate: real('holding_profit_rate'),
 }, (table) => {

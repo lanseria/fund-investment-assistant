@@ -124,7 +124,7 @@ const strategiesForTags = {
             <td class="font-semibold p-4">
               <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-teal-500">
                 {{ h.name }}
-                <div class="font-numeric text-xs text-gray-400 font-normal dark:text-gray-500">
+                <div class="text-xs text-gray-400 font-normal font-numeric dark:text-gray-500">
                   {{ h.code }}
                 </div>
               </NuxtLink>
@@ -146,8 +146,11 @@ const strategiesForTags = {
               <div class="font-numeric font-semibold">
                 {{ formatCurrency(h.holdingAmount) }}
               </div>
-              <div class="font-numeric text-xs text-gray-500 dark:text-gray-400">
+              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
                 {{ h.shares.toFixed(2) }} 份
+              </div>
+              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                {{ h.yesterdayNav }}
               </div>
             </td>
 
@@ -156,7 +159,7 @@ const strategiesForTags = {
               <div class="font-numeric font-semibold">
                 {{ formatCurrency(h.holdingProfitAmount) }}
               </div>
-              <div class="font-numeric text-xs">
+              <div class="text-xs font-numeric">
                 {{ h.holdingProfitRate !== null ? `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` : '-' }}
               </div>
             </td>
@@ -166,13 +169,17 @@ const strategiesForTags = {
               <div class="font-numeric font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
-              <div class="font-numeric text-xs">
+              <div class="text-xs font-numeric">
                 {{ formatCurrency(h.todayEstimateAmount! - h.holdingAmount) }}
+              </div>
+
+              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                {{ h.todayEstimateNav }}
               </div>
             </td>
 
             <!-- 更新时间 -->
-            <td class="font-numeric text-sm text-gray-500 p-4 text-right">
+            <td class="text-sm text-gray-500 font-numeric p-4 text-right">
               {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
             </td>
 

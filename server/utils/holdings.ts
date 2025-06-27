@@ -1,13 +1,11 @@
 // server/utils/holdings.ts
-/* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
-// [REFACTOR] 导入新的 funds 表 schema
 import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
-// [REFACTOR] 更新了错误类型
+// 更新了错误类型
 export class HoldingExistsError extends Error {
   constructor(code: string) {
     super(`您已持有该基金(代码: ${code})，请勿重复添加。`)
@@ -29,7 +27,7 @@ export class HoldingNotFoundError extends Error {
   }
 }
 
-// [NEW] 内部辅助函数：查找或创建基金公共信息
+// 内部辅助函数：查找或创建基金公共信息
 async function findOrCreateFund(code: string) {
   const db = useDb()
   let fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
@@ -61,7 +59,7 @@ interface HoldingCreateData {
 }
 
 /**
- * [REFACTOR] 为用户创建新的基金持仓
+ * 为用户创建新的基金持仓
  */
 export async function addHolding(data: HoldingCreateData) {
   const db = useDb()
@@ -78,25 +76,19 @@ export async function addHolding(data: HoldingCreateData) {
 
   // 2. 查找或创建基金的公共信息
   const fund = await findOrCreateFund(data.code)
-  const yesterdayNav = Number(fund!.yesterdayNav)
-  if (Number.isNaN(yesterdayNav) || yesterdayNav <= 0)
+  const yesterdayNav = new BigNumber(fund!.yesterdayNav)
+  if (yesterdayNav.isNaN() || yesterdayNav.isLessThanOrEqualTo(0))
     throw new Error(`基金 ${data.code} 的净值无效，无法计算份额。`)
 
   // 3. 计算份额和收益
-  const shares = data.holdingAmount / yesterdayNav
-  let profitAmount: number | null = null
-  if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
-    const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
-    profitAmount = data.holdingAmount - cost
-  }
+  // [MODIFIED] 使用 BigNumber进行精确计算，避免浮点数精度问题
+  const shares = new BigNumber(data.holdingAmount).dividedBy(yesterdayNav)
 
   // 4. 在 holdings 表中插入用户持仓记录
   const newHoldingData = {
     userId: data.userId,
     fundCode: data.code,
-    shares: shares.toFixed(4),
-    holdingAmount: data.holdingAmount.toFixed(2),
-    holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
+    shares: shares.toFixed(4), // 存储为固定4位小数的字符串
     holdingProfitRate: data.holdingProfitRate ?? null,
   }
 
@@ -105,7 +97,7 @@ export async function addHolding(data: HoldingCreateData) {
 }
 
 /**
- * [REFACTOR] 更新用户持仓记录
+ * 更新用户持仓记录
  */
 export async function updateHolding(userId: number, code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
   const db = useDb()
@@ -120,25 +112,19 @@ export async function updateHolding(userId: number, code: string, data: { holdin
   if (!fund)
     throw new FundNotFoundError(code)
 
-  const yesterdayNav = Number(fund.yesterdayNav)
-  if (yesterdayNav <= 0)
+  const yesterdayNav = new BigNumber(fund.yesterdayNav)
+  if (yesterdayNav.isLessThanOrEqualTo(0))
     throw new Error(`基金 ${code} 的昨日净值为零或无效，无法重新计算份额。`)
 
   // 3. 计算新份额和收益
-  const newShares = data.holdingAmount / yesterdayNav
-  let profitAmount: number | null = null
-  if (data.holdingProfitRate !== null && data.holdingProfitRate !== undefined) {
-    const cost = data.holdingAmount / (1 + data.holdingProfitRate / 100)
-    profitAmount = data.holdingAmount - cost
-  }
+  // 使用 BigNumber进行精确计算，避免浮点数精度问题
+  const newShares = new BigNumber(data.holdingAmount).dividedBy(yesterdayNav)
 
   // 4. 更新用户的持仓记录
   const [updatedHolding] = await db.update(holdings)
     .set({
-      holdingAmount: data.holdingAmount.toFixed(2),
-      shares: newShares.toFixed(4),
+      shares: newShares.toFixed(4), // 存储为固定4位小数的字符串
       holdingProfitRate: data.holdingProfitRate ?? null,
-      holdingProfitAmount: profitAmount ? profitAmount.toFixed(2) : null,
     })
     .where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
     .returning()
@@ -150,7 +136,7 @@ export async function updateHolding(userId: number, code: string, data: { holdin
 }
 
 /**
- * [REFACTOR] 删除用户持仓
+ * 删除用户持仓
  */
 export async function deleteHolding(userId: number, code: string) {
   const db = useDb()
@@ -159,12 +145,10 @@ export async function deleteHolding(userId: number, code: string) {
 
   if (result.rowCount === 0)
     throw new HoldingNotFoundError(code)
-
-  // 注意：不再删除 navHistory，因为它是全局共享的
 }
 
 /**
- * [REFACTOR] 导出指定用户的持仓数据
+ * 导出指定用户的持仓数据
  */
 export async function exportHoldingsData(userId: number) {
   const db = useDb()
@@ -177,7 +161,7 @@ export async function exportHoldingsData(userId: number) {
 }
 
 /**
- * [REFACTOR] 导入持仓数据
+ * 导入持仓数据
  */
 export async function importHoldingsData(dataToImport: { code: string, shares: number, holdingProfitRate?: number | null }[], overwrite: boolean, userId: number) {
   const db = useDb()
@@ -196,12 +180,13 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
 
     try {
       const fund = await findOrCreateFund(item.code)
-      if (!fund || new BigNumber(fund.yesterdayNav).isLessThanOrEqualTo(0)) {
+      const yesterdayNav = new BigNumber(fund!.yesterdayNav)
+      if (!fund || yesterdayNav.isLessThanOrEqualTo(0)) {
         skippedCount++
         continue
       }
 
-      const holdingAmount = new BigNumber(item.shares).times(fund.yesterdayNav).toNumber()
+      const holdingAmount = new BigNumber(item.shares).times(yesterdayNav).toNumber()
 
       await addHolding({
         code: item.code,
@@ -225,7 +210,7 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
 }
 
 /**
- * [REFACTOR] 同步单个基金的最新估值 (更新 funds 表)
+ * 同步单个基金的最新估值 (更新 funds 表)
  */
 export async function syncSingleFundEstimate(code: string) {
   const db = useDb()
@@ -241,7 +226,7 @@ export async function syncSingleFundEstimate(code: string) {
 }
 
 /**
- * [REFACTOR] 同步所有基金的最新估值 (更新 funds 表)
+ * 同步所有基金的最新估值 (更新 funds 表)
  */
 export async function syncAllFundsEstimates() {
   const db = useDb()
@@ -258,12 +243,11 @@ export async function syncAllFundsEstimates() {
   const successCount = results.filter(r => r.status === 'fulfilled').length
   const failedCount = results.length - successCount
 
-  console.log(`[Estimate Sync] Completed. Total: ${results.length}, Success: ${successCount}, Failed: ${failedCount}`)
   return { total: results.length, success: successCount, failed: failedCount }
 }
 
 /**
- * [REFACTOR] 同步单个基金的历史净值数据 (更新 navHistory 和 funds 表)
+ * 同步单个基金的历史净值数据 (更新 navHistory 和 funds 表)
  */
 export async function syncSingleFundHistory(code: string): Promise<number> {
   const db = useDb()
@@ -285,7 +269,8 @@ export async function syncSingleFundHistory(code: string): Promise<number> {
 
   const newRecords = historyData
     .map(r => ({ code, navDate: r.FSRQ, nav: r.DWJZ }))
-    .filter(r => Number(r.nav) > 0)
+    // [MODIFIED] 使用 BigNumber 过滤无效净值
+    .filter(r => new BigNumber(r.nav).isGreaterThan(0))
 
   if (newRecords.length > 0) {
     await db.insert(navHistory).values(newRecords).onConflictDoNothing()
@@ -299,9 +284,8 @@ export async function syncSingleFundHistory(code: string): Promise<number> {
   return newRecords.length
 }
 
-// [UNCHANGED] 获取历史和MA的函数基本不变，因为它操作的是 navHistory
+// 获取历史和MA的函数基本不变，因为它操作的是 navHistory
 export async function getHistoryWithMA(code: string, startDate?: string, endDate?: string, maOptions: number[] = []) {
-  // ... 此函数内容保持不变 ...
   const db = useDb()
   const query = db.select().from(navHistory).where(
     and(
@@ -341,7 +325,7 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
 }
 
 /**
- * [新增] 获取指定用户的所有持仓数据及其汇总信息
+ * 获取指定用户的所有持仓数据及其汇总信息
  * @param userId 用户 ID
  */
 export async function getUserHoldingsAndSummary(userId: number) {
@@ -383,40 +367,58 @@ export async function getUserHoldingsAndSummary(userId: number) {
     signalsMap.get(s.fundCode)![s.strategyName] = s.signal
   }
 
-  let totalHoldingAmount = 0
-  let totalEstimateAmount = 0
+  let totalHoldingAmount = new BigNumber(0)
+  let totalEstimateAmount = new BigNumber(0)
 
   const formattedHoldings = userHoldings.map((h) => {
-    const fundInfo = h.fund
-    const holdingAmount = Number(h.holdingAmount)
+    const { fund: fundInfo } = h
+    if (!fundInfo)
+      return null // 或者根据业务逻辑处理 fund 不存在的情况
+
+    const shares = new BigNumber(h.shares)
+    const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
+
+    // 以昨日净值计算的持仓市值
+    const holdingAmount = shares.times(yesterdayNav)
+    // 以今日估值计算的持仓市值，如果估值不存在则回退到昨日市值
     const estimateAmount = fundInfo.todayEstimateNav
-      ? Number(h.shares) * fundInfo.todayEstimateNav
+      ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
       : holdingAmount
 
-    totalHoldingAmount += holdingAmount
-    totalEstimateAmount += estimateAmount
+    const holdingProfitAmount = estimateAmount.minus(holdingAmount)
+
+    totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
+    totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
 
     return {
       code: fundInfo.code,
       name: fundInfo.name,
-      yesterdayNav: Number(fundInfo.yesterdayNav),
+      yesterdayNav: yesterdayNav.toNumber(),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
-      shares: Number(h.shares),
-      holdingAmount,
-      holdingProfitAmount: h.holdingProfitAmount ? Number(h.holdingProfitAmount) : null,
+      shares: shares.toNumber(),
+      holdingAmount: holdingAmount.toNumber(), // 持仓市值（基于昨日净值）
+      holdingProfitAmount: holdingProfitAmount.toNumber(),
       holdingProfitRate: h.holdingProfitRate,
-      todayEstimateAmount: estimateAmount,
+      todayEstimateAmount: estimateAmount.toNumber(), // 估算市值
       signals: signalsMap.get(fundInfo.code) || {},
     }
-  })
+  }).filter(Boolean) // 过滤掉可能为 null 的项
 
-  const totalProfitLoss = totalEstimateAmount - totalHoldingAmount
-  const totalPercentageChange = totalHoldingAmount > 0 ? (totalProfitLoss / totalHoldingAmount) * 100 : 0
+  const totalProfitLoss = totalEstimateAmount.minus(totalHoldingAmount)
+  const totalPercentageChange = totalHoldingAmount.isGreaterThan(0)
+    ? totalProfitLoss.dividedBy(totalHoldingAmount).times(100)
+    : new BigNumber(0)
 
   return {
     holdings: formattedHoldings,
-    summary: { totalHoldingAmount, totalEstimateAmount, totalProfitLoss, totalPercentageChange, count: userHoldings.length },
+    summary: {
+      totalHoldingAmount: totalHoldingAmount.toNumber(),
+      totalEstimateAmount: totalEstimateAmount.toNumber(),
+      totalProfitLoss: totalProfitLoss.toNumber(),
+      totalPercentageChange: totalPercentageChange.toNumber(),
+      count: userHoldings.length,
+    },
   }
 }
