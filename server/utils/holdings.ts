@@ -377,15 +377,24 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
     const shares = new BigNumber(h.shares)
     const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
+    const holdingProfitRate = new BigNumber(h.holdingProfitRate || 0)
 
     // 以昨日净值计算的持仓市值
     const holdingAmount = shares.times(yesterdayNav)
+
+    // 计算分子: 持仓市值 * 累计收益率
+    const numerator = holdingAmount.times(holdingProfitRate.div(100))
+
+    // 计算分母: 1 + 累计收益率
+    const denominator = new BigNumber(1).plus(holdingProfitRate.div(100))
+
+    // 计算最终结果: 分子 / 分母
+    const holdingProfitAmount = numerator.div(denominator)
+
     // 以今日估值计算的持仓市值，如果估值不存在则回退到昨日市值
     const estimateAmount = fundInfo.todayEstimateNav
       ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
       : holdingAmount
-
-    const holdingProfitAmount = estimateAmount.minus(holdingAmount)
 
     totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
     totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
