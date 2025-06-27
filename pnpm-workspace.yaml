@@ -3,7 +3,7 @@ packages: []
 catalogs:
   backend:
     '@types/pg': ^8.15.4
-    drizzle-kit: ^0.31.2
+    drizzle-kit: ^0.31.3
     drizzle-orm: ^0.44.2
     pg: ^8.16.2
   build:
@@ -12,11 +12,11 @@ catalogs:
     '@nuxt/kit': ^3.17.5
     '@nuxtjs/color-mode': ^3.5.2
     '@pinia/nuxt': ^0.11.1
-    '@unocss/eslint-config': ^66.3.1
-    '@unocss/nuxt': ^66.3.1
+    '@unocss/eslint-config': ^66.3.2
+    '@unocss/nuxt': ^66.3.2
     '@vueuse/nuxt': ^13.4.0
     nuxt: ^3.17.5
-    unocss: ^66.3.1
+    unocss: ^66.3.2
     unplugin: ^2.3.5
     vite: ^6.3.5
   dev:
