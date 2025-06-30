@@ -3,11 +3,11 @@ packages: []
 catalogs:
   backend:
     '@types/pg': ^8.15.4
-    drizzle-kit: ^0.31.3
+    drizzle-kit: ^0.31.4
     drizzle-orm: ^0.44.2
-    pg: ^8.16.2
+    pg: ^8.16.3
   build:
-    '@nuxt/devtools': ^2.5.0
+    '@nuxt/devtools': ^2.6.0
     '@nuxt/eslint': ^1.4.1
     '@nuxt/kit': ^3.17.5
     '@nuxtjs/color-mode': ^3.5.2
@@ -21,7 +21,7 @@ catalogs:
     vite: ^6.3.5
   dev:
     '@antfu/eslint-config': ^4.16.1
-    eslint: ^9.29.0
+    eslint: ^9.30.0
     eslint-plugin-format: ^1.0.1
     typescript: ^5.8.3
     vue-tsc: ^2.2.10

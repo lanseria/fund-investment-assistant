@@ -10,4 +10,9 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // 如果 store 中没有用户信息，但有 token，则尝试获取用户信息
   if (!authStore.isAuthenticated && useLocalStorage('auth-token', null).value)
     await authStore.fetchUser()
+
+  if (!authStore.isAuthenticated) {
+    // 使用 return navigateTo() 来执行重定向
+    return navigateTo('/login', { replace: true })
+  }
 })
