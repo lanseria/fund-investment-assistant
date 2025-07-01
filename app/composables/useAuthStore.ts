@@ -4,8 +4,8 @@ import { apiFetch } from '~/utils/api'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserPayload | null>(null)
-  const accessToken = useLocalStorage<string | null>('auth-token', null)
-  const refreshToken = useLocalStorage<string | null>('auth-refresh-token', null)
+  const accessToken = useCookie<string | null>('auth-token', { maxAge: 60 * 60 * 24 }) // 设置1天过期
+  const refreshToken = useCookie<string | null>('auth-refresh-token', { maxAge: 60 * 60 * 24 * 7 }) // 设置7天过期
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -18,7 +18,7 @@ export const useAuthStore = defineStore('auth', () => {
     accessToken.value = data.accessToken
     refreshToken.value = data.refreshToken
     user.value = data.user
-    await navigateTo('/') // 登录后跳转到首页
+    await navigateTo('/')
   }
 
   async function fetchUser() {
