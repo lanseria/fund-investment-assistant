@@ -36,6 +36,13 @@
       "when": 1750990887999,
       "tag": "0004_productive_zaladane",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1751594555613,
+      "tag": "0005_daily_proteus",
+      "breakpoints": true
     }
   ]
 }

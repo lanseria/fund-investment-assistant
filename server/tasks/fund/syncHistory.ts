@@ -37,7 +37,7 @@ export default defineTask({
         if (newRecords.length > 0) {
           await db.insert(navHistory).values(newRecords).onConflictDoNothing()
 
-          // 只更新 funds 表的昨日净值，不再计算每个用户的持仓
+          // 更新 funds 表的昨日净值
           const latestNav = newRecords[0]!.nav
           await db.update(funds)
             .set({ yesterdayNav: latestNav })

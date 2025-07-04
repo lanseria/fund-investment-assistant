@@ -35,7 +35,7 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 添加一个新的持仓基金
    */
-  async function addHolding(newHolding: { code: string, name?: string, holdingAmount: number, holdingProfitRate?: number | null }) {
+  async function addHolding(newHolding: { code: string, shares: number, costPrice: number }) { // [修改] 参数类型
     try {
       await apiFetch('/api/fund/holdings/', {
         method: 'POST',
@@ -45,15 +45,14 @@ export const useHoldingStore = defineStore('holding', () => {
     }
     catch (error) {
       console.error('添加基金失败:', error)
-      // 可以在此处理错误，例如显示一个错误消息
-      throw error // 重新抛出错误，以便调用方可以处理
+      throw error
     }
   }
 
   /**
    * 更新持仓金额
    */
-  async function updateHolding(code: string, data: { holdingAmount: number, holdingProfitRate?: number | null }) {
+  async function updateHolding(code: string, data: { shares: number, costPrice: number }) { // [修改] 参数类型
     try {
       await apiFetch(`/api/fund/holdings/${code}`, {
         method: 'PUT',

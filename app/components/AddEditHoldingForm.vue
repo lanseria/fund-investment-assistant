@@ -7,34 +7,41 @@ const emit = defineEmits(['submit', 'cancel'])
 
 const formData = reactive({
   code: '',
-  holdingAmount: null as number | null,
-  name: '',
-  holdingProfitRate: null as number | null,
+  shares: null as number | null,
+  costPrice: null as number | null,
+  name: '', // name 字段保留，用于可能的自定义名称
 })
 
 const isEditing = computed(() => !!props.initialData)
 
 watch(() => props.initialData, (newData) => {
   if (newData) {
+    // [重大修改] 填充新字段
     formData.code = newData.code
-    formData.holdingAmount = newData.holdingAmount
+    formData.shares = newData.shares
+    formData.costPrice = newData.costPrice
     formData.name = newData.name
-    formData.holdingProfitRate = newData.holdingProfitRate
   }
   else {
+    // [重大修改] 重置新字段
     formData.code = ''
-    formData.holdingAmount = null
+    formData.shares = null
+    formData.costPrice = null
     formData.name = ''
-    // [新增]
-    formData.holdingProfitRate = null
   }
 }, { immediate: true })
 
-const canSubmit = computed(() => formData.code && formData.holdingAmount !== null && formData.holdingAmount >= 0)
+const canSubmit = computed(() => formData.code && formData.shares !== null && formData.shares > 0 && formData.costPrice !== null && formData.costPrice > 0)
 
 function handleSubmit() {
-  if (canSubmit.value)
-    emit('submit', { ...formData })
+  if (canSubmit.value) {
+    // 提交时只发送需要的数据
+    emit('submit', {
+      code: formData.code,
+      shares: formData.shares,
+      costPrice: formData.costPrice,
+    })
+  }
 }
 </script>
 
@@ -55,33 +62,35 @@ function handleSubmit() {
         >
       </div>
 
-      <!-- 持有金额 -->
+      <!-- [重大修改] 持有份额 -->
       <div>
-        <label for="holding-amount" class="text-sm font-medium mb-1 block">持有金额 (元)</label>
+        <label for="holding-shares" class="text-sm font-medium mb-1 block">持有份额</label>
         <input
-          id="holding-amount"
-          v-model.number="formData.holdingAmount"
+          id="holding-shares"
+          v-model.number="formData.shares"
           type="number"
           step="0.01"
-          placeholder="例如: 5000.00"
+          placeholder="例如: 1000.50"
           class="input-base"
           required
         >
       </div>
 
+      <!-- [重大修改] 持仓成本价 -->
       <div>
-        <label for="profit-rate" class="text-sm font-medium mb-1 block">持有收益率 (%) (可选)</label>
+        <label for="cost-price" class="text-sm font-medium mb-1 block">持仓成本价</label>
         <input
-          id="profit-rate"
-          v-model.number="formData.holdingProfitRate"
+          id="cost-price"
+          v-model.number="formData.costPrice"
           type="number"
-          step="0.01"
-          placeholder="例如: 10.5 (代表 10.5%)"
+          step="0.0001"
+          placeholder="例如: 1.2345"
           class="input-base"
+          required
         >
       </div>
 
-      <!-- 基金名称 (可选) -->
+      <!-- 基金名称 (可选, 保持不变) -->
       <div>
         <label for="fund-name" class="text-sm font-medium mb-1 block">基金名称 (可选)</label>
         <input
@@ -90,14 +99,15 @@ function handleSubmit() {
           type="text"
           placeholder="若不填，将尝试自动获取"
           class="input-base"
+          disabled
         >
         <p class="text-xs text-gray-500 mt-1">
-          对于QDII等特殊基金，可能需要手动填写。
+          基金名称将自动获取，此处不可编辑。
         </p>
       </div>
     </div>
 
-    <!-- 表单操作按钮 -->
+    <!-- 表单操作按钮 (保持不变) -->
     <div class="mt-6 flex justify-end space-x-3">
       <button
         type="button"

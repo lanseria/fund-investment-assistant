@@ -13,11 +13,10 @@ useHead({
 })
 const holdingStore = useHoldingStore()
 // 从 store 中解构出状态和 action
-const { holdings, isLoading, isRefreshing, summary } = storeToRefs(holdingStore)
-const { refreshAllEstimates } = holdingStore
+const { holdings, isLoading, summary } = storeToRefs(holdingStore)
 
-// 1. [保持不变] 首次数据加载，对 SSR 和首屏至关重要
-const { pending: isDataLoading } = await useAsyncData(
+// 1. 首次数据加载，对 SSR 和首屏至关重要
+const { pending: isDataLoading, refresh } = await useAsyncData(
   'holdings',
   async () => {
     const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
@@ -32,7 +31,7 @@ watch(isDataLoading, (loading) => {
   holdingStore.isLoading = loading
 })
 
-// 2. [重要修改] 使用 useEventSource
+// 2. 使用 useEventSource
 const sseUrl = ref('')
 const { status: sseStatus, data: sseData, open: sseOpen, close: sseClose } = useEventSource(
   sseUrl, // 使用 ref，以便在 onMounted 中动态设置
@@ -140,12 +139,14 @@ function closeModal() {
   isModalOpen.value = false
 }
 
-async function handleSubmit(formData: any) {
+async function handleSubmit(formData: any) { // formData 已经是 { code, shares, costPrice }
   try {
     if (editingHolding.value) {
-      await holdingStore.updateHolding(formData.code, { holdingAmount: formData.holdingAmount, holdingProfitRate: formData.holdingProfitRate })
+      // [重大修改] 调用新的 updateHolding
+      await holdingStore.updateHolding(formData.code, { shares: formData.shares, costPrice: formData.costPrice })
     }
     else {
+      // [重大修改] 调用新的 addHolding
       await holdingStore.addHolding(formData)
     }
     closeModal()
@@ -154,10 +155,6 @@ async function handleSubmit(formData: any) {
     console.error(error)
     alert('操作失败，请查看控制台获取更多信息。')
   }
-}
-
-async function handleRefresh() {
-  await refreshAllEstimates()
 }
 
 async function handleDelete(holding: Holding) {
@@ -198,8 +195,8 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
         </p>
       </div>
       <div class="flex gap-2 items-center sm:gap-4">
-        <button class="icon-btn" title="刷新所有估值" :disabled="isRefreshing" @click="handleRefresh">
-          <div i-carbon-renew :class="{ 'animate-spin': isRefreshing }" />
+        <button class="icon-btn" title="刷新所有估值" :disabled="isLoading" @click="() => refresh()">
+          <div i-carbon-renew :class="{ 'animate-spin': isLoading }" />
         </button>
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
