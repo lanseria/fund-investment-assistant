@@ -162,6 +162,9 @@ const strategiesForTags = {
               <div class="text-xs font-numeric">
                 {{ h.holdingProfitRate !== null ? `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` : '-' }}
               </div>
+              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                {{ h.costPrice }}
+              </div>
             </td>
 
             <!-- 估算涨跌和市值合并在一个单元格 -->
