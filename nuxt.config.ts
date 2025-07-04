@@ -30,7 +30,7 @@ export default defineNuxtConfig({
   ],
   ssr: true,
   devtools: {
-    enabled: true,
+    enabled: false,
   },
   app: {
     head: {

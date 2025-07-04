@@ -10,6 +10,9 @@ const authStore = useAuthStore()
         基金助手
       </NuxtLink>
       <div v-if="authStore.isAuthenticated" class="flex gap-4 items-center">
+        <NuxtLink to="/leaderboard" class="hover:text-teal-500">
+          排行榜
+        </NuxtLink>
         <NuxtLink v-if="authStore.isAdmin" to="/admin/users" class="hover:text-teal-500">
           用户管理
         </NuxtLink>
