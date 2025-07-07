@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
   // 正确设置 access token 的过期时间
   const accessTokenPayload = {
     ...userPayload,
-    exp: dayjs().add(1, 'day').toISOString(), // 将 'exp' claim 直接加入 payload
+    exp: dayjs().add(7, 'day').toISOString(), // 将 'exp' claim 直接加入 payload
   }
   const accessToken = await encrypt(localKey, accessTokenPayload) // 移除第三个参数和 as any
 

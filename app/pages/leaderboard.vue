@@ -31,6 +31,13 @@ function getRankIcon(rank: number) {
     return 'i-twemoji-3rd-place-medal text-2xl'
   return ''
 }
+
+// [新增] 格式化货币的辅助函数
+function formatCurrency(value: number) {
+  if (value === null || value === undefined)
+    return '-'
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
+}
 </script>
 
 <template>
@@ -52,7 +59,7 @@ function getRankIcon(rank: number) {
       ...
     </div>
 
-    <!-- [修改] 数据展示部分 -->
+    <!-- [重大修改] 重新设计数据展示部分以容纳更多信息 -->
     <div v-else-if="leaderboardData && leaderboardData.length > 0" class="p-4 card space-y-2">
       <div
         v-for="user in leaderboardData"
@@ -74,15 +81,31 @@ function getRankIcon(rank: number) {
           </p>
         </div>
 
-        <!-- [重大修改] 收益率区域 -->
-        <div class="flex flex-shrink-0 flex-col w-32 items-end">
-          <!-- 总收益率 (字体稍大) -->
-          <div class="font-numeric font-semibold" :class="getProfitRateClass(user.profitRate)">
-            {{ user.profitRate.toFixed(2) }}%
+        <!-- [新布局] 右侧数据区，分为两列 -->
+        <div class="flex flex-shrink-0 gap-6 items-start justify-end">
+          <!-- 今日数据列 -->
+          <div class="flex flex-col w-32 items-end">
+            <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.todayProfitLoss)">
+              {{ formatCurrency(user.todayProfitLoss) }}
+            </p>
+            <p class="text-xs font-numeric" :class="getProfitRateClass(user.todayProfitRate)">
+              {{ user.todayProfitRate > 0 ? '+' : '' }}{{ user.todayProfitRate.toFixed(2) }}%
+            </p>
+            <p class="text-xs text-gray-400 mt-1">
+              今日盈亏
+            </p>
           </div>
-          <!-- 日收益率 (字体较小，作为次要信息) -->
-          <div class="text-xs font-numeric" :class="getProfitRateClass(user.todayProfitRate)">
-            今日: {{ user.todayProfitRate > 0 ? '+' : '' }}{{ user.todayProfitRate.toFixed(2) }}%
+          <!-- 累计数据列 -->
+          <div class="flex flex-col w-32 items-end">
+            <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.profitRate)">
+              {{ user.profitRate.toFixed(2) }}%
+            </p>
+            <p class="text-xs text-gray-500 font-numeric">
+              {{ formatCurrency(user.totalCost) }}
+            </p>
+            <p class="text-xs text-gray-400 mt-1">
+              总收益率 / 成本
+            </p>
           </div>
         </div>
       </div>

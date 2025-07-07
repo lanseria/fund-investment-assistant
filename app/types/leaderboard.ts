@@ -4,5 +4,8 @@ export interface LeaderboardUser {
   username: string
   profitRate: number
   holdingCount: number
-  todayProfitRate: number // [新增] 日收益率
+  todayProfitRate: number
+  // [新增] 添加新字段
+  totalCost: number
+  todayProfitLoss: number
 }
