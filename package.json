@@ -38,6 +38,7 @@
     "es-toolkit": "catalog:utils",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
+    "iconv-lite": "catalog:",
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",

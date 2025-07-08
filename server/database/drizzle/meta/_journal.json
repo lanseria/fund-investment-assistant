@@ -43,6 +43,13 @@
       "when": 1751594555613,
       "tag": "0005_daily_proteus",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1751946849376,
+      "tag": "0006_polite_red_ghost",
+      "breakpoints": true
     }
   ]
 }

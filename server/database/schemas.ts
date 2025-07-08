@@ -6,6 +6,8 @@ export const fundSchema = pgSchema('fund_app')
 
 // 定义用户角色的枚举类型
 export const userRoleEnum = pgEnum('user_role', ['admin', 'user'])
+// 定义基金类型的枚举
+export const fundTypeEnum = pgEnum('fund_type', ['open', 'qdii_lof'])
 
 /**
  * 用户表 (users)
@@ -33,6 +35,8 @@ export const funds = fundSchema.table('funds', {
   code: varchar('code', { length: 10 }).primaryKey(),
   /** 基金名称 */
   name: text('name').notNull(),
+  /** 基金类型 */
+  fundType: fundTypeEnum('fund_type').notNull().default('open'),
   /** 昨日单位净值 */
   yesterdayNav: numeric('yesterday_nav', { precision: 10, scale: 4 }).notNull(),
   /** 今日估算净值 */

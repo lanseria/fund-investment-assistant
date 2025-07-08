@@ -7,7 +7,7 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
   const holdings = ref<Holding[]>([])
-  const summary = ref<HoldingSummary | null>(null) // [新增] summary state
+  const summary = ref<HoldingSummary | null>(null)
   const isLoading = ref(false)
   const isRefreshing = ref(false)
 
@@ -35,8 +35,9 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 添加一个新的持仓基金
    */
-  async function addHolding(newHolding: { code: string, shares: number, costPrice: number }) { // [修改] 参数类型
+  async function addHolding(newHolding: { code: string, shares: number, costPrice: number, fundType: 'open' | 'qdii_lof' }) {
     try {
+    // 请求体现在会包含 fundType
       await apiFetch('/api/fund/holdings/', {
         method: 'POST',
         body: newHolding,

@@ -1,5 +1,15 @@
 /* eslint-disable no-console */
-import { ofetch } from 'ofetch'
+import { Buffer } from 'node:buffer'
+import iconv from 'iconv-lite'
+
+interface FundRealtimeData {
+  name: string
+  code: string
+  yesterdayNav: string
+  estimateNav: string
+  percentageChange: string
+  updateTime: string
+}
 
 // 天天基金网实时估值返回的类型
 interface RealtimeEstimateResponse {
@@ -26,15 +36,68 @@ interface HistoryRecord {
   JZZZL: string // 净值增长率
 }
 
-export async function fetchFundRealtimeEstimate(fundCode: string): Promise<RealtimeEstimateResponse | null> {
+// 获取场内基金的实时价格
+export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeData | null> {
+  // 自动判断交易所前缀 (6开头为沪市sh, 其他为深市sz)
+  const prefix = fundCode.startsWith('6') ? 'sh' : 'sz'
+  const url = `https://qt.gtimg.cn/q=${prefix}${fundCode}`
+
+  try {
+    // [关键修改 1] 将 responseType 从 'json' 或 'text' 改为 'arrayBuffer'
+    // 这样 ofetch 就会返回原始的、未经解码的 ArrayBuffer 数据。
+    const responseBuffer = await $fetch<ArrayBuffer>(url, {
+      responseType: 'arrayBuffer',
+      headers: { Referer: 'https://gu.qq.com/' },
+    })
+
+    // [关键修改 2] 使用 iconv-lite 将 GBK 编码的 Buffer 解码为 UTF-8 字符串
+    const responseText = iconv.decode(Buffer.from(responseBuffer), 'GBK')
+    console.log(`[DEBUG] Response Text: ${responseText}`)
+    const parts = responseText.split('~')
+    if (parts.length < 33 || !parts[3]) // 简单验证返回数据是否有效
+      return null
+
+    // 现在这里的 parts[1] 就是正确解码后的中文字符串了
+    const name = parts[1]!
+    const code = parts[2]!
+    const currentPrice = parts[3]!
+    const yesterdayClose = parts[4]! // 昨日收盘价
+    const percentageChange = parts[32]!
+    const updateTimeStr = parts[30]! // 格式: YYYYMMDDHHmmss
+
+    // 格式化时间
+    const year = updateTimeStr.substring(0, 4)
+    const month = updateTimeStr.substring(4, 6)
+    const day = updateTimeStr.substring(6, 8)
+    const hour = updateTimeStr.substring(8, 10)
+    const minute = updateTimeStr.substring(10, 12)
+    const second = updateTimeStr.substring(12, 14)
+    const updateTime = `${year}-${month}-${day} ${hour}:${minute}:${second}`
+
+    return {
+      name,
+      code,
+      yesterdayNav: yesterdayClose,
+      estimateNav: currentPrice,
+      percentageChange,
+      updateTime,
+    }
+  }
+  catch (error) {
+    console.error(`获取LOF基金 ${fundCode} 价格失败:`, error)
+    return null
+  }
+}
+
+export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundRealtimeData | null> {
   const url = `http://fundgz.1234567.com.cn/js/${fundCode}.js`
   console.log(`[DEBUG] Preparing to fetch: ${url}`)
 
   try {
     // [关键修正] 添加 `responseType: 'text'` 选项
     // 这会强制 ofetch 将响应体作为纯文本字符串返回，无论 Content-Type 是什么。
-    const responseText = await ofetch<string>(url, {
-      responseType: 'json',
+    const responseText = await $fetch<string>(url, {
+      responseType: 'text',
       headers: { Referer: 'http://fund.eastmoney.com/' },
     })
 
@@ -42,13 +105,19 @@ export async function fetchFundRealtimeEstimate(fundCode: string): Promise<Realt
 
     // 现在 responseText 保证是一个字符串，可以安全地调用 .replace()
     const jsonStr = responseText.replace('jsonpgz(', '').replace(');', '')
-    const parsedData = JSON.parse(jsonStr)
+    const parsedData: RealtimeEstimateResponse = JSON.parse(jsonStr)
 
-    console.log(`[DEBUG] Parsed data for ${fundCode}:`, parsedData)
-    return parsedData
+    // 返回统一的数据结构
+    return {
+      name: parsedData.name,
+      code: parsedData.fundcode,
+      yesterdayNav: parsedData.dwjz,
+      estimateNav: parsedData.gsz,
+      percentageChange: parsedData.gszzl,
+      updateTime: parsedData.gztime,
+    }
   }
   catch (error: any) {
-    // ... catch 块的日志记录保持不变，它们依然非常有用 ...
     console.error(`[DEBUG] !!! ERROR fetching fund ${fundCode} !!!`)
     if (error.response) {
       console.error('[DEBUG] Error Response Status:', error.response.status)
@@ -77,7 +146,7 @@ export async function fetchFundHistory(fundCode: string, startDate?: string, end
 
   while (true) {
     try {
-      const response = await ofetch<HistoryAPIResponse>(url, {
+      const response = await $fetch<HistoryAPIResponse>(url, {
         params: {
           fundCode,
           pageIndex,

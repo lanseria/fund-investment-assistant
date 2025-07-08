@@ -2,7 +2,7 @@
 import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
-import { fetchFundHistory, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
+import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
 // 更新了错误类型
@@ -28,22 +28,27 @@ export class HoldingNotFoundError extends Error {
 }
 
 // 内部辅助函数：查找或创建基金公共信息
-async function findOrCreateFund(code: string) {
+async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
   const db = useDb()
   let fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
 
   if (!fund) {
-    const realtimeData = await fetchFundRealtimeEstimate(code)
+    // 根据类型调用不同的接口获取初始数据
+    const realtimeData = fundType === 'qdii_lof'
+      ? await fetchFundLofPrice(code)
+      : await fetchFundRealtimeEstimate(code)
+
     if (!realtimeData)
       throw new Error(`无法获取基金 ${code} 的初始信息。`)
 
     const newFundData = {
       code,
       name: realtimeData.name,
-      yesterdayNav: realtimeData.dwjz,
-      todayEstimateNav: Number(realtimeData.gsz) || null,
-      percentageChange: Number(realtimeData.gszzl) || null,
-      todayEstimateUpdateTime: new Date(realtimeData.gztime) || null,
+      fundType, // [新增] 存储基金类型
+      yesterdayNav: realtimeData.yesterdayNav,
+      todayEstimateNav: Number(realtimeData.estimateNav) || null,
+      percentageChange: Number(realtimeData.percentageChange) || null,
+      todayEstimateUpdateTime: new Date(realtimeData.updateTime) || null,
     };
     [fund] = await db.insert(funds).values(newFundData).returning()
   }
@@ -55,6 +60,7 @@ interface HoldingCreateData {
   shares: number
   costPrice: number
   userId: number
+  fundType: 'open' | 'qdii_lof'
 }
 
 /**
@@ -72,14 +78,13 @@ export async function addHolding(data: HoldingCreateData) {
   if (existingHolding)
     throw new HoldingExistsError(data.code)
 
-  // 确保基金信息存在
-  await findOrCreateFund(data.code)
+  // 传递 fundType
+  await findOrCreateFund(data.code, data.fundType)
 
-  // [重大修改] 直接插入份额和成本价
   const newHoldingData = {
     userId: data.userId,
     fundCode: data.code,
-    shares: String(data.shares), // 使用字符串以匹配 numeric 类型
+    shares: String(data.shares),
     costPrice: String(data.costPrice),
   }
 
@@ -127,53 +132,64 @@ export async function deleteHolding(userId: number, code: string) {
  */
 export async function exportHoldingsData(userId: number) {
   const db = useDb()
-  // [重大修改] 导出 shares 和 costPrice
+  // 使用 leftJoin 关联 funds 表以获取 fundType
   const userHoldings = await db.select({
     code: holdings.fundCode,
     shares: holdings.shares,
     costPrice: holdings.costPrice,
-  }).from(holdings).where(eq(holdings.userId, userId))
-  return userHoldings
-}
+    fundType: funds.fundType, // 新增导出的字段
+  })
+    .from(holdings)
+    .leftJoin(funds, eq(holdings.fundCode, funds.code)) // 关联条件
+    .where(eq(holdings.userId, userId))
 
+  // Drizzle 的 leftJoin 结果可能包含 null，我们需要过滤掉异常情况
+  // 理论上每个 holding 都应该有关联的 fund，但这是一种安全的做法
+  return userHoldings.filter(h => h.fundType !== null)
+}
 /**
  * 导入持仓数据
  */
-export async function importHoldingsData(dataToImport: { code: string, shares: number, costPrice: number }[], overwrite: boolean, userId: number) {
+export async function importHoldingsData(dataToImport: { code: string, shares: number, costPrice: number, fundType?: 'open' | 'qdii_lof' }[], overwrite: boolean, userId: number) {
   const db = useDb()
-  if (overwrite) {
+  if (overwrite)
     await db.delete(holdings).where(eq(holdings.userId, userId))
-  }
 
   let importedCount = 0
   let skippedCount = 0
 
   for (const item of dataToImport) {
-    // [重大修改] 检查导入数据格式
+    // 检查导入数据格式
     if (!item.code || item.shares === undefined || item.costPrice === undefined) {
       skippedCount++
       continue
     }
 
     try {
-      // 确保基金信息存在
-      const fund = await findOrCreateFund(item.code)
+      // 处理 fundType，提供向后兼容性
+      // 如果导入的文件没有 fundType 字段（旧版备份），则默认为 'open'
+      const fundType = item.fundType || 'open'
+
+      // 调用 findOrCreateFund 时传入 fundType
+      const fund = await findOrCreateFund(item.code, fundType)
       if (!fund) {
         skippedCount++
         continue
       }
 
-      // [重大修改] 调用新的 addHolding
+      // 调用 addHolding 时传入所有必要数据
       await addHolding({
         code: item.code,
         shares: item.shares,
         costPrice: item.costPrice,
         userId,
+        fundType, // 传入正确的基金类型
       })
       importedCount++
     }
     catch (error) {
       if (error instanceof HoldingExistsError) {
+        // 如果是覆盖模式，理论上不会触发此错误，但非覆盖模式下会
         skippedCount++
       }
       else {
@@ -190,13 +206,27 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
  */
 export async function syncSingleFundEstimate(code: string) {
   const db = useDb()
-  const realtimeData = await fetchFundRealtimeEstimate(code)
-  if (realtimeData && realtimeData.gsz) {
-    const estimateNav = Number(realtimeData.gsz)
+  // 先查询基金类型
+  const fundInfo = await db.query.funds.findFirst({
+    where: eq(funds.code, code),
+  })
+
+  if (!fundInfo) {
+    console.warn(`同步估值失败：未在数据库中找到基金 ${code}。`)
+    return
+  }
+
+  // 根据类型调用不同接口
+  const realtimeData = fundInfo.fundType === 'qdii_lof'
+    ? await fetchFundLofPrice(code)
+    : await fetchFundRealtimeEstimate(code)
+
+  if (realtimeData && realtimeData.estimateNav) {
+    const estimateNav = Number(realtimeData.estimateNav)
     await db.update(funds).set({
       todayEstimateNav: estimateNav,
-      percentageChange: Number(realtimeData.gszzl),
-      todayEstimateUpdateTime: new Date(realtimeData.gztime),
+      percentageChange: Number(realtimeData.percentageChange),
+      todayEstimateUpdateTime: new Date(realtimeData.updateTime),
     }).where(eq(funds.code, code))
   }
 }

@@ -7,6 +7,7 @@ const holdingCreateSchema = z.object({
   code: z.string().length(6),
   shares: z.number().positive('份额必须为正数'),
   costPrice: z.number().positive('成本价必须为正数'),
+  fundType: z.enum(['open', 'qdii_lof']), // 新增字段
 })
 
 export default defineEventHandler(async (event) => {
