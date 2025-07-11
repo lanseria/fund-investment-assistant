@@ -50,6 +50,13 @@
       "when": 1751946849376,
       "tag": "0006_polite_red_ghost",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1752203863212,
+      "tag": "0007_exotic_madame_web",
+      "breakpoints": true
     }
   ]
 }

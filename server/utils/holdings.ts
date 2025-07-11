@@ -57,8 +57,8 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
 
 interface HoldingCreateData {
   code: string
-  shares: number
-  costPrice: number
+  shares?: number | null
+  costPrice?: number | null
   userId: number
   fundType: 'open' | 'qdii_lof'
 }
@@ -84,8 +84,8 @@ export async function addHolding(data: HoldingCreateData) {
   const newHoldingData = {
     userId: data.userId,
     fundCode: data.code,
-    shares: String(data.shares),
-    costPrice: String(data.costPrice),
+    shares: data.shares ? String(data.shares) : null,
+    costPrice: data.costPrice ? String(data.costPrice) : null,
   }
 
   const [result] = await db.insert(holdings).values(newHoldingData).returning()
@@ -95,14 +95,14 @@ export async function addHolding(data: HoldingCreateData) {
 /**
  * 更新用户持仓记录
  */
-export async function updateHolding(userId: number, code: string, data: { shares: number, costPrice: number }) {
+export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null }) {
   const db = useDb()
 
   // [重大修改] 更新逻辑现在只设置份额和成本价
   const [updatedHolding] = await db.update(holdings)
     .set({
-      shares: String(data.shares),
-      costPrice: String(data.costPrice),
+      shares: data.shares !== undefined ? (data.shares ? String(data.shares) : null) : undefined,
+      costPrice: data.costPrice !== undefined ? (data.costPrice ? String(data.costPrice) : null) : undefined,
     })
     .where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
     .returning()
@@ -375,53 +375,69 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
+  let heldCount = 0 // [新增] 只计算持有的基金数量
 
   const formattedHoldings = userHoldings.map((h) => {
     const { fund: fundInfo } = h
     if (!fundInfo)
       return null
 
-    // [重大修改] 核心计算逻辑重写
-    const shares = new BigNumber(h.shares)
-    const costPrice = new BigNumber(h.costPrice)
-    const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
+    // [新增] 判断是否为实际持仓
+    const isHeld = h.shares !== null && h.costPrice !== null && new BigNumber(h.shares).isGreaterThan(0)
 
-    // 1. 持仓总成本 = 份额 * 成本价
-    const totalCost = shares.times(costPrice)
-    // 2. 昨日持仓市值 = 份额 * 昨日净值
-    const holdingAmount = shares.times(yesterdayNav)
-    // 3. 持有总收益 = 昨日市值 - 总成本
-    const holdingProfitAmount = holdingAmount.minus(totalCost)
-    // 4. 持有收益率 = 持有总收益 / 总成本
-    const holdingProfitRate = totalCost.isGreaterThan(0)
-      ? holdingProfitAmount.dividedBy(totalCost).times(100)
-      : new BigNumber(0)
-
-    // 估算市值 (逻辑不变)
-    const estimateAmount = fundInfo.todayEstimateNav
-      ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
-      : holdingAmount
-
-    totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
-    totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
-
-    return {
+    let holdingData: any = {
       code: fundInfo.code,
       name: fundInfo.name,
-      yesterdayNav: yesterdayNav.toNumber(),
+      yesterdayNav: Number(fundInfo.yesterdayNav),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
-      shares: shares.toNumber(),
-      // 新增 costPrice 字段返回给前端
-      costPrice: costPrice.toNumber(),
-      // 基于新逻辑计算的字段
-      holdingAmount: holdingAmount.toNumber(),
-      holdingProfitAmount: holdingProfitAmount.toNumber(),
-      holdingProfitRate: holdingProfitRate.toNumber(),
-      todayEstimateAmount: estimateAmount.toNumber(),
       signals: signalsMap.get(fundInfo.code) || {},
     }
+
+    if (isHeld) {
+      heldCount++ // 统计持仓数量
+      const shares = new BigNumber(h.shares!)
+      const costPrice = new BigNumber(h.costPrice!)
+      const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
+
+      const totalCost = shares.times(costPrice)
+      const holdingAmount = shares.times(yesterdayNav)
+      const holdingProfitAmount = holdingAmount.minus(totalCost)
+      const holdingProfitRate = totalCost.isGreaterThan(0)
+        ? holdingProfitAmount.dividedBy(totalCost).times(100)
+        : new BigNumber(0)
+
+      const estimateAmount = fundInfo.todayEstimateNav
+        ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
+        : holdingAmount
+
+      totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
+      totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
+
+      holdingData = {
+        ...holdingData,
+        shares: shares.toNumber(),
+        costPrice: costPrice.toNumber(),
+        holdingAmount: holdingAmount.toNumber(),
+        holdingProfitAmount: holdingProfitAmount.toNumber(),
+        holdingProfitRate: holdingProfitRate.toNumber(),
+        todayEstimateAmount: estimateAmount.toNumber(),
+      }
+    }
+    else {
+      // 如果是关注的基金，这些值为 null
+      holdingData = {
+        ...holdingData,
+        shares: null,
+        costPrice: null,
+        holdingAmount: null,
+        holdingProfitAmount: null,
+        holdingProfitRate: null,
+        todayEstimateAmount: null,
+      }
+    }
+    return holdingData
   }).filter(Boolean)
 
   const totalProfitLoss = totalEstimateAmount.minus(totalHoldingAmount)
@@ -436,7 +452,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       totalEstimateAmount: totalEstimateAmount.toNumber(),
       totalProfitLoss: totalProfitLoss.toNumber(),
       totalPercentageChange: totalPercentageChange.toNumber(),
-      count: userHoldings.length,
+      count: heldCount, // [修改] 汇总里的数量只显示持仓数
     },
   }
 }

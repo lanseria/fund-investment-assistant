@@ -2,7 +2,7 @@
   "name": "fund-nuxt-app",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.12.4",
+  "packageManager": "pnpm@10.13.1",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -38,7 +38,7 @@
     "es-toolkit": "catalog:utils",
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
-    "iconv-lite": "catalog:",
+    "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",

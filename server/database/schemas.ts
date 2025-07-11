@@ -57,9 +57,9 @@ export const holdings = fundSchema.table('holdings', {
   /** 基金代码 (复合主键之一, 外键关联 funds 表) */
   fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
   /** 持有份额 */
-  shares: numeric('shares', { precision: 18, scale: 4 }).notNull(),
+  shares: numeric('shares', { precision: 18, scale: 4 }),
   /** 持仓成本价 (买入时的单位净值) */
-  costPrice: numeric('cost_price', { precision: 10, scale: 4 }).notNull(),
+  costPrice: numeric('cost_price', { precision: 10, scale: 4 }),
 }, (table) => {
   return {
     /** 使用 用户ID 和 基金代码 创建复合主键，确保一个用户对一个基金只能有一条持仓记录 */

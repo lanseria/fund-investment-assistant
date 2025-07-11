@@ -143,41 +143,56 @@ const strategiesForTags = {
 
             <!-- 持有市值和份额合并在一个单元格 -->
             <td class="font-mono p-4 text-right">
-              <div class="font-numeric font-semibold">
-                {{ formatCurrency(h.holdingAmount) }}
-              </div>
-              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                {{ h.shares.toFixed(2) }} 份
-              </div>
-              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                {{ h.yesterdayNav }}
-              </div>
+              <!-- [修改] 处理关注状态 -->
+              <template v-if="h.holdingAmount !== null">
+                <div class="font-numeric font-semibold">
+                  {{ formatCurrency(h.holdingAmount) }}
+                </div>
+                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                  {{ h.shares?.toFixed(2) }} 份
+                </div>
+                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                  {{ h.yesterdayNav }}
+                </div>
+              </template>
+              <template v-else>
+                <span class="text-sm text-gray-400">仅关注</span>
+              </template>
             </td>
 
             <!-- 持有收益和收益率 -->
             <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-              <div class="font-numeric font-semibold">
-                {{ formatCurrency(h.holdingProfitAmount) }}
-              </div>
-              <div class="text-xs font-numeric">
-                {{ h.holdingProfitRate !== null ? `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` : '-' }}
-              </div>
-              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                {{ h.costPrice }}
-              </div>
+              <!-- [修改] 处理关注状态 -->
+              <template v-if="h.holdingProfitRate !== null">
+                <div class="font-numeric font-semibold">
+                  {{ formatCurrency(h.holdingProfitAmount) }}
+                </div>
+                <div class="text-xs font-numeric">
+                  {{ `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` }}
+                </div>
+                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                  {{ h.costPrice }}
+                </div>
+              </template>
+              <template v-else>
+                <span class="text-gray-400">-</span>
+              </template>
             </td>
 
-            <!-- 估算涨跌和市值合并在一个单元格 -->
+            <!-- 估算涨跌和市值 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               <div class="font-numeric font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
-              <div class="text-xs font-numeric">
-                {{ formatCurrency(h.todayEstimateAmount! - h.holdingAmount) }}
+              <!-- [修改] 处理关注状态 -->
+              <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
+                {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
               </div>
-
+              <div v-else class="text-xs font-numeric">
+                -
+              </div>
               <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                {{ h.todayEstimateNav }}
+                {{ h.todayEstimateNav !== null ? h.todayEstimateNav : '-' }}
               </div>
             </td>
 

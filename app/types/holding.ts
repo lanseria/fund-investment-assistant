@@ -2,12 +2,12 @@
 export interface Holding {
   code: string
   name: string
-  shares: number
-  // [新增] 成本价
-  costPrice: number
+  // shares 和 costPrice 可以为 null
+  shares: number | null
+  costPrice: number | null
   yesterdayNav: number
-  // 下面这些都是从后端计算好的，保持不变
-  holdingAmount: number
+  // 以下字段在“关注”状态下也为 null
+  holdingAmount: number | null
   holdingProfitAmount: number | null
   holdingProfitRate: number | null
   todayEstimateNav: number | null

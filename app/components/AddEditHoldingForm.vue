@@ -31,16 +31,25 @@ watch(() => props.initialData, (newData) => {
   }
 }, { immediate: true })
 
-const canSubmit = computed(() => formData.code && formData.shares !== null && formData.shares > 0 && formData.costPrice !== null && formData.costPrice > 0)
+const canSubmit = computed(() => {
+  if (!formData.code)
+    return false // 代码是必须的
+  // 如果填写了份额或成本价，则两者都必须是正数
+  if (formData.shares !== null || formData.costPrice !== null) {
+    return (formData.shares ?? 0) > 0 && (formData.costPrice ?? 0) > 0
+  }
+  // 如果都没填，只关注基金，也允许提交
+  return true
+})
+
 function handleSubmit() {
   if (canSubmit.value) {
-    // 提交时只发送需要的数据
     const payload: any = {
       code: formData.code,
-      shares: formData.shares,
-      costPrice: formData.costPrice,
+      // [修改] 如果为空字符串或0，则发送null
+      shares: formData.shares || null,
+      costPrice: formData.costPrice || null,
     }
-    // 只有在添加模式下才提交 fundType
     if (!isEditing.value)
       payload.fundType = formData.fundType
 
@@ -88,29 +97,27 @@ function handleSubmit() {
 
       <!-- 持有份额 -->
       <div>
-        <label for="holding-shares" class="text-sm font-medium mb-1 block">持有份额</label>
+        <label for="holding-shares" class="text-sm font-medium mb-1 block">持有份额 (选填)</label>
         <input
           id="holding-shares"
           v-model.number="formData.shares"
           type="number"
           step="0.01"
-          placeholder="例如: 1000.50"
+          placeholder="若不持仓，可留空"
           class="input-base"
-          required
         >
       </div>
 
       <!-- 持仓成本价 -->
       <div>
-        <label for="cost-price" class="text-sm font-medium mb-1 block">持仓成本价</label>
+        <label for="cost-price" class="text-sm font-medium mb-1 block">持仓成本价 (选填)</label>
         <input
           id="cost-price"
           v-model.number="formData.costPrice"
           type="number"
           step="0.0001"
-          placeholder="例如: 1.2345"
+          placeholder="若不持仓，可留空"
           class="input-base"
-          required
         >
       </div>
     </div>

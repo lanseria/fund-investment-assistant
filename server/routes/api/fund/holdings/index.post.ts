@@ -5,9 +5,14 @@ import { addHolding, HoldingExistsError } from '~~/server/utils/holdings'
 // [重大修改] 更新 Zod schema
 const holdingCreateSchema = z.object({
   code: z.string().length(6),
-  shares: z.number().positive('份额必须为正数'),
-  costPrice: z.number().positive('成本价必须为正数'),
-  fundType: z.enum(['open', 'qdii_lof']), // 新增字段
+  // [修改] 设为可选和可空
+  shares: z.number().positive('份额必须为正数').nullable().optional(),
+  costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
+  fundType: z.enum(['open', 'qdii_lof']),
+}).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
+  // [新增] 校验规则：shares 和 costPrice 必须同时存在或同时不存在
+  message: '持有份额和持仓成本价必须同时填写或同时不填。',
+  path: ['shares'], // 错误关联到 'shares' 字段
 })
 
 export default defineEventHandler(async (event) => {

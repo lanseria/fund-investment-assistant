@@ -4,8 +4,12 @@ import { FundNotFoundError, HoldingNotFoundError, updateHolding } from '~~/serve
 
 // [重大修改] 更新 Zod schema
 const holdingUpdateSchema = z.object({
-  shares: z.number().positive('份额必须为正数'),
-  costPrice: z.number().positive('成本价必须为正数'),
+  shares: z.number().positive('份额必须为正数').nullable().optional(),
+  costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
+}).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
+  // [新增] 同样添加校验规则
+  message: '持有份额和持仓成本价必须同时填写或同时不填。',
+  path: ['shares'],
 })
 
 export default defineEventHandler(async (event) => {

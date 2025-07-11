@@ -1,0 +1,330 @@
+{
+  "id": "520ba0df-b6f3-4fce-bb38-7c8f1dc60665",
+  "prevId": "853e38cd-2f4b-40dd-a446-2f6ea5d9fee7",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "fund_app.funds": {
+      "name": "funds",
+      "schema": "fund_app",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(10)",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fund_type": {
+          "name": "fund_type",
+          "type": "fund_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'open'"
+        },
+        "yesterday_nav": {
+          "name": "yesterday_nav",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "today_estimate_nav": {
+          "name": "today_estimate_nav",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "percentage_change": {
+          "name": "percentage_change",
+          "type": "real",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "today_estimate_update_time": {
+          "name": "today_estimate_update_time",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fund_app.holdings": {
+      "name": "holdings",
+      "schema": "fund_app",
+      "columns": {
+        "user_id": {
+          "name": "user_id",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "fund_code": {
+          "name": "fund_code",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "shares": {
+          "name": "shares",
+          "type": "numeric(18, 4)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cost_price": {
+          "name": "cost_price",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "holdings_user_id_users_id_fk": {
+          "name": "holdings_user_id_users_id_fk",
+          "tableFrom": "holdings",
+          "tableTo": "users",
+          "schemaTo": "fund_app",
+          "columnsFrom": [
+            "user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "holdings_fund_code_funds_code_fk": {
+          "name": "holdings_fund_code_funds_code_fk",
+          "tableFrom": "holdings",
+          "tableTo": "funds",
+          "schemaTo": "fund_app",
+          "columnsFrom": [
+            "fund_code"
+          ],
+          "columnsTo": [
+            "code"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "holdings_user_id_fund_code_pk": {
+          "name": "holdings_user_id_fund_code_pk",
+          "columns": [
+            "user_id",
+            "fund_code"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fund_app.fund_nav_history": {
+      "name": "fund_nav_history",
+      "schema": "fund_app",
+      "columns": {
+        "code": {
+          "name": "code",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nav_date": {
+          "name": "nav_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "nav": {
+          "name": "nav",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "fund_nav_history_code_nav_date_pk": {
+          "name": "fund_nav_history_code_nav_date_pk",
+          "columns": [
+            "code",
+            "nav_date"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fund_app.strategy_signals": {
+      "name": "strategy_signals",
+      "schema": "fund_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "fund_code": {
+          "name": "fund_code",
+          "type": "varchar(10)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "strategy_name": {
+          "name": "strategy_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "signal": {
+          "name": "signal",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reason": {
+          "name": "reason",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latest_date": {
+          "name": "latest_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latest_close": {
+          "name": "latest_close",
+          "type": "numeric(10, 4)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "metrics": {
+          "name": "metrics",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "fund_app.users": {
+      "name": "users",
+      "schema": "fund_app",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "bigserial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password": {
+          "name": "password",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "user_role",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'user'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "users_username_unique": {
+          "name": "users_username_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "username"
+          ]
+        }
+      },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {
+    "public.fund_type": {
+      "name": "fund_type",
+      "schema": "public",
+      "values": [
+        "open",
+        "qdii_lof"
+      ]
+    },
+    "public.user_role": {
+      "name": "user_role",
+      "schema": "public",
+      "values": [
+        "admin",
+        "user"
+      ]
+    }
+  },
+  "schemas": {
+    "fund_app": "fund_app"
+  },
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

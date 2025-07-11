@@ -91,17 +91,12 @@ export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeD
 
 export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundRealtimeData | null> {
   const url = `http://fundgz.1234567.com.cn/js/${fundCode}.js`
-  console.log(`[DEBUG] Preparing to fetch: ${url}`)
 
   try {
-    // [关键修正] 添加 `responseType: 'text'` 选项
-    // 这会强制 ofetch 将响应体作为纯文本字符串返回，无论 Content-Type 是什么。
     const responseText = await $fetch<string>(url, {
       responseType: 'text',
       headers: { Referer: 'http://fund.eastmoney.com/' },
     })
-
-    console.log(`[DEBUG] Raw response for ${fundCode}:`, responseText)
 
     // 现在 responseText 保证是一个字符串，可以安全地调用 .replace()
     const jsonStr = responseText.replace('jsonpgz(', '').replace(');', '')

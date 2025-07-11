@@ -35,7 +35,7 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 添加一个新的持仓基金
    */
-  async function addHolding(newHolding: { code: string, shares: number, costPrice: number, fundType: 'open' | 'qdii_lof' }) {
+  async function addHolding(newHolding: { code: string, shares?: number | null, costPrice?: number | null, fundType: 'open' | 'qdii_lof' }) {
     try {
     // 请求体现在会包含 fundType
       await apiFetch('/api/fund/holdings/', {
@@ -53,7 +53,7 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 更新持仓金额
    */
-  async function updateHolding(code: string, data: { shares: number, costPrice: number }) { // [修改] 参数类型
+  async function updateHolding(code: string, data: { shares?: number | null, costPrice?: number | null }) {
     try {
       await apiFetch(`/api/fund/holdings/${code}`, {
         method: 'PUT',
@@ -108,7 +108,7 @@ export const useHoldingStore = defineStore('holding', () => {
   }
 
   // --- Getters (Computed) ---
-  const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + h.holdingAmount, 0))
+  const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + (h.holdingAmount ?? 0), 0))
 
   /**
    * 导出持仓数据
