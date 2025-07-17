@@ -1,6 +1,5 @@
 <script setup lang="ts">
 const authStore = useAuthStore()
-// [新增] 引入主题切换逻辑
 const { cycleTheme, currentTheme } = useTheme()
 </script>
 

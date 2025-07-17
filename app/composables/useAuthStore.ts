@@ -25,19 +25,22 @@ export const useAuthStore = defineStore('auth', () => {
       return
 
     try {
-      user.value = await apiFetch<UserPayload>('/api/auth/me')
+      // 当在服务端执行时，手动转发 cookie
+      const headers = import.meta.server
+        ? useRequestHeaders(['cookie']) // 从浏览器请求中提取 cookie 头
+        : undefined // 在客户端，浏览器会自动处理 cookie，所以不需要
+
+      user.value = await apiFetch<UserPayload>('/api/auth/me', {
+        // 将提取的 headers 附加到 API 请求中
+        headers,
+      })
     }
     // eslint-disable-next-line unused-imports/no-unused-vars
     catch (e: any) {
-      // [核心修改] 将 console.error 改为 console.log 或直接移除
       // 这是一个预期的行为（用户未登录或会话过期），不应作为错误抛出。
-      // 我们可以打印一条信息性的日志，方便调试。
       // eslint-disable-next-line no-console
       console.log('User session not found or expired. User remains unauthenticated.')
       user.value = null // 确保用户状态被清理
-
-      // [重要] 不再向上抛出错误，因为我们已经处理了它
-      // throw e; // <--- 移除这一行
     }
   }
 
