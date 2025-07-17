@@ -1,6 +1,5 @@
 // File: server/routes/api/auth/refresh.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
-import dayjs from 'dayjs' // [修改] 导入 dayjs
 import { eq } from 'drizzle-orm'
 import { encrypt, verify } from 'paseto-ts/v4'
 import { z } from 'zod'
@@ -11,6 +10,7 @@ const refreshSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  const dayjs = useDayjs()
   const { refreshToken } = await refreshSchema.parseAsync(await readBody(event))
 
   const refreshPublicKey = await useStorage('redis').getItem<string>('refreshPublicKey')

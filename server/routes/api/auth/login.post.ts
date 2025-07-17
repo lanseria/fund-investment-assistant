@@ -1,6 +1,5 @@
 // File: server/routes/api/auth/login.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
-import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
@@ -13,6 +12,7 @@ const loginSchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
+  const dayjs = useDayjs()
   const body = await readBody(event)
   const { username, password } = await loginSchema.parseAsync(body)
 

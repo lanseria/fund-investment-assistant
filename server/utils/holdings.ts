@@ -44,7 +44,7 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
     const newFundData = {
       code,
       name: realtimeData.name,
-      fundType, // [新增] 存储基金类型
+      fundType,
       yesterdayNav: realtimeData.yesterdayNav,
       todayEstimateNav: Number(realtimeData.estimateNav) || null,
       percentageChange: Number(realtimeData.percentageChange) || null,
@@ -98,7 +98,7 @@ export async function addHolding(data: HoldingCreateData) {
 export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null }) {
   const db = useDb()
 
-  // [重大修改] 更新逻辑现在只设置份额和成本价
+  // 更新逻辑现在只设置份额和成本价
   const [updatedHolding] = await db.update(holdings)
     .set({
       shares: data.shares !== undefined ? (data.shares ? String(data.shares) : null) : undefined,
@@ -202,7 +202,7 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
 }
 
 /**
- * 同步单个基金的最新估值 (更新 funds 表)
+ * 同步单个基金的最新估值
  */
 export async function syncSingleFundEstimate(code: string) {
   const db = useDb()
@@ -232,7 +232,7 @@ export async function syncSingleFundEstimate(code: string) {
 }
 
 /**
- * 同步所有基金的最新估值 (更新 funds 表)
+ * 同步所有基金的最新估值
  */
 export async function syncAllFundsEstimates() {
   const db = useDb()
@@ -253,7 +253,7 @@ export async function syncAllFundsEstimates() {
 }
 
 /**
- * 同步单个基金的历史净值数据 (更新 navHistory 和 funds 表)
+ * 同步单个基金的历史净值数据
  */
 export async function syncSingleFundHistory(code: string): Promise<number> {
   const db = useDb()
@@ -275,7 +275,7 @@ export async function syncSingleFundHistory(code: string): Promise<number> {
 
   const newRecords = historyData
     .map(r => ({ code, navDate: r.FSRQ, nav: r.DWJZ }))
-    // [MODIFIED] 使用 BigNumber 过滤无效净值
+    // 使用 BigNumber 过滤无效净值
     .filter(r => new BigNumber(r.nav).isGreaterThan(0))
 
   if (newRecords.length > 0) {
@@ -375,14 +375,14 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
-  let heldCount = 0 // [新增] 只计算持有的基金数量
+  let heldCount = 0 // 只计算持有的基金数量
 
   const formattedHoldings = userHoldings.map((h) => {
     const { fund: fundInfo } = h
     if (!fundInfo)
       return null
 
-    // [新增] 判断是否为实际持仓
+    // 判断是否为实际持仓
     const isHeld = h.shares !== null && h.costPrice !== null && new BigNumber(h.shares).isGreaterThan(0)
 
     let holdingData: any = {
@@ -452,7 +452,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       totalEstimateAmount: totalEstimateAmount.toNumber(),
       totalProfitLoss: totalProfitLoss.toNumber(),
       totalPercentageChange: totalPercentageChange.toNumber(),
-      count: heldCount, // [修改] 汇总里的数量只显示持仓数
+      count: heldCount, // 汇总里的数量只显示持仓数
     },
   }
 }

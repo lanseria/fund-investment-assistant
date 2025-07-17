@@ -59,7 +59,6 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
     profitRate: Number(row.profit_rate),
     holdingCount: Number(row.holding_count),
     todayProfitRate: Number(row.today_profit_rate),
-    // [新增] 映射新字段
     totalCost: Number(row.total_cost),
     todayProfitLoss: Number(row.today_profit_loss),
   }))

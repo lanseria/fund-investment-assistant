@@ -1,6 +1,6 @@
 // server/tasks/fund/syncEstimate.ts
 /* eslint-disable no-console */
-// [REFACTOR] 导入新的 syncAllFundsEstimates 函数
+// 导入新的 syncAllFundsEstimates 函数
 import { syncAllFundsEstimates } from '~~/server/utils/holdings'
 
 export default defineTask({
@@ -10,12 +10,12 @@ export default defineTask({
   },
   async run() {
     console.log('开始执行基金实时估值同步定时任务...')
-    // [REFACTOR] 调用我们封装好的批量处理函数
+    // 调用我们封装好的批量处理函数
     const result = await syncAllFundsEstimates()
     console.log('基金实时估值同步定时任务完成。',
 
     )
-    // [重要修改] 任务完成后，通过 mitt 发出事件通知
+    // 任务完成后，通过 mitt 发出事件通知
     if (result.success > 0) {
       try {
         emitter.emit('holdings:updated')
