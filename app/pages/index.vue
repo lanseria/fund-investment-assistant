@@ -32,13 +32,13 @@ watch(isDataLoading, (loading) => {
 })
 
 // 2. 使用 useEventSource
-const sseUrl = ref('')
+const sseUrl = ref('/api/sse/holdings')
 const { status: sseStatus, data: sseData, open: sseOpen, close: sseClose } = useEventSource(
-  sseUrl, // 使用 ref，以便在 onMounted 中动态设置
+  sseUrl,
   [],
   {
-    // immediate: false 确保我们能先设置 URL 再连接
-    immediate: false,
+    // [修改] withCredentials 确保 cookie 会被发送
+    withCredentials: true,
   },
 )
 const sseStatusText = computed(() => {
@@ -72,16 +72,16 @@ watch(sseData, (newData) => {
 
 // 4. 在 onMounted 中建立连接，在 onUnmounted 中断开
 onMounted(() => {
-  const authToken = useCookie('auth-token')
-  if (authToken.value) {
-    // 动态设置带 token 的 URL
-    sseUrl.value = `/api/sse/holdings?token=${authToken.value}`
-    // 手动开启连接
+  // [修改] 简化逻辑，只要 store 是认证状态就开启连接
+  const authStore = useAuthStore()
+  if (authStore.isAuthenticated) {
     sseOpen()
     console.log('[SSE] Opening connection to', sseUrl.value)
   }
   else {
-    console.warn('No auth token found, SSE connection will not be established.')
+    // 可以在这里增加一个逻辑，等待认证完成后再连接
+    // 但通常页面加载时 auth.global.ts 已经确保了认证状态
+    console.warn('User not authenticated, SSE connection will not be established.')
   }
 })
 

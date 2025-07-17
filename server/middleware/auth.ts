@@ -1,11 +1,11 @@
 // server/middleware/auth.ts
-
 import type { UserPayload } from '~~/server/utils/auth'
 import { decrypt } from 'paseto-ts/v4'
 
 const PUBLIC_API_ROUTES = [
   '/api/auth/login',
   '/api/auth/refresh',
+  '/api/auth/logout',
   '/api/test-fetch',
   '/api/dev/init-admin',
 ]
@@ -13,31 +13,17 @@ const PUBLIC_API_ROUTES = [
 export default defineEventHandler(async (event) => {
   const path = event.path
 
-  if (!path.startsWith('/api/'))
+  // 如果不是 API 路由或属于公开路由，则跳过
+  if (!path.startsWith('/api/') || PUBLIC_API_ROUTES.some(route => path.startsWith(route)))
     return
 
-  if (PUBLIC_API_ROUTES.some(route => path.startsWith(route)))
-    return
-
-  // --- [核心修改] ---
-  let token: string | undefined
-
-  // 1. 对所有 /api/sse/ 路由，优先从 query 参数获取 token
-  if (path.startsWith('/api/sse/')) {
-    const query = getQuery(event)
-    token = query.token as string
-  }
-
-  // 2. 如果 token 不存在（或者不是 SSE 路由），则回退到从 Header 获取
-  if (!token) {
-    token = getHeader(event, 'Authorization')?.split(' ')[1]
-  }
-  // --- [修改结束] ---
+  // 直接从 cookie 中获取 token
+  const token = getCookie(event, 'auth-token')
 
   if (!token) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'Authorization token is missing',
+      statusMessage: 'Authorization token is missing from cookies',
     })
   }
 

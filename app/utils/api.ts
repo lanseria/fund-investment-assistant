@@ -1,85 +1,47 @@
-// 用一个变量来防止无限循环的刷新请求
-let isRefreshing = false
-const refreshSubscribers: ((accessToken: string) => void)[] = []
+// app/utils/api.ts
 
-function subscribeToRefresh(cb: (accessToken: string) => void) {
-  refreshSubscribers.push(cb)
-}
-
-function onRefreshed(accessToken: string) {
-  refreshSubscribers.forEach(cb => cb(accessToken))
-  // 清空订阅者
-  refreshSubscribers.length = 0
-}
+// [移除] isRefreshing 和相关的订阅者逻辑现在可以简化，因为我们不再需要手动重发请求
+let refreshTokenPromise: Promise<any> | null = null
 
 export const apiFetch = $fetch.create({
-  async onRequest({ options }) {
-    const accessToken = useCookie('auth-token').value
-    if (accessToken) {
-      const headers = new Headers(options.headers)
-      headers.set('Authorization', `Bearer ${accessToken}`)
-      options.headers = headers
-    }
-  },
-
-  async onResponseError({ request, response, options }) {
-    // 只处理 401 错误，并且确保不是因为刷新 token 本身失败导致的 401
-    // `request` 可以是 string 或 Request 对象
-    const requestUrl = typeof request === 'string' ? request : request.url
-    if (response.status === 401 && !requestUrl.includes('/api/auth/refresh')) {
+  async onResponseError({ request, response }) {
+    // 只处理 401 错误，并且确保不是对 refresh 接口的请求本身失败
+    if (response.status === 401 && !String(request).includes('/api/auth/refresh')) {
       const authStore = useAuthStore()
 
-      if (!isRefreshing) {
-        isRefreshing = true
-        const refreshToken = useCookie('auth-refresh-token')
-
-        if (!refreshToken.value) {
-          // 没有 refresh token，直接登出
-          isRefreshing = false
-          return authStore.logout()
-        }
-
-        try {
-          // 尝试获取新的 access token
-          const data = await $fetch<{ accessToken: string }>('/api/auth/refresh', {
-            method: 'POST',
-            body: { refreshToken: refreshToken.value },
-          })
-
-          // 更新 access token
-          const newAccessToken = data.accessToken
-          useCookie('auth-token').value = newAccessToken
-
-          // 通知所有等待的请求
-          onRefreshed(newAccessToken)
-        }
-        catch (e) {
-          console.error('Failed to refresh token, logging out.', e)
+      // 如果没有正在进行的刷新，则发起新的刷新请求
+      if (!refreshTokenPromise) {
+        refreshTokenPromise = $fetch('/api/auth/refresh', {
+          method: 'POST',
+          // 在客户端，$fetch 会自动发送 cookie。
+          // 在服务器端，Nuxt 3.3+ 版本的 ofetch 也会自动转发同站 cookie。
+          // 如果使用的是旧版本，则需要在调用处手动传递 headers。
+        }).catch(async (e) => {
+          // [核心修改] 将 console.error 改为 console.log
+          // eslint-disable-next-line no-console
+          console.log('Could not refresh token. User will be logged out.')
           await authStore.logout()
-          // 抛出原始错误，以便调用者知道请求最终失败了
-          throw e
-        }
-        finally {
-          isRefreshing = false
-        }
+          return Promise.reject(e)
+        }).finally(() => {
+          // 无论成功失败，重置 promise
+          refreshTokenPromise = null
+        })
       }
 
-      // 如果正在刷新，则将原始请求挂起，等待刷新完成后用新的 token 重试
-      return new Promise((resolve) => {
-        subscribeToRefresh((newAccessToken) => {
-          // 更新请求头
-          const newHeaders = new Headers(options.headers)
-          newHeaders.set('Authorization', `Bearer ${newAccessToken}`)
+      try {
+        // 等待刷新完成
+        await refreshTokenPromise
 
-          // 使用 ofetch 重新发起原始请求
-          // 明确传递请求的 URL 和方法，以满足类型要求
-          resolve($fetch(requestUrl, {
-            ...options,
-            method: options.method?.toUpperCase() as any,
-            headers: newHeaders,
-          })) as any // <--- [修改点] 在这里添加 as any
-        })
-      })
+        // 刷新成功后，cookie 已经被服务器更新
+        // 使用 $fetch 重新发起原始请求
+        // 浏览器(或服务器)会自动带上新的 auth-token cookie
+        return $fetch(request)
+      }
+      catch (e) {
+        // 如果刷新请求本身失败了，或者重试请求再次失败，则不再处理
+        // 错误会向上冒泡
+        return Promise.reject(e)
+      }
     }
   },
 })
