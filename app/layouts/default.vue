@@ -1,5 +1,7 @@
 <script setup lang="ts">
 const authStore = useAuthStore()
+// [新增] 引入主题切换逻辑
+const { cycleTheme, currentTheme } = useTheme()
 </script>
 
 <template>
@@ -17,6 +19,9 @@ const authStore = useAuthStore()
           用户管理
         </NuxtLink>
         <span>欢迎, {{ authStore.user?.username }}</span>
+        <button class="icon-btn" :title="`切换主题: ${currentTheme.label}`" @click="cycleTheme()">
+          <div i-carbon-color-palette />
+        </button>
         <DarkToggle />
         <button class="icon-btn" title="登出" @click="authStore.logout()">
           <div i-carbon-logout />

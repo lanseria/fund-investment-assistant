@@ -273,7 +273,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
     <!-- 主体内容 -->
     <div v-if="isLoading" class="card flex h-64 items-center justify-center">
-      <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
+      <div i-carbon-circle-dash class="text-primary text-4xl animate-spin" />
     </div>
     <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />

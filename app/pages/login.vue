@@ -37,7 +37,7 @@ async function handleLogin() {
     <div class="p-8 card max-w-sm w-full space-y-8">
       <!-- 头部：Logo 和标题 -->
       <div class="text-center">
-        <div class="i-carbon-finance text-5xl text-teal-500 inline-block" />
+        <div class="i-carbon-finance text-primary text-5xl inline-block" />
         <h1 class="text-2xl font-bold mt-2">
           欢迎回来
         </h1>
