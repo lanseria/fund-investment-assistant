@@ -179,12 +179,12 @@ const strategiesForTags = {
               </template>
             </td>
 
-            <!-- 估算涨跌和市值 -->
+            <!-- 估算涨跌和收益 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               <div class="font-numeric font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
-              <!-- [修改] 处理关注状态 -->
+              <!-- 处理关注状态 -->
               <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
                 {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
               </div>

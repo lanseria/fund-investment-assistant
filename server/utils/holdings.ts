@@ -41,13 +41,23 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
     if (!realtimeData)
       throw new Error(`无法获取基金 ${code} 的初始信息。`)
 
+    const yesterdayNav = new BigNumber(realtimeData.yesterdayNav)
+    const estimateNav = realtimeData.estimateNav ? new BigNumber(realtimeData.estimateNav) : null
+    let percentageChange: BigNumber | null = null
+
+    // [核心逻辑] 如果估算净值和昨日净值都有效，则自己计算涨跌幅
+    if (estimateNav && yesterdayNav.isGreaterThan(0)) {
+      percentageChange = estimateNav.minus(yesterdayNav).dividedBy(yesterdayNav).times(100)
+    }
+
     const newFundData = {
       code,
       name: realtimeData.name,
       fundType,
-      yesterdayNav: realtimeData.yesterdayNav,
-      todayEstimateNav: Number(realtimeData.estimateNav) || null,
-      percentageChange: Number(realtimeData.percentageChange) || null,
+      yesterdayNav: yesterdayNav.toString(),
+      todayEstimateNav: estimateNav ? estimateNav.toNumber() : null,
+      // [修改] 存储我们自己计算出的涨跌幅
+      percentageChange: percentageChange ? percentageChange.toNumber() : null,
       todayEstimateUpdateTime: new Date(realtimeData.updateTime) || null,
     };
     [fund] = await db.insert(funds).values(newFundData).returning()
@@ -222,10 +232,19 @@ export async function syncSingleFundEstimate(code: string) {
     : await fetchFundRealtimeEstimate(code)
 
   if (realtimeData && realtimeData.estimateNav) {
-    const estimateNav = Number(realtimeData.estimateNav)
+    const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
+    const estimateNav = new BigNumber(realtimeData.estimateNav)
+    let percentageChange: BigNumber | null = null
+
+    // [核心逻辑] 如果估算净值和昨日净值都有效，则自己计算涨跌幅
+    if (yesterdayNav.isGreaterThan(0)) {
+      percentageChange = estimateNav.minus(yesterdayNav).dividedBy(yesterdayNav).times(100)
+    }
+
     await db.update(funds).set({
-      todayEstimateNav: estimateNav,
-      percentageChange: Number(realtimeData.percentageChange),
+      todayEstimateNav: estimateNav.toNumber(),
+      // [修改] 存储我们自己计算出的、更准确的涨跌幅
+      percentageChange: percentageChange ? percentageChange.toNumber() : null,
       todayEstimateUpdateTime: new Date(realtimeData.updateTime),
     }).where(eq(funds.code, code))
   }
@@ -236,7 +255,6 @@ export async function syncSingleFundEstimate(code: string) {
  */
 export async function syncAllFundsEstimates() {
   const db = useDb()
-  // 从 funds 表获取所有基金
   const allFunds = await db.query.funds.findMany()
 
   if (allFunds.length === 0)
