@@ -26,7 +26,6 @@ export class HoldingNotFoundError extends Error {
     this.name = 'HoldingNotFoundError'
   }
 }
-
 // 内部辅助函数：查找或创建基金公共信息
 async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
   const db = useDb()
@@ -41,23 +40,26 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
     if (!realtimeData)
       throw new Error(`无法获取基金 ${code} 的初始信息。`)
 
-    const yesterdayNav = new BigNumber(realtimeData.yesterdayNav)
-    const estimateNav = realtimeData.estimateNav ? new BigNumber(realtimeData.estimateNav) : null
-    let percentageChange: BigNumber | null = null
+    const yesterdayNavBN = new BigNumber(realtimeData.yesterdayNav)
+    const percentageChangeBN = new BigNumber(realtimeData.percentageChange)
+    let estimateNavBN: BigNumber | null = null
 
-    // [核心逻辑] 如果估算净值和昨日净值都有效，则自己计算涨跌幅
-    if (estimateNav && yesterdayNav.isGreaterThan(0)) {
-      percentageChange = estimateNav.minus(yesterdayNav).dividedBy(yesterdayNav).times(100)
+    // [核心逻辑修改] 如果昨日净值有效，则根据 API 返回的涨跌幅计算估算净值
+    if (yesterdayNavBN.isGreaterThan(0)) {
+      // 估值 = 昨日净值 * (1 + 涨跌幅 / 100)
+      const multiplier = new BigNumber(1).plus(percentageChangeBN.dividedBy(100))
+      estimateNavBN = yesterdayNavBN.times(multiplier)
     }
 
     const newFundData = {
       code,
       name: realtimeData.name,
       fundType,
-      yesterdayNav: yesterdayNav.toString(),
-      todayEstimateNav: estimateNav ? estimateNav.toNumber() : null,
-      // [修改] 存储我们自己计算出的涨跌幅
-      percentageChange: percentageChange ? percentageChange.toNumber() : null,
+      yesterdayNav: yesterdayNavBN.toString(),
+      // [修改] 存储从 API 获取的涨跌幅
+      percentageChange: percentageChangeBN.toNumber(),
+      // [修改] 存储我们自己计算出的估值
+      todayEstimateNav: estimateNavBN ? estimateNavBN.toNumber() : null,
       todayEstimateUpdateTime: new Date(realtimeData.updateTime) || null,
     };
     [fund] = await db.insert(funds).values(newFundData).returning()
@@ -231,20 +233,24 @@ export async function syncSingleFundEstimate(code: string) {
     ? await fetchFundLofPrice(code)
     : await fetchFundRealtimeEstimate(code)
 
-  if (realtimeData && realtimeData.estimateNav) {
-    const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
-    const estimateNav = new BigNumber(realtimeData.estimateNav)
-    let percentageChange: BigNumber | null = null
+  // 检查是否成功获取到实时数据
+  if (realtimeData) {
+    const yesterdayNavBN = new BigNumber(fundInfo.yesterdayNav)
+    const percentageChangeBN = new BigNumber(realtimeData.percentageChange)
+    let estimateNavBN: BigNumber | null = null
 
-    // [核心逻辑] 如果估算净值和昨日净值都有效，则自己计算涨跌幅
-    if (yesterdayNav.isGreaterThan(0)) {
-      percentageChange = estimateNav.minus(yesterdayNav).dividedBy(yesterdayNav).times(100)
+    // [核心逻辑修改] 如果昨日净值有效，则根据 API 返回的涨跌幅计算估算净值
+    if (yesterdayNavBN.isGreaterThan(0)) {
+      // 估值 = 昨日净值 * (1 + 涨跌幅 / 100)
+      const multiplier = new BigNumber(1).plus(percentageChangeBN.dividedBy(100))
+      estimateNavBN = yesterdayNavBN.times(multiplier)
     }
 
     await db.update(funds).set({
-      todayEstimateNav: estimateNav.toNumber(),
-      // [修改] 存储我们自己计算出的、更准确的涨跌幅
-      percentageChange: percentageChange ? percentageChange.toNumber() : null,
+      // [修改] 存储从 API 获取的涨跌幅
+      percentageChange: percentageChangeBN.toNumber(),
+      // [修改] 存储我们自己计算出的估值
+      todayEstimateNav: estimateNavBN ? estimateNavBN.toNumber() : null,
       todayEstimateUpdateTime: new Date(realtimeData.updateTime),
     }).where(eq(funds.code, code))
   }
