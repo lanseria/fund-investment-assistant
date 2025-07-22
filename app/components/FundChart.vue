@@ -113,5 +113,5 @@ function handleChartClick(params: any) {
 </script>
 
 <template>
-  <VChart class="h-100 w-full" :option="chartOption" autoresize @click="handleChartClick" />
+  <VChartFull class="h-100 w-full" :option="chartOption" autoresize @click="handleChartClick" />
 </template>

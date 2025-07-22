@@ -7,7 +7,7 @@ const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
 
-// [修改] 定义需要展示的所有策略图表
+// 定义需要展示的所有策略图表
 const strategiesToDisplay = [
   { value: '', label: '基础走势' },
   { value: 'rsi', label: 'RSI 策略' },
@@ -82,7 +82,7 @@ async function handleSyncHistory() {
   }
 }
 
-// [新增] 为执行策略分析添加本地加载状态
+// 为执行策略分析添加本地加载状态
 const isRunningStrategies = ref(false)
 async function handleRunStrategies() {
   isRunningStrategies.value = true
@@ -99,7 +99,7 @@ useHead({
   title: () => `策略分析: ${fundName.value} (${code}) - ${appName}`,
 })
 
-// [修改] setDateRange 现在作用于所有图表
+// setDateRange 现在作用于所有图表
 function setDateRange(period: string) {
   activeFilter.value = period
   // 使用第一个图表的历史数据来计算，因为所有图表的 history 是一样的
@@ -131,7 +131,7 @@ function setDateRange(period: string) {
   }
 }
 
-// [修改] 页面加载或数据获取完成后，设置一个默认的缩放范围
+// 页面加载或数据获取完成后，设置一个默认的缩放范围
 watch(data, (newData) => {
   if (newData && newData.length > 0)
     setDateRange('3m') // 默认显示近1年
@@ -141,7 +141,7 @@ watch(data, (newData) => {
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
     <header class="mb-8 flex items-center justify-between">
-      <div class="text-sm text-gray-500 inline-flex gap-2 cursor-pointer transition-colors items-center hover:text-teal-500" @click="$router.back()">
+      <div class="text-sm text-gray-500 inline-flex gap-2 cursor-pointer transition-colors items-center hover:text-primary-hover" @click="$router.back()">
         <div i-carbon-arrow-left />
         返回持仓列表
       </div>
@@ -157,10 +157,10 @@ watch(data, (newData) => {
       </div>
     </header>
 
-    <!-- [修改] 控制面板不再有策略选择器 -->
+    <!-- 控制面板不再有策略选择器 -->
     <div class="mb-8 p-4 card">
       <div class="flex flex-wrap gap-2">
-        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
+        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
           {{ filter.label }}
         </button>
       </div>
@@ -168,7 +168,7 @@ watch(data, (newData) => {
 
     <!-- --- Loading and Error States --- -->
     <div v-if="pending" class="card flex h-100 items-center justify-center">
-      <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
+      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
     </div>
     <div v-else-if="error" class="text-red-500 py-20 text-center card">
       <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
@@ -190,7 +190,7 @@ watch(data, (newData) => {
           :data-zoom-end="dataZoomEnd"
           @signal-click="openSignalDetails"
         />
-        <!-- [新增] 如果是 RSI 策略，则显示详情按钮 -->
+        <!-- 如果是 RSI 策略，则显示详情按钮 -->
         <div v-if="chartData.value === 'rsi'" class="mt-4 flex justify-end">
           <NuxtLink :to="`/fund/${code}/rsi-details`" class="text-sm btn flex">
             <div i-carbon-analytics mr-1 />

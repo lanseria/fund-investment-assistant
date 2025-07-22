@@ -120,5 +120,5 @@ const chartOption = computed<EChartsOption>(() => {
 </script>
 
 <template>
-  <VChart class="h-150 w-full" :option="chartOption" autoresize />
+  <VChartFull class="h-150 w-full" :option="chartOption" autoresize />
 </template>

@@ -122,7 +122,7 @@ const strategiesForTags = {
           <tr v-for="h in sortedHoldings" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
             <!-- 基金名称 -->
             <td class="font-semibold p-4">
-              <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-teal-500">
+              <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
                 {{ h.name }}
                 <div class="text-xs text-gray-400 font-normal font-numeric dark:text-gray-500">
                   {{ h.code }}
@@ -143,7 +143,7 @@ const strategiesForTags = {
 
             <!-- 持有市值和份额合并在一个单元格 -->
             <td class="font-mono p-4 text-right">
-              <!-- [修改] 处理关注状态 -->
+              <!-- 处理关注状态 -->
               <template v-if="h.holdingAmount !== null">
                 <div class="font-numeric font-semibold">
                   {{ formatCurrency(h.holdingAmount) }}
@@ -162,7 +162,7 @@ const strategiesForTags = {
 
             <!-- 持有收益和收益率 -->
             <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-              <!-- [修改] 处理关注状态 -->
+              <!-- 处理关注状态 -->
               <template v-if="h.holdingProfitRate !== null">
                 <div class="font-numeric font-semibold">
                   {{ formatCurrency(h.holdingProfitAmount) }}

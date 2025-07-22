@@ -99,7 +99,7 @@ useHead({
 
     <div class="mb-8 p-4 card">
       <div class="flex flex-wrap gap-2">
-        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-teal-600 text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
+        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
           {{ filter.label }}
         </button>
       </div>
@@ -107,7 +107,7 @@ useHead({
 
     <div class="p-4 card">
       <div v-if="pending" class="flex h-150 items-center justify-center">
-        <div i-carbon-circle-dash class="text-4xl text-teal-500 animate-spin" />
+        <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
       </div>
       <div v-else-if="error" class="text-red-500 py-20 text-center">
         <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />

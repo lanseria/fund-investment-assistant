@@ -8,8 +8,8 @@ const fileInput = ref<HTMLInputElement | null>(null)
 
 function onFileChange(event: Event) {
   const target = event.target as HTMLInputElement
-  if (target.files)
-    selectedFile.value = target.files[0]
+  if (target.files && target.files.length > 0)
+    selectedFile.value = target.files[0]!
 }
 
 function handleSubmit() {
@@ -37,7 +37,7 @@ function handleSubmit() {
       </div>
       <div class="flex items-start relative">
         <div class="flex h-6 items-center">
-          <input id="overwrite" v-model="overwrite" type="checkbox" class="text-teal-600 border-gray-300 rounded h-4 w-4 focus:ring-teal-600">
+          <input id="overwrite" v-model="overwrite" type="checkbox" class="text-primary border-gray-300 rounded h-4 w-4 focus:ring-primary">
         </div>
         <div class="text-sm leading-6 ml-3">
           <label for="overwrite" class="font-medium">覆盖模式</label>

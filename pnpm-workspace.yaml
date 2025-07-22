@@ -25,15 +25,15 @@ catalogs:
     eslint: ^9.31.0
     eslint-plugin-format: ^1.0.1
     typescript: ^5.8.3
-    vue-tsc: ^3.0.2
+    vue-tsc: ^3.0.3
   frontend:
     '@vueuse/core': ^13.5.0
     echarts: ^5.6.0
-    nuxt-echarts: ^0.3.3
+    nuxt-echarts: ^0.4.0
     pinia: ^3.0.3
     vue: ^3.5.17
   icons:
-    '@iconify-json/carbon': ^1.2.10
+    '@iconify-json/carbon': ^1.2.11
     '@iconify-json/twemoji': ^1.2.2
   utils:
     bignumber.js: ^9.3.1
