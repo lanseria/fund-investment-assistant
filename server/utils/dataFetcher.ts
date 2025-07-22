@@ -1,4 +1,3 @@
-/* eslint-disable no-console */
 import { Buffer } from 'node:buffer'
 import iconv from 'iconv-lite'
 
@@ -43,16 +42,15 @@ export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeD
   const url = `https://qt.gtimg.cn/q=${prefix}${fundCode}`
 
   try {
-    // [关键修改 1] 将 responseType 从 'json' 或 'text' 改为 'arrayBuffer'
+    // 将 responseType 从 'json' 或 'text' 改为 'arrayBuffer'
     // 这样 ofetch 就会返回原始的、未经解码的 ArrayBuffer 数据。
     const responseBuffer = await $fetch<ArrayBuffer>(url, {
       responseType: 'arrayBuffer',
       headers: { Referer: 'https://gu.qq.com/' },
     })
 
-    // [关键修改 2] 使用 iconv-lite 将 GBK 编码的 Buffer 解码为 UTF-8 字符串
+    // 使用 iconv-lite 将 GBK 编码的 Buffer 解码为 UTF-8 字符串
     const responseText = iconv.decode(Buffer.from(responseBuffer), 'GBK')
-    console.log(`[DEBUG] Response Text: ${responseText}`)
     const parts = responseText.split('~')
     if (parts.length < 33 || !parts[3]) // 简单验证返回数据是否有效
       return null

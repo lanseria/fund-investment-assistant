@@ -1,5 +1,6 @@
 // server/tasks/fund/syncHistory.ts
 /* eslint-disable no-console */
+import dayjs from 'dayjs'
 import { desc, eq } from 'drizzle-orm'
 import { funds, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher'
@@ -11,7 +12,6 @@ export default defineTask({
     description: '每日同步所有基金的历史净值 (更新 navHistory 和 funds 表)',
   },
   async run() {
-    const dayjs = useDayjs()
     console.log('开始执行基金历史净值同步任务...')
     const db = useDb()
     // 从 funds 表获取所有需要同步的基金

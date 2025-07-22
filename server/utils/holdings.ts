@@ -1,5 +1,6 @@
 // server/utils/holdings.ts
 import BigNumber from 'bignumber.js'
+import dayjs from 'dayjs'
 import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
 import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
@@ -291,7 +292,7 @@ export async function syncSingleFundHistory(code: string): Promise<number> {
     orderBy: [desc(navHistory.navDate)],
   })
 
-  const startDate = latestRecord ? useDayjs()(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
+  const startDate = latestRecord ? dayjs(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
 
   const historyData = await fetchFundHistory(code, startDate)
   if (!historyData.length)

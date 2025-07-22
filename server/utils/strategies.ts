@@ -1,6 +1,7 @@
 // server/utils/strategies.ts
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
+import dayjs from 'dayjs'
 import { and, eq, gte } from 'drizzle-orm'
 import { ofetch } from 'ofetch'
 import { holdings, strategySignals } from '~~/server/database/schemas'
@@ -13,7 +14,6 @@ const STRATEGIES_REQUIRING_HOLDING_STATUS = ['bollinger_bands', 'ma_cross', 'mac
  * 为所有持仓基金执行策略分析，并支持覆盖当天数据
  */
 export async function runStrategiesForAllHoldings() {
-  const dayjs = useDayjs()
   const db = useDb()
   const config = useRuntimeConfig()
   const strategyApiBaseUrl = config.strategyApiUrl
@@ -71,7 +71,6 @@ export async function runStrategiesForAllHoldings() {
  * @param userId   执行操作的用户ID
  */
 export async function runStrategiesForFund(fundCode: string, userId: number) {
-  const dayjs = useDayjs()
   const db = useDb()
   const config = useRuntimeConfig()
   const strategyApiBaseUrl = config.strategyApiUrl
