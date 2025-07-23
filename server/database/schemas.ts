@@ -1,14 +1,13 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, date, jsonb, numeric, pgEnum, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, date, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')
 
 // 定义用户角色的枚举类型
-export const userRoleEnum = pgEnum('user_role', ['admin', 'user'])
+export const userRoleEnum = fundSchema.enum('user_role', ['admin', 'user'])
 // 定义基金类型的枚举
-export const fundTypeEnum = pgEnum('fund_type', ['open', 'qdii_lof'])
-
+export const fundTypeEnum = fundSchema.enum('fund_type', ['open', 'qdii_lof'])
 /**
  * 用户表 (users)
  * 存储应用的用户信息
