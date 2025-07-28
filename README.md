@@ -1,132 +1,244 @@
-# Fund Investment Assistant - Frontend
+# 基金投资助手 (Fund Investment Assistant)
 
-这是基金投资助手项目的 **Nuxt 3 前端应用**。它基于功能丰富的 [Vitesse for Nuxt 3](https://github.com/antfu/vitesse-nuxt) 模板构建，负责提供一个美观、响应式且功能强大的用户界面。
+[![Nuxt](https://img.shields.io/badge/Nuxt-00DC82?style=for-the-badge&logo=nuxt.js&logoColor=white)](https://nuxt.com/)
+[![Vue.js](https://img.shields.io/badge/Vue.js-35495E?style=for-the-badge&logo=vue.js&logoColor=4FC08D)](https://vuejs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![UnoCSS](https://img.shields.io/badge/UnoCSS-333333?style=for-the-badge&logo=unocss&logoColor=white)](https://unocss.dev/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+
+本项目是一个功能全面的基金投资助手，基于 Nuxt 3 构建，采用前后端一体化的架构。它旨在帮助用户追踪基金持仓、分析投资组合表现，并通过多种策略分析提供投资决策支持。
 
 ## ✨ 主要功能
 
-- **仪表盘**: 以清晰的表格形式展示所有持仓基金，动态显示份额、持有金额、盘中估算金额及涨跌幅。
-- **交互式图表**: 为每只基金提供历史净值走势图，支持动态时间范围选择和多条移动平均线（MA）的展示。
-- **持仓管理**: 通过美观的模态框（Modal）实现基金持仓的添加、修改和删除操作。
-- **数据导入/导出**: 提供 UI 界面，支持通过 JSON 文件备份和恢复核心的持仓数据。
-- **响应式设计**: 完美适配桌面和移动设备，提供一致的用户体验。
-- **主题切换**: 支持亮色（Light）和暗色（Dark）模式，并能自动适配系统设置。
+- **用户认证与权限管理**:
+  - 基于 PASETO (v4.local 和 v4.public) 的安全令牌机制。
+  - 使用 HttpOnly Cookie 存储 Token，增强安全性。
+  - 支持 `admin` 和 `user` 两种角色，管理员拥有用户管理权限。
 
-## 🛠️ 技术栈
+- **基金持仓管理**:
+  - 添加、编辑、删除基金持仓，支持“仅关注”（不填写份额和成本）模式。
+  - 支持普通开放式基金和 QDII-LOF 场内基金两种类型，以获取不同的实时数据源。
+  - 自动计算持仓市值、持有收益、收益率等核心指标。
 
-- **框架**: [Nuxt 3](https://nuxt.com/) (Vue 3)
-- **构建工具**: Vite
-- **状态管理**: Pinia
-- **样式方案**: [UnoCSS](https://github.com/unocss/unocss) (原子化 CSS)
-- **图表库**: ECharts
-- **语言**: TypeScript
-- **代码规范**: @antfu/eslint-config
+- **实时数据与行情**:
+  - **实时估值**: 通过定时任务在交易时间段内（`* 9-15 * * *`）自动同步所有基金的实时估值。
+  - **实时推送**: 采用 **Server-Sent Events (SSE)** 技术，在数据更新后实时将最新的投资组合信息推送到前端，无需手动刷新。
+  - **手动刷新**: 提供一键刷新所有持仓估值的功能。
 
-## 🚀 快速开始
+- **数据可视化与分析**:
+  - 使用 ECharts 展示基金历史净值走势，并计算 MA5, MA10, MA20 等移动平均线。
+  - 集成多种投资策略（如 RSI, MACD, 布林带, 双均线交叉）的信号，并在图表上进行标注。
+  - 提供独立的 RSI 策略分析图表，包含净值和RSI指标的双图展示。
 
-### 1. 环境准备
+- **自动化与定时任务**:
+  - **历史数据同步**: 每日凌晨 (`0 2 * * *`) 自动同步所有基金的历史净值数据。
+  - **策略分析执行**: 每日早晨 (`0 6 * * *`) 自动为所有持仓基金执行策略分析，并保存最新的交易信号。
 
-- **Node.js**: 建议使用 v18.x 或 v20.x 版本。
-- **pnpm**: 推荐使用 `pnpm`作为包管理器。如果尚未安装，请运行：
-  ```bash
-  npm install -g pnpm
-  ```
+- **数据管理**:
+  - **导入/导出**: 支持以 JSON 格式一键导出和导入持仓数据，方便数据备份与迁移。
+  - **排行榜**: 提供用户收益率排行榜，展示匿名化的投资大神表现。
 
-### 2. 项目配置
+- **个性化与主题**:
+  - 支持亮色/暗色模式一键切换。
+  - 内置多种主题色（如默认青色、热情红色），用户可自由切换，提供个性化体验。
 
-- **克隆项目**:
+- **响应式布局**:
+  - 使用 UnoCSS 构建，界面在桌面端和移动端均有良好的展示效果。
 
-  ```bash
-  git clone <your-frontend-repo-url>
-  cd <your-frontend-project-name>
-  ```
+## 🚀 技术栈
 
-- **安装依赖**:
+- **前端**:
+  - **框架**: [Nuxt 3](https://nuxt.com/) (Vue 3)
+  - **UI & 样式**: [UnoCSS](https://unocss.dev/) (原子化 CSS)
+  - **状态管理**: [Pinia](https://pinia.vuejs.org/)
+  - **图表**: [ECharts](https://echarts.apache.org/)
+  - **工具库**: `@vueuse/core`, `dayjs`
 
-  ```bash
-  pnpm install
-  ```
+- **后端 (Nuxt Server Engine)**:
+  - **ORM**: [Drizzle ORM](https://orm.drizzle.team/)
+  - **数据库**: [PostgreSQL](https://www.postgresql.org/)
+  - **缓存/存储**: [Redis](https://redis.io/) (用于存储 PASETO 密钥和 Nitro 缓存)
+  - **认证**: [paseto-ts](https://github.com/panva/paseto-ts)
+  - **定时任务**: Nitro Tasks
 
-- **后端 API 配置**:
-  本项目通过 Nuxt 的服务器代理与后端 API 通信。请确保后端服务正在运行。代理配置位于 `nuxt.config.ts` 的 `nitro.routeRules` 部分。默认配置会将所有 `/api/fund/**` 的请求转发到 `http://127.0.0.1:8000/**`。
+- **开发与构建**:
+  - **包管理器**: [pnpm](https://pnpm.io/)
+  - **代码规范**: [@antfu/eslint-config](https://github.com/antfu/eslint-config)
+  - **容器化**: [Docker](https://www.docker.com/)
 
-  **请确保您的 Python 后端服务正在 `http://127.0.0.1:8000` 上运行。**
+## 🛠️ 项目设置与运行
 
-### 3. 开发模式
+### 1. 先决条件
 
-- **启动开发服务器**:
-  ```bash
-  pnpm run dev
-  ```
-  应用将运行在 `http://localhost:3000`。得益于 Vite，您将享受到极速的热模块重载（HMR）。
+- [Node.js](https://nodejs.org/) (版本 `^22.0`)
+- [pnpm](https://pnpm.io/) (版本 `^10.0`)
+- [PostgreSQL](https://www.postgresql.org/) 数据库
+- [Redis](https://redis.io/)
+- 一个用于策略分析的 **外部 FastAPI 服务** (本项目依赖该服务进行策略计算)。
 
-## scripts
+### 2. 克隆仓库
 
-- `pnpm run dev`: 启动开发服务器。
-- `pnpm run build`: 构建用于生产环境的应用。
-- `pnpm run preview`: 在本地预览生产构建的产物。
-- `pnpm run lint`: 检查代码风格和规范。
-- `pnpm run typecheck`: 进行 TypeScript 类型检查。
+```bash
+git clone https://github.com/lanseria/fund-investment-assistant.git
+cd fund-investment-assistant
+```
 
-## 部署
+### 3. 安装依赖
 
-### 静态站点部署 (SSG)
+```bash
+pnpm install
+```
 
-1.  **生成静态文件**:
+### 4. 环境配置
 
-    ```bash
-    pnpm run generate
-    ```
+在项目根目录创建一个 `.env` 文件，并根据以下示例填入您的配置信息：
 
-    此命令会预渲染所有页面，并将结果输出到 `.output/public` 目录。
+```dotenv
+# .env.example
 
-2.  **部署**:
-    将 `.output/public` 目录下的所有内容部署到任何静态网站托管平台，如 Netlify, Vercel, GitHub Pages 等。
+# 数据库连接 URL
+# 格式: postgresql://<user>:<password>@<host>:<port>/<database>
+NUXT_DB_URL="postgresql://user:password@localhost:5432/fund_db"
 
-### Node.js 服务器部署 (SSR)
+# Redis 配置
+NUXT_REDIS_HOST="127.0.0.1"
+NUXT_REDIS_PASSWORD=""
 
-1.  **构建应用**:
+# 外部策略分析 API 的地址
+NUXT_STRATEGY_API_URL="http://127.0.0.1:8000"
 
-    ```bash
-    pnpm run build
-    ```
+# 定时任务的 Cron 表达式 (可选，默认为 nuxt.config.ts 中的值)
+# CRON_FUND_SYNC_HISTORY='0 2 * * *'
+# CRON_FUND_SYNC_ESTIMATE='* 9-15 * * *'
+# CRON_FUND_RUN_STRATEGIES='0 6 * * *'
+```
 
-    此命令会构建一个优化的 Node.js 服务器，产物位于 `.output` 目录。
+### 5. 数据库迁移
 
-2.  **启动服务器**:
-    ```bash
-    pnpm run start
-    ```
-    或者将整个 `.output` 目录部署到您的服务器，并运行 `node .output/server/index.mjs`。
+本项目使用 Drizzle ORM 管理数据库结构。
 
-### Docker 部署
+首先，你需要一个空的 PostgreSQL 数据库，并在 `.env` 中正确配置 `NUXT_DB_URL`。
 
-项目包含一个 `Dockerfile`，用于将应用打包成一个独立的 Docker 镜像。
+然后执行以下命令来创建所有表结构：
 
-1.  **构建镜像**:
+```bash
+pnpm db:migrate
+```
 
-    ```bash
-    docker build -t fund-frontend:latest .
-    ```
+_提示：如果修改了 `server/database/schemas.ts`，可以先运行 `pnpm db:generate` 生成迁移文件，再运行 `pnpm db:migrate`。_
 
-2.  **运行容器**:
-    ```bash
-    docker run -p 3000:3000 fund-frontend:latest
-    ```
-    应用将在容器的 3000 端口运行，并通过 `-p` 映射到主机的 3000 端口。
+### 6. 初始化管理员账户
 
-## 🏗️ 项目结构
+首次运行时，您需要创建一个管理员账户。
 
-- `app/`: 应用的核心代码目录。
-  - `components/`: Vue 组件。
-  - `composables/`: Vue 组合式函数 (如 Pinia stores)。
-  - `layouts/`: 布局组件。
-  - `pages/`: 页面和路由。
-  - `types/`: TypeScript 类型定义。
-- `public/`: 静态资源，会被直接复制到根目录。
-- `server/`: 服务器端代码 (API 路由、中间件)。
-- `nuxt.config.ts`: Nuxt 的主配置文件。
-- `uno.config.ts`: UnoCSS 的配置文件。
+**方式一：通过命令行任务**
 
-## 📄 License
+```bash
+pnpm nuxt task run initAdmin
+```
 
-MIT
+默认用户名: `admin`，密码: `123456`。请在首次登录后立即修改密码。
+
+**方式二：通过开发 API (仅限开发环境)**
+启动开发服务器后，访问 `http://localhost:3000/api/dev/init-admin`。
+
+### 7. 运行开发服务器
+
+```bash
+pnpm dev
+```
+
+现在，您可以在 `http://localhost:3000` 访问您的应用了。
+
+## 📦 构建与部署
+
+### 1. 构建项目
+
+执行以下命令来构建生产版本的应用：
+
+```bash
+pnpm build
+```
+
+构建产物会生成在 `.output` 目录。
+
+### 2. 运行生产服务器
+
+```bash
+pnpm start
+```
+
+该命令会启动一个高性能的 Node.js 服务器来运行您的应用。
+
+### 3. 使用 Docker 部署
+
+项目已提供 `Dockerfile`，可以方便地进行容器化部署。
+
+**构建 Docker 镜像:**
+
+```bash
+docker build -t fund-investment-assistant .
+```
+
+**运行 Docker 容器:**
+确保您的 `.env` 文件已准备好。
+
+```bash
+docker run -p 3000:3000 --name fund-app --env-file .env -d fund-investment-assistant
+```
+
+**注意**:
+
+- `--env-file .env` 会将您的环境变量传递给容器。
+- 确保容器可以访问到您配置的 PostgreSQL 和 Redis 服务。
+
+## 📜 可用脚本
+
+- `pnpm dev`: 启动开发服务器。
+- `pnpm build`: 构建生产版本。
+- `pnpm start`: 启动生产服务器。
+- `pnpm lint`: 检查并修复代码格式。
+- `pnpm typecheck`: 进行 TypeScript 类型检查。
+- `pnpm db:generate`: 根据 schema 生成 Drizzle 迁移文件。
+- `pnpm db:migrate`: 应用数据库迁移。
+
+## 📝 环境变量
+
+| 变量名                     | 描述                             | 默认值         |  必需  |
+| -------------------------- | -------------------------------- | -------------- | :----: |
+| `NUXT_DB_URL`              | PostgreSQL 数据库的连接字符串。  | -              | **是** |
+| `NUXT_STRATEGY_API_URL`    | 外部策略分析 API 的基地址。      | -              | **是** |
+| `NUXT_REDIS_HOST`          | Redis 服务器地址。               | -              | **是** |
+| `NUXT_REDIS_PASSWORD`      | Redis 密码。                     | -              |   否   |
+| `CRON_FUND_SYNC_HISTORY`   | 同步历史净值任务的 Cron 表达式。 | `0 2 * * *`    |   否   |
+| `CRON_FUND_SYNC_ESTIMATE`  | 同步实时估值任务的 Cron 表达式。 | `* 9-15 * * *` |   否   |
+| `CRON_FUND_RUN_STRATEGIES` | 执行策略分析任务的 Cron 表达式。 | `0 6 * * *`    |   否   |
+
+## 📁 项目结构概览
+
+```
+.
+├── app/                  # 前端代码 (Vue 组件, Pages, Composables, etc.)
+│   ├── components/       # 可复用 Vue 组件
+│   ├── composables/      # 可复用组合式函数 (Pinia stores, etc.)
+│   ├── layouts/          # 页面布局
+│   ├── middleware/       # 路由中间件 (如全局认证)
+│   ├── pages/            # 页面路由
+│   └── types/            # 全局 TypeScript 类型定义
+├── server/               # 后端代码 (API 路由, 数据库, 定时任务)
+│   ├── api/              # API 路由
+│   ├── database/         # Drizzle ORM schema 和迁移文件
+│   ├── middleware/       # 服务器中间件 (如 API 认证)
+│   ├── plugins/          # 服务器插件 (如初始化 Redis, PASETO)
+│   ├── tasks/            # Nitro 定时任务定义
+│   └── utils/            # 后端工具函数 (数据库操作, 数据抓取等)
+├── Dockerfile            # Docker 部署文件
+├── drizzle.config.ts     # Drizzle Kit 配置文件
+├── nuxt.config.ts        # Nuxt 配置文件
+├── uno.config.ts         # UnoCSS 配置文件
+└── package.json          # 项目依赖与脚本
+```
+
+## 📄 许可证
+
+[MIT](./LICENSE) License © 2024-PRESENT [Lanseria](https://github.com/lanseria)

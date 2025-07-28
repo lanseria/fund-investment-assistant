@@ -1,8 +1,7 @@
-# docker-compose.yml (简化后)
 services:
-  fund_app: # 将两个服务合并成一个
+  app:
     build: .
-    container_name: fund_app # 新的容器名
+    container_name: fund_investment_assistant 
     env_file:
       - .env.production
     ports:

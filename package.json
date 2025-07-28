@@ -1,5 +1,5 @@
 {
-  "name": "fund-nuxt-app",
+  "name": "fund-investment-assistant",
   "type": "module",
   "private": true,
   "packageManager": "pnpm@10.13.1",
