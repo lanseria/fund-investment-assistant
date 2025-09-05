@@ -8,7 +8,7 @@ const props = defineProps<{
   sortOrder: 'asc' | 'desc'
 }>()
 
-const emit = defineEmits(['edit', 'delete', 'set-sort'])
+const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position'])
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
@@ -206,6 +206,14 @@ const strategiesForTags = {
               <div class="flex gap-2 justify-end">
                 <button class="icon-btn" title="修改" @click="emit('edit', h)">
                   <div i-carbon-edit />
+                </button>
+                <button
+                  v-if="h.holdingAmount !== null"
+                  class="icon-btn hover:text-orange-500"
+                  title="清仓 (转为仅关注)"
+                  @click="emit('clear-position', h)"
+                >
+                  <div i-carbon-shopping-cart-clear />
                 </button>
                 <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
                   <div i-carbon-trash-can />

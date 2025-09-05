@@ -169,6 +169,18 @@ async function handleDelete(holding: Holding) {
   }
 }
 
+async function handleClearPosition(holding: Holding) {
+  if (confirm(`确定要清仓基金 ${holding.name} (${holding.code}) 吗？\n此操作会保留该基金为"仅关注"状态。`)) {
+    try {
+      await holdingStore.clearHoldingPosition(holding.code)
+    }
+    catch (error) {
+      console.error(error)
+      alert('清仓失败！')
+    }
+  }
+}
+
 const isImportModalOpen = ref(false)
 
 async function handleExport() {
@@ -273,7 +285,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
     <!-- 主体内容 -->
     <div v-if="isLoading" class="card flex h-64 items-center justify-center">
-      <div i-carbon-circle-dash class="text-primary text-4xl animate-spin" />
+      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
     </div>
     <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
@@ -287,6 +299,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       @edit="openEditModal"
       @delete="handleDelete"
       @set-sort="handleSetSort"
+      @clear-position="handleClearPosition"
     />
 
     <Modal v-model="isModalOpen" :title="modalTitle">

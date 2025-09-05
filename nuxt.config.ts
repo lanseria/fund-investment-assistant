@@ -28,7 +28,7 @@ export default defineNuxtConfig({
     'dayjs-nuxt',
     'nuxt-echarts',
   ],
-  ssr: true,
+  ssr: false,
   devtools: {
     enabled: false,
   },

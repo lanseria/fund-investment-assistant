@@ -22,7 +22,7 @@ export const useHoldingStore = defineStore('holding', () => {
       // [修改] API 现在返回一个包含 holdings 和 summary 的对象
       const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
       holdings.value = data.holdings
-      summary.value = data.summary // [新增] 更新 summary
+      summary.value = data.summary // 更新 summary
     }
     catch (error) {
       console.error('获取持仓数据失败:', error)
@@ -86,7 +86,23 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
   /**
-   * [新增] 刷新所有基金的实时估值
+   * 仓一个基金，转为仅关注
+   */
+  async function clearHoldingPosition(code: string) {
+    try {
+      await apiFetch(`/api/fund/holdings/${code}/clear-position`, {
+        method: 'POST',
+      })
+      // 成功后，重新获取整个列表以更新UI和汇总信息
+      await fetchHoldings()
+    }
+    catch (error) {
+      console.error('清仓基金失败:', error)
+      throw error // 抛出错误，以便UI层可以捕获并提示用户
+    }
+  }
+  /**
+   * 刷新所有基金的实时估值
    */
   async function refreshAllEstimates() {
     isRefreshing.value = true
@@ -190,7 +206,7 @@ export const useHoldingStore = defineStore('holding', () => {
   }
 
   /**
-   * [新增] 手动同步单个基金的历史净值
+   * 手动同步单个基金的历史净值
    * @param code 基金代码
    */
   async function syncHistory(code: string) {
@@ -211,7 +227,7 @@ export const useHoldingStore = defineStore('holding', () => {
 
   return {
     holdings,
-    summary, // [新增] 导出 summary
+    summary, // 导出 summary
     isLoading,
     totalCost,
     isRefreshing,
@@ -219,6 +235,7 @@ export const useHoldingStore = defineStore('holding', () => {
     addHolding,
     updateHolding,
     deleteHolding,
+    clearHoldingPosition,
     exportHoldings,
     importHoldings,
     refreshAllEstimates,

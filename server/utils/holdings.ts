@@ -481,3 +481,27 @@ export async function getUserHoldingsAndSummary(userId: number) {
     },
   }
 }
+
+/**
+ * 清仓指定用户的持仓记录 (将份额和成本价设为 null)
+ * @param userId 用户 ID
+ * @param code 基金代码
+ */
+export async function clearHoldingPosition(userId: number, code: string) {
+  const db = useDb()
+  const [clearedHolding] = await db.update(holdings)
+    .set({
+      shares: null,
+      costPrice: null,
+    })
+    .where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
+    .returning() // 使用 .returning() 来检查是否有记录被更新
+
+  if (!clearedHolding)
+    throw new HoldingNotFoundError(code)
+
+  // 清仓后，该基金的估值计算会变化，最好也同步一下
+  await syncSingleFundEstimate(code)
+
+  return clearedHolding
+}
