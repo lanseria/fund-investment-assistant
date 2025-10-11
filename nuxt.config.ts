@@ -86,6 +86,17 @@ export default defineNuxtConfig({
       tasks: true,
     },
   },
+  vite: {
+    optimizeDeps: {
+      include: [
+        'dayjs',
+        'dayjs/plugin/updateLocale',
+        'dayjs/plugin/relativeTime',
+        'dayjs/plugin/utc',
+        'vue-echarts',
+      ],
+    },
+  },
   echarts: {
     renderer: ['canvas'],
     charts: ['LineChart', 'BarChart'],
@@ -99,7 +110,6 @@ export default defineNuxtConfig({
       'TooltipComponent',
     ],
   },
-
   eslint: {
     config: {
       standalone: false,
