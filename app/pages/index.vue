@@ -1,96 +1,44 @@
 <!-- eslint-disable no-console -->
 <!-- eslint-disable no-alert -->
-<!-- File: app/pages/index.vue -->
 <script setup lang="ts">
-import type { Holding, HoldingSummary, SortableKey } from '~/types/holding' // 引入 HoldingSummary
+import type { Holding, SortableKey } from '~/types/holding'
 import { appName } from '~/constants'
 
 const router = useRouter()
 const route = useRoute()
+const holdingStore = useHoldingStore()
 
 useHead({
   title: `持仓列表 - ${appName}`,
 })
-const holdingStore = useHoldingStore()
-// 从 store 中解构出状态和 action
-const { holdings, isLoading, summary } = storeToRefs(holdingStore)
 
-// 1. 首次数据加载，对 SSR 和首屏至关重要
+// 从 store 中解构出状态和 action
+const { holdings, isLoading, summary, sseStatus } = storeToRefs(holdingStore)
+
+// useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
 const { pending: isDataLoading, refresh } = await useAsyncData(
   'holdings',
-  async () => {
-    const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
-    if (data) {
-      holdingStore.holdings = data.holdings
-      holdingStore.summary = data.summary
-    }
-    return data
-  },
+  () => holdingStore.fetchHoldings(),
+  { server: true }, // 确保在服务端执行
 )
+
+// 监听 useAsyncData 的 pending 状态，同步到 store 的 isLoading
 watch(isDataLoading, (loading) => {
   holdingStore.isLoading = loading
 })
 
-// 2. 使用 useEventSource
-const sseUrl = ref('/api/sse/holdings')
-const { status: sseStatus, data: sseData, open: sseOpen, close: sseClose } = useEventSource(
-  sseUrl,
-  [],
-  {
-    // [修改] withCredentials 确保 cookie 会被发送
-    withCredentials: true,
-  },
-)
-const sseStatusText = computed(() => {
-  switch (sseStatus.value) {
-    case 'OPEN':
-      return '实时更新中'
-    case 'CONNECTING':
-      return '连接中...'
-    case 'CLOSED':
-      return '已断开'
-    default:
-      return '未知状态'
-  }
-})
-
-// 3. 监听 SSE 数据变化并更新 store
-watch(sseData, (newData) => {
-  if (newData) {
-    try {
-      const updatedData = JSON.parse(newData) as { holdings: Holding[], summary: HoldingSummary }
-      console.log('[SSE] Received data update via useEventSource:', updatedData)
-
-      holdingStore.holdings = updatedData.holdings
-      holdingStore.summary = updatedData.summary
-    }
-    catch (e) {
-      console.error('[SSE] Failed to parse message data:', e)
-    }
-  }
-})
-
-// 4. 在 onMounted 中建立连接，在 onUnmounted 中断开
 onMounted(() => {
-  // [修改] 简化逻辑，只要 store 是认证状态就开启连接
   const authStore = useAuthStore()
   if (authStore.isAuthenticated) {
-    sseOpen()
-    console.log('[SSE] Opening connection to', sseUrl.value)
-  }
-  else {
-    // 可以在这里增加一个逻辑，等待认证完成后再连接
-    // 但通常页面加载时 auth.global.ts 已经确保了认证状态
-    console.warn('User not authenticated, SSE connection will not be established.')
+    holdingStore.startSseUpdates()
   }
 })
 
 onUnmounted(() => {
-  // 手动关闭连接
-  sseClose()
-  console.log('[SSE] Connection closed.')
+  holdingStore.stopSseUpdates()
 })
 
+// --- 排序逻辑 ---
 const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
 function handleSetSort(key: SortableKey) {
@@ -109,22 +57,6 @@ const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
 
-function formatCurrency(value: number | undefined) {
-  if (value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
-}
-
-function getChangeClass(value: number | undefined) {
-  if (value === undefined || value === null)
-    return 'text-gray'
-  if (value > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (value < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray'
-}
-
 function openAddModal() {
   editingHolding.value = null
   isModalOpen.value = true
@@ -139,16 +71,13 @@ function closeModal() {
   isModalOpen.value = false
 }
 
-async function handleSubmit(formData: any) { // formData 已经是 { code, shares, costPrice }
+// --- 表单和操作处理 ---
+async function handleSubmit(formData: any) {
   try {
-    if (editingHolding.value) {
-      // [重大修改] 调用新的 updateHolding
+    if (editingHolding.value)
       await holdingStore.updateHolding(formData.code, { shares: formData.shares, costPrice: formData.costPrice })
-    }
-    else {
-      // [重大修改] 调用新的 addHolding
+    else
       await holdingStore.addHolding(formData)
-    }
     closeModal()
   }
   catch (error) {
@@ -223,67 +152,8 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       </div>
     </header>
 
-    <!-- 投资组合总览卡片 -->
-    <div v-if="summary && summary.count > 0" class="mb-8 p-4 card relative">
-      <!-- 状态指示器，放置在右上角 -->
-      <div class="flex gap-2 items-center right-4 top-4 absolute">
-        <span
-          class="rounded-full h-2 w-2"
-          :class="{
-            'bg-green-500 animate-pulse': sseStatus === 'OPEN',
-            'bg-yellow-500': sseStatus === 'CONNECTING',
-            'bg-gray-400': sseStatus === 'CLOSED',
-          }"
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          {{ sseStatusText }}
-        </span>
-      </div>
-      <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
-        <!-- 持仓总成本 -->
-        <div class="p-2">
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            持仓总成本
-          </p>
-          <!-- 应用 font-numeric 类 -->
-          <p class="text-lg font-numeric font-semibold sm:text-xl">
-            {{ formatCurrency(summary.totalHoldingAmount) }}
-          </p>
-        </div>
-        <!-- 预估总市值 -->
-        <div class="p-2">
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            预估总市值
-          </p>
-          <!-- 应用 font-numeric 类 -->
-          <p class="text-lg font-numeric font-semibold sm:text-xl">
-            {{ formatCurrency(summary.totalEstimateAmount) }}
-          </p>
-        </div>
-        <!-- 预估总盈亏 -->
-        <div class="p-2">
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            预估总盈亏
-          </p>
-          <!-- 应用 font-numeric 类 -->
-          <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
-            {{ summary.totalProfitLoss.toFixed(2) }}
-          </p>
-        </div>
-        <!-- 预估涨跌幅 -->
-        <div class="p-2">
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            预估涨跌幅
-          </p>
-          <!-- [修改] 应用 font-numeric 类 -->
-          <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
-            {{ summary.totalPercentageChange.toFixed(2) }}%
-          </p>
-        </div>
-      </div>
-    </div>
+    <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
 
-    <!-- 主体内容 -->
     <div v-if="isLoading" class="card flex h-64 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
     </div>
