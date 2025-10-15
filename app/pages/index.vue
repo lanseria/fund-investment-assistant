@@ -2,11 +2,13 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
+import { useMarketStore } from '~/composables/useMarketStore'
 import { appName } from '~/constants'
 
 const router = useRouter()
 const route = useRoute()
 const holdingStore = useHoldingStore()
+const marketStore = useMarketStore()
 
 useHead({
   title: `持仓列表 - ${appName}`,
@@ -31,11 +33,13 @@ onMounted(() => {
   const authStore = useAuthStore()
   if (authStore.isAuthenticated) {
     holdingStore.startSseUpdates()
+    marketStore.startMarketUpdates()
   }
 })
 
 onUnmounted(() => {
   holdingStore.stopSseUpdates()
+  marketStore.stopMarketUpdates()
 })
 
 // --- 排序逻辑 ---
@@ -126,6 +130,8 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
+    <MarketOverview />
+
     <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
       <div>
         <h1 class="text-2xl font-bold sm:text-3xl">

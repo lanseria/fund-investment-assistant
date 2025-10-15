@@ -172,3 +172,81 @@ export async function fetchFundHistory(fundCode: string, startDate?: string, end
   }
   return allData
 }
+
+// [新增] 定义单个指数的数据结构
+export interface MarketIndexData {
+  code: string
+  name: string
+  value: number
+  changeAmount: number
+  changeRate: number
+  time: string
+  chartData: [string, number][] // 用于分时图的数据点 [时间, 价格]
+}
+
+// [新增] 用于批量获取指数行情的函数
+export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexData[]> {
+  if (codes.length === 0)
+    return []
+
+  const url = `https://qt.gtimg.cn/q=${codes.join(',')}`
+
+  try {
+    const responseBuffer = await $fetch<ArrayBuffer>(url, {
+      responseType: 'arrayBuffer',
+    })
+    const responseText = iconv.decode(Buffer.from(responseBuffer), 'GBK')
+    const lines = responseText.split(';\n').filter(line => line.trim())
+
+    const promises = lines.map(async (line) => {
+      const parts = line.split('~')
+      if (parts.length < 5)
+        return null
+
+      // [修复] 使用更可靠的方式来提取代码
+      // 1. 从 `v_sh000001="1` 中分离出 `v_sh000001`
+      const codeWithPrefix = parts[0]!.split('=')[0]!
+      // 2. 从 `v_sh000001` 中去掉前缀 `v_`
+      const code = codeWithPrefix.substring(2)
+      // 现在, code 的值就是正确的 "sh000001"
+
+      const name = parts[1]!
+      // ... 剩余代码保持不变 ...
+      const value = Number.parseFloat(parts[3]!)
+      const changeAmount = Number.parseFloat(parts[31]!)
+      const changeRate = Number.parseFloat(parts[32]!)
+      const time = parts[30]!
+
+      // 获取分时图数据
+      const chartUrl = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${code}`
+      let chartData: [string, number][] = []
+      try {
+        const chartResponse = await $fetch<any>(chartUrl)
+        chartData = chartResponse.data?.[code]?.minute?.map((p: string) => {
+          const [timeStr, priceStr] = p.split(' ')
+          return [`${timeStr!.slice(0, 2)}:${timeStr!.slice(2)}`, Number.parseFloat(priceStr!)]
+        }) || []
+      }
+      catch (e) {
+        console.error(`获取指数 ${code} 分时图失败:`, e)
+      }
+
+      return {
+        code, // 使用修复后的 code
+        name,
+        value,
+        changeAmount,
+        changeRate,
+        time: `${time.substring(8, 10)}:${time.substring(10, 12)}:${time.substring(12, 14)}`,
+        chartData,
+      }
+    })
+
+    const results = await Promise.all(promises)
+    return results.filter(Boolean) as MarketIndexData[]
+  }
+  catch (error) {
+    console.error(`批量获取指数行情失败:`, error)
+    return []
+  }
+}
