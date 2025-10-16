@@ -20,8 +20,8 @@ const ALL_INDEX_CODES = [
   // C 组
   'hf_IF0', // 中金所IF当月
   'hkHSI', // 恒生指数
-  'gb_dji', // 道琼斯
-  'gb_ixic', // 纳斯达克 (作为备用)
+  'usDJI', // 道琼斯
+  'usIXIC', // 纳斯达克
   'int_ni225', // 日经225
   'hf_DINIW', // 美元指数
   'hf_GC0', // COMEX黄金
