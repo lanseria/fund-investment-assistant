@@ -27,7 +27,7 @@ const { cycleTheme, currentTheme } = useTheme()
         </button>
       </div>
     </header>
-    <div class="mx-auto max-w-5xl">
+    <div class="mx-auto max-w-6xl">
       <slot />
     </div>
   </main>

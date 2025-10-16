@@ -184,7 +184,6 @@ export interface MarketIndexData {
   chartData: [string, number][] // 用于分时图的数据点 [时间, 价格]
 }
 
-// [新增] 用于批量获取指数行情的函数
 export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexData[]> {
   if (codes.length === 0)
     return []
@@ -200,53 +199,72 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
 
     const promises = lines.map(async (line) => {
       const parts = line.split('~')
-      if (parts.length < 5)
+      if (parts.length < 5) {
+        console.warn('[DEBUG] Line skipped: Not enough parts.')
         return null
+      }
 
-      // [修复] 使用更可靠的方式来提取代码
-      // 1. 从 `v_sh000001="1` 中分离出 `v_sh000001`
+      // [修复] 代码解析
       const codeWithPrefix = parts[0]!.split('=')[0]!
-      // 2. 从 `v_sh000001` 中去掉前缀 `v_`
       const code = codeWithPrefix.substring(2)
-      // 现在, code 的值就是正确的 "sh000001"
-
-      const name = parts[1]!
-      // ... 剩余代码保持不变 ...
-      const value = Number.parseFloat(parts[3]!)
-      const changeAmount = Number.parseFloat(parts[31]!)
-      const changeRate = Number.parseFloat(parts[32]!)
-      const time = parts[30]!
 
       // 获取分时图数据
       const chartUrl = `https://web.ifzq.gtimg.cn/appstock/app/minute/query?code=${code}`
+
       let chartData: [string, number][] = []
       try {
-        const chartResponse = await $fetch<any>(chartUrl)
-        chartData = chartResponse.data?.[code]?.minute?.map((p: string) => {
-          const [timeStr, priceStr] = p.split(' ')
-          return [`${timeStr!.slice(0, 2)}:${timeStr!.slice(2)}`, Number.parseFloat(priceStr!)]
-        }) || []
+        const chartResponse = await $fetch<any>(chartUrl, { responseType: 'json' })
+
+        // --- 核心调试区域 ---
+
+        // 1. 检查 chartResponse.data 是否存在
+        if (!chartResponse.data) {
+          console.warn(`[DEBUG] WARN: chartResponse.data is undefined for code '${code}'.`)
+        }
+        // 2. 检查 chartResponse.data[code] 是否存在
+        else if (!chartResponse.data[code]) {
+          console.warn(`[DEBUG] WARN: chartResponse.data['${code}'] is undefined. Available keys:`, Object.keys(chartResponse.data))
+        }
+        // 3. 检查更深层的路径
+        else {
+          const minuteDataArray = chartResponse.data[code]?.data?.data
+
+          if (Array.isArray(minuteDataArray)) {
+            chartData = minuteDataArray.map((p: string) => {
+              const pointParts = p.split(' ')
+              const timeStr = pointParts[0]!
+              const priceStr = pointParts[1]!
+              return [`${timeStr.slice(0, 2)}:${timeStr.slice(2)}`, Number.parseFloat(priceStr)]
+            })
+          }
+          else {
+            console.warn(`[DEBUG] WARN: minuteDataArray is not an array. Type is: ${typeof minuteDataArray}. Value:`, minuteDataArray)
+          }
+        }
+        // --------------------
       }
-      catch (e) {
-        console.error(`获取指数 ${code} 分时图失败:`, e)
+      catch (e: any) {
+        console.error(`[DEBUG] ERROR fetching or parsing chart data for ${code}:`, e.message)
       }
 
-      return {
-        code, // 使用修复后的 code
-        name,
-        value,
-        changeAmount,
-        changeRate,
-        time: `${time.substring(8, 10)}:${time.substring(10, 12)}:${time.substring(12, 14)}`,
+      // 为了调试，我们先返回一个包含 chartData 长度的对象
+      const result = {
+        code,
+        name: parts[1]!,
+        value: Number.parseFloat(parts[3]!),
+        changeAmount: Number.parseFloat(parts[31]!),
+        changeRate: Number.parseFloat(parts[32]!),
+        time: parts[30] ? `${parts[30].substring(8, 10)}:${parts[30].substring(10, 12)}:${parts[30].substring(12, 14)}` : 'N/A',
         chartData,
       }
+      return result
     })
 
     const results = await Promise.all(promises)
     return results.filter(Boolean) as MarketIndexData[]
   }
   catch (error) {
-    console.error(`批量获取指数行情失败:`, error)
+    console.error(`[DEBUG] CRITICAL ERROR in fetchMarketIndexes:`, error)
     return []
   }
 }
