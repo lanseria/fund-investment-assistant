@@ -6,7 +6,7 @@
 [![UnoCSS](https://img.shields.io/badge/UnoCSS-333333?style=for-the-badge&logo=unocss&logoColor=white)](https://unocss.dev/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 
-本项目是一个功能全面的基金投资助手，基于 Nuxt 3 构建，采用前后端一体化的架构。它旨在帮助用户追踪基金持仓、分析投资组合表现，并通过多种策略分析提供投资决策支持。
+本项目是一个功能全面的基金投资助手，基于 Nuxt 构建，采用前后端一体化的架构。它旨在帮助用户追踪基金持仓、分析投资组合表现，并通过多种策略分析提供投资决策支持。
 
 ## ✨ 主要功能
 
