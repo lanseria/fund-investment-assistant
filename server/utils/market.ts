@@ -18,15 +18,13 @@ const ALL_INDEX_CODES = [
   'sz399106', // 深证综指
   'sz399003', // 成份B指
   // C 组
-  'hf_IF0', // 中金所IF当月
   'hkHSI', // 恒生指数
   'usDJI', // 道琼斯
   'usIXIC', // 纳斯达克
-  'int_ni225', // 日经225
-  'hf_DINIW', // 美元指数
-  'hf_GC0', // COMEX黄金
-  'hf_CL0', // NYMEX原油
-  'hf_USDCNH', // 美元离岸人民币
+  'fuNIY', // 日经225
+  'fuNKD', // 美元指数
+  'fuGC', // COMEX黄金
+  'fuCL', // NYMEX原油
 ]
 
 let isPolling = false

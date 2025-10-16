@@ -14,7 +14,15 @@ export const marketGroups = {
   },
   C: {
     label: '全球',
-    codes: ['hf_IF0', 'hkHSI', 'gb_dji', 'int_ni225', 'hf_DINIW', 'hf_GC0', 'hf_CL0', 'hf_USDCNH'],
+    codes: [
+      'hkHSI',
+      'usDJI',
+      'usIXIC',
+      'fuNIY',
+      'fuNKD',
+      'fuGC',
+      'fuCL',
+    ],
   },
 }
 
