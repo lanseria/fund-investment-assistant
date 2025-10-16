@@ -15,7 +15,7 @@ const props = defineProps<{
 const emit = defineEmits(['signal-click'])
 
 const colorMode = useColorMode()
-provide(THEME_KEY, computed(() => colorMode.value))
+provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
 
 function mapSignalsToMarkPoints(signalType: '买入' | '卖出'): MarkPointComponentOption['data'] {
   const isBuy = signalType === '买入'
@@ -67,7 +67,7 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     tooltip: { trigger: 'axis' },
-    legend: { data: ['净值', 'MA5', 'MA10', 'MA20'], top: 30, textStyle: { color: textColor } },
+    legend: { data: ['净值', 'MA5', 'MA10', 'MA20'], top: 40, textStyle: { color: textColor } },
     grid: { top: 70, left: '10%', right: '10%', bottom: '15%' },
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },

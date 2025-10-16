@@ -26,7 +26,7 @@ const props = defineProps<{
 }>()
 
 const colorMode = useColorMode()
-provide(THEME_KEY, computed(() => colorMode.value))
+provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
 
 const chartOption = computed<EChartsOption>(() => {
   const isDark = colorMode.value === 'dark'
@@ -40,7 +40,7 @@ const chartOption = computed<EChartsOption>(() => {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' } },
-    legend: { top: 35, textStyle: { color: textColor }, data: ['基金净值', `RSI(${config.rsiPeriod})`] },
+    legend: { top: 40, textStyle: { color: textColor }, data: ['基金净值', `RSI(${config.rsiPeriod})`] },
     grid: [
       { top: '12%', left: '8%', right: '8%', height: '50%' },
       { top: '68%', left: '8%', right: '8%', height: '20%' },
