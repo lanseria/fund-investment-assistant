@@ -6,7 +6,6 @@ import { encrypt, verify } from 'paseto-ts/v4'
 import { users } from '~~/server/database/schemas'
 
 export default defineEventHandler(async (event) => {
-  // [修改] refresh token 现在也从 cookie 中获取
   const refreshToken = getCookie(event, 'auth-refresh-token')
 
   if (!refreshToken) {
@@ -17,6 +16,7 @@ export default defineEventHandler(async (event) => {
   if (!refreshPublicKey)
     throw new Error('Server not initialized: public key is missing.')
 
+  // PASETO 会自动验证 refreshToken 是否已过期
   const { payload } = await verify(refreshPublicKey, refreshToken)
   const userId = payload.sub
 
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   if (!localKey)
     throw new Error('Server not initialized: localKey is missing.')
 
-  // --- [核心修改] ---
+  // 每次刷新，都生成一个有效期为 1 天的新的访问令牌
   const accessTokenExp = dayjs().add(1, 'day').toDate()
   const newAccessTokenPayload = { ...userPayload, exp: accessTokenExp.toISOString() }
   const newAccessToken = await encrypt(localKey, newAccessTokenPayload)
