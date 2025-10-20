@@ -1,22 +1,20 @@
 // app/middleware/auth.global.ts
 const publicPages = ['/login']
 
-export default defineNuxtRouteMiddleware(async (to) => {
+export default defineNuxtRouteMiddleware((to) => {
   // 如果是公开页面，则跳过检查
   if (publicPages.includes(to.path))
     return
 
   const authStore = useAuthStore()
 
-  // 如果 store 中没有用户信息，则尝试获取
-  // fetchUser 会利用浏览器自动发送的 cookie 来验证会话
-  if (!authStore.isAuthenticated) {
-    await authStore.fetchUser()
-  }
+  // [核心修改]
+  // 此时，app/plugins/auth.ts 已经运行完毕
+  // 所以 authStore.isAuthenticated 的状态已经是最终、可靠的状态了
+  // 我们不再需要在这里调用 fetchUser()，只需要同步检查即可
 
-  // 再次检查认证状态，如果 fetchUser 失败，则跳转
   if (!authStore.isAuthenticated) {
-    if (to.path !== '/login')
-      return navigateTo('/login', { replace: true })
+    // 如果插件运行后用户依然未认证，且目标页面不是登录页，则跳转
+    return navigateTo('/login', { replace: true })
   }
 })

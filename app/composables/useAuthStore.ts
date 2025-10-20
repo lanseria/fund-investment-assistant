@@ -5,6 +5,8 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserPayload | null>(null)
+  // [新增] 添加一个状态来跟踪 fetchUser 是否正在进行中
+  const isLoadingUser = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
   const isAdmin = computed(() => user.value?.role === 'admin')
@@ -20,27 +22,23 @@ export const useAuthStore = defineStore('auth', () => {
   }
 
   async function fetchUser() {
-    // 只有在 store 中没有用户信息时才发起请求
-    if (user.value)
+    // 如果已经在获取用户，或者已经获取过了，则直接返回
+    if (isLoadingUser.value || user.value)
       return
 
+    isLoadingUser.value = true
     try {
-      // 当在服务端执行时，手动转发 cookie
-      const headers = import.meta.server
-        ? useRequestHeaders(['cookie']) // 从浏览器请求中提取 cookie 头
-        : undefined // 在客户端，浏览器会自动处理 cookie，所以不需要
-
-      user.value = await apiFetch<UserPayload>('/api/auth/me', {
-        // 将提取的 headers 附加到 API 请求中
-        headers,
-      })
+      const headers = import.meta.server ? useRequestHeaders(['cookie']) : undefined
+      user.value = await apiFetch<UserPayload>('/api/auth/me', { headers })
     }
-    // eslint-disable-next-line unused-imports/no-unused-vars
     catch (e: any) {
-      // 这是一个预期的行为（用户未登录或会话过期），不应作为错误抛出。
-      // eslint-disable-next-line no-console
-      console.log('User session not found or expired. User remains unauthenticated.')
-      user.value = null // 确保用户状态被清理
+      console.error('User session not found or expired. User remains unauthenticated.')
+      console.error(e)
+      user.value = null
+    }
+    finally {
+      // 无论成功失败，都标记为加载完成
+      isLoadingUser.value = false
     }
   }
 
