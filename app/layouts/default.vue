@@ -5,7 +5,7 @@ const { cycleTheme, currentTheme } = useTheme()
 
 <template>
   <main class="text-gray-800 font-sans bg-gray-50 min-h-screen dark:text-gray-200 dark:bg-gray-900">
-    <!-- [新增] 简单的导航栏 -->
+    <!-- 简单的导航栏 -->
     <header class="p-4 bg-white flex shadow-sm items-center justify-between dark:bg-gray-800">
       <NuxtLink to="/" class="text-xl font-bold">
         基金助手

@@ -1,4 +1,3 @@
-<!-- File: app/pages/fund/[code]/index.vue -->
 <script setup lang="ts">
 import type { HoldingHistoryPoint } from '~/types/holding'
 import { appName } from '~/constants'
@@ -16,7 +15,6 @@ const strategiesToDisplay = [
   { value: 'bollinger_bands', label: '布林带策略' },
 ]
 
-// --- State for Chart Controls (remains the same) ---
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
 const dataZoomEnd = ref(100)
@@ -31,7 +29,7 @@ const dateFilters = [
   { label: '全部', value: 'all' },
 ]
 
-// --- Modal State (remains the same) ---
+// --- Modal State  ---
 const isStrategyModalOpen = ref(false)
 const selectedSignal = ref<Record<string, any> | null>(null)
 function openSignalDetails(signal: Record<string, any>) {
@@ -39,7 +37,7 @@ function openSignalDetails(signal: Record<string, any>) {
   isStrategyModalOpen.value = true
 }
 
-// [重大修改] 使用 useAsyncData 和 Promise.all 一次性获取所有策略的数据
+// 使用 useAsyncData 和 Promise.all 一次性获取所有策略的数据
 const { data, pending, error, refresh } = await useAsyncData(
   `fund-all-strategies-${code}`,
   async () => {
@@ -175,7 +173,7 @@ watch(data, (newData) => {
       <p>加载失败: {{ error.message }}</p>
     </div>
 
-    <!-- [重大修改] 使用 v-for 循环渲染所有图表 -->
+    <!-- 使用 v-for 循环渲染所有图表 -->
     <div v-else-if="data && data.length > 0" class="space-y-8">
       <div
         v-for="chartData in data"
@@ -204,7 +202,7 @@ watch(data, (newData) => {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- --- Modal (remains the same) --- -->
+    <!-- --- Modal  --- -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
     </Modal>

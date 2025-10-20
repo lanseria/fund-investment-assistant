@@ -3,7 +3,7 @@
 import { appName } from '~/constants'
 
 definePageMeta({
-  layout: 'blank', // 使用一个空白布局
+  layout: 'blank',
 })
 
 useHead({
@@ -13,17 +13,17 @@ useHead({
 const authStore = useAuthStore()
 const credentials = reactive({ username: '', password: '' })
 const isLoading = ref(false)
-const errorMessage = ref('') // [新增] 用于存储错误信息
+const errorMessage = ref('') // 用于存储错误信息
 
 async function handleLogin() {
   isLoading.value = true
-  errorMessage.value = '' // [修改] 开始登录前清空错误信息
+  errorMessage.value = '' // 开始登录前清空错误信息
   try {
     await authStore.login(credentials)
     // 成功后，全局中间件会自动处理跳转
   }
   catch (error: any) {
-    // [修改] 将 alert 替换为设置错误信息
+    // 将 alert 替换为设置错误信息
     errorMessage.value = error.data?.statusMessage || '登录时发生未知错误，请重试。'
   }
   finally {
@@ -37,7 +37,7 @@ async function handleLogin() {
     <div class="p-8 card max-w-sm w-full space-y-8">
       <!-- 头部：Logo 和标题 -->
       <div class="text-center">
-        <div class="i-carbon-finance text-primary text-5xl inline-block" />
+        <div class="i-carbon-finance text-5xl text-primary inline-block" />
         <h1 class="text-2xl font-bold mt-2">
           欢迎回来
         </h1>

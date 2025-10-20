@@ -8,7 +8,6 @@ export default defineNuxtRouteMiddleware((to) => {
 
   const authStore = useAuthStore()
 
-  // [核心修改]
   // 此时，app/plugins/auth.ts 已经运行完毕
   // 所以 authStore.isAuthenticated 的状态已经是最终、可靠的状态了
   // 我们不再需要在这里调用 fetchUser()，只需要同步检查即可

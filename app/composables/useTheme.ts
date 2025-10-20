@@ -1,4 +1,3 @@
-// app/composables/useTheme.ts
 import { useLocalStorage } from '@vueuse/core'
 
 // 定义主题的类型

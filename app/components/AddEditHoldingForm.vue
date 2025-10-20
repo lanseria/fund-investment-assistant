@@ -1,4 +1,3 @@
-<!-- app/components/AddEditHoldingForm.vue -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 

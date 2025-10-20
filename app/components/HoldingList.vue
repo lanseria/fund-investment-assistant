@@ -1,4 +1,3 @@
-<!-- File: app/components/HoldingList.vue -->
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
 

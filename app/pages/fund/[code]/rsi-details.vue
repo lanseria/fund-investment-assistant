@@ -72,7 +72,6 @@ useHead({
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <!-- [修改] 重新设计的 Header -->
     <header class="mb-8 flex items-center justify-between">
       <div class="flex gap-4 items-center">
         <!-- 1. 返回按钮：更清晰的图标按钮样式 -->

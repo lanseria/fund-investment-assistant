@@ -1,6 +1,3 @@
-// app/utils/api.ts
-
-// [移除] isRefreshing 和相关的订阅者逻辑现在可以简化，因为我们不再需要手动重发请求
 let refreshTokenPromise: Promise<any> | null = null
 
 export const apiFetch = $fetch.create({
@@ -17,9 +14,7 @@ export const apiFetch = $fetch.create({
           // 在服务器端，Nuxt 3.3+ 版本的 ofetch 也会自动转发同站 cookie。
           // 如果使用的是旧版本，则需要在调用处手动传递 headers。
         }).catch(async (e) => {
-          // [核心修改] 将 console.error 改为 console.log
-          // eslint-disable-next-line no-console
-          console.log('Could not refresh token. User will be logged out.')
+          console.warn('Could not refresh token. User will be logged out.')
           await authStore.logout()
           return Promise.reject(e)
         }).finally(() => {

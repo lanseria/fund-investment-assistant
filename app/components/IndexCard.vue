@@ -1,4 +1,3 @@
-<!-- app/components/IndexCard.vue -->
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MarketIndexData } from '~~/server/utils/dataFetcher'

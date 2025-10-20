@@ -1,4 +1,3 @@
-// app/types/holding.ts
 export interface Holding {
   code: string
   name: string

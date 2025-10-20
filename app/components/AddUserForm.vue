@@ -1,4 +1,3 @@
-<!-- app/components/AddUserForm.vue -->
 <script setup lang="ts">
 const emit = defineEmits(['submit', 'cancel'])
 

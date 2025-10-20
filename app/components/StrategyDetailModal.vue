@@ -1,4 +1,3 @@
-<!-- File: app/components/StrategyDetailModal.vue -->
 <script setup lang="ts">
 // 我们将直接接收一个完整的信号对象
 const props = defineProps<{

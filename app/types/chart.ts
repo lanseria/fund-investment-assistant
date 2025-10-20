@@ -1,5 +1,3 @@
-// app/types/chart.ts
-
 /**
  * RSI 策略图表接口返回的数据结构
  */

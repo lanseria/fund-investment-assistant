@@ -1,4 +1,3 @@
-<!-- app/components/MarketOverview.vue -->
 <script setup lang="ts">
 const marketStore = useMarketStore()
 const { activeGroup, activeGroupIndices, sseStatus } = storeToRefs(marketStore)

@@ -1,4 +1,3 @@
-<!-- app/components/PortfolioSummaryCard.vue -->
 <script setup lang="ts">
 import type { HoldingSummary } from '~/types/holding'
 

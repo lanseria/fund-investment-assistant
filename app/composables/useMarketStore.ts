@@ -1,5 +1,4 @@
 import type { MarketIndexData } from '~~/server/utils/dataFetcher'
-// app/composables/useMarketStore.ts
 import { acceptHMRUpdate, defineStore } from 'pinia'
 
 // 定义分组

@@ -164,7 +164,7 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
 
-  // --- Getters (Computed) ---
+  // --- Getters---
   const totalCost = computed(() => holdings.value.reduce((sum, h) => sum + (h.holdingAmount ?? 0), 0))
 
   /**
@@ -267,11 +267,11 @@ export const useHoldingStore = defineStore('holding', () => {
     summary,
     isLoading,
     isRefreshing,
-    sseStatus, // 导出 SSE 状态
+    sseStatus,
     totalCost,
     fetchHoldings,
-    startSseUpdates, // 导出新方法
-    stopSseUpdates, // 导出新方法
+    startSseUpdates,
+    stopSseUpdates,
     addHolding,
     updateHolding,
     deleteHolding,

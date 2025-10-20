@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
-// ... imports from echarts
 
 interface ChartData {
   dates: string[]

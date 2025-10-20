@@ -1,4 +1,3 @@
-<!-- app/pages/leaderboard.vue -->
 <script setup lang="ts">
 import type { LeaderboardUser } from '~/types/leaderboard'
 import { appName } from '~/constants'
@@ -12,7 +11,7 @@ const { data: leaderboardData, pending, error } = useAsyncData(
   () => apiFetch<LeaderboardUser[]>('/api/leaderboard'),
 )
 
-// 根据收益率获取文本颜色 (此函数可复用)
+// 根据收益率获取文本颜色
 function getProfitRateClass(rate: number) {
   if (rate > 0)
     return 'text-red-500 dark:text-red-400'
@@ -21,7 +20,7 @@ function getProfitRateClass(rate: number) {
   return 'text-gray-500'
 }
 
-// 获取排名对应的奖牌图标 (此函数不变)
+// 获取排名对应的奖牌图标
 function getRankIcon(rank: number) {
   if (rank === 1)
     return 'i-twemoji-1st-place-medal text-2xl'
@@ -32,7 +31,7 @@ function getRankIcon(rank: number) {
   return ''
 }
 
-// [新增] 格式化货币的辅助函数
+// 格式化货币的辅助函数
 function formatCurrency(value: number) {
   if (value === null || value === undefined)
     return '-'
@@ -51,7 +50,7 @@ function formatCurrency(value: number) {
       </p>
     </header>
 
-    <!-- 加载、错误、空状态 (保持不变) -->
+    <!-- 加载、错误、空状态  -->
     <div v-if="pending" class="card flex h-64 items-center justify-center">
       ...
     </div>
@@ -59,19 +58,19 @@ function formatCurrency(value: number) {
       ...
     </div>
 
-    <!-- [重大修改] 重新设计数据展示部分以容纳更多信息 -->
+    <!-- 重新设计数据展示部分以容纳更多信息 -->
     <div v-else-if="leaderboardData && leaderboardData.length > 0" class="p-4 card space-y-2">
       <div
         v-for="user in leaderboardData"
         :key="user.rank"
         class="p-3 rounded-md flex transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700/50"
       >
-        <!-- 排名 (保持不变) -->
+        <!-- 排名  -->
         <div class="text-lg font-bold text-center flex-shrink-0 w-12" :class="getRankIcon(user.rank) || 'text-gray-400'">
           <span v-if="!getRankIcon(user.rank)">{{ user.rank }}</span>
         </div>
 
-        <!-- 用户名和持仓数 (保持不变) -->
+        <!-- 用户名和持仓数  -->
         <div class="flex-grow">
           <p class="font-semibold">
             {{ user.username }}
@@ -111,7 +110,7 @@ function formatCurrency(value: number) {
       </div>
     </div>
 
-    <!-- 空状态 (保持不变) -->
+    <!-- 空状态  -->
     <div v-else class="text-gray-500 py-20 text-center card">
       ...
     </div>
