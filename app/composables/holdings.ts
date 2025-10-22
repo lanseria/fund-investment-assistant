@@ -24,12 +24,13 @@ export const useHoldingStore = defineStore('holding', () => {
       const data = await apiFetch<{ holdings: Holding[], summary: HoldingSummary }>('/api/fund/holdings/')
       holdings.value = data.holdings
       summary.value = data.summary
+      return data // [重要] 返回获取到的数据
     }
     catch (error) {
       console.error('获取持仓数据失败:', error)
-      // 清空数据，避免显示旧数据
       holdings.value = []
       summary.value = null
+      return null // [重要] 出错时也返回一个值
     }
     finally {
       isLoading.value = false

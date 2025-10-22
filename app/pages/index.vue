@@ -7,27 +7,28 @@ import { appName } from '~/constants'
 
 const router = useRouter()
 const route = useRoute()
-const holdingStore = useHoldingStore()
 const marketStore = useMarketStore()
 
 useHead({
   title: `持仓列表 - ${appName}`,
 })
 
-// 从 store 中解构出状态和 action
-const { holdings, isLoading, summary, sseStatus } = storeToRefs(holdingStore)
+const holdingStore = useHoldingStore()
+const { holdings, summary, sseStatus } = storeToRefs(holdingStore)
 
 // useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
-const { pending: isDataLoading, refresh } = await useAsyncData(
+const { data: portfolioData, pending: isDataLoading, refresh } = await useAsyncData(
   'holdings',
   () => holdingStore.fetchHoldings(),
-  { server: true }, // 确保在服务端执行
+  { server: true },
 )
 
-// 监听 useAsyncData 的 pending 状态，同步到 store 的 isLoading
-watch(isDataLoading, (loading) => {
-  holdingStore.isLoading = loading
-})
+watch(portfolioData, (newData) => {
+  if (newData) {
+    holdings.value = newData.holdings
+    summary.value = newData.summary
+  }
+}, { immediate: true })
 
 onMounted(() => {
   const authStore = useAuthStore()
@@ -142,8 +143,8 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
         </p>
       </div>
       <div class="flex gap-2 items-center sm:gap-4">
-        <button class="icon-btn" title="刷新所有估值" :disabled="isLoading" @click="() => refresh()">
-          <div i-carbon-renew :class="{ 'animate-spin': isLoading }" />
+        <button class="icon-btn" title="刷新所有估值" :disabled="isDataLoading" @click="() => refresh()">
+          <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
         </button>
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
@@ -160,7 +161,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
     <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
 
-    <div v-if="isLoading" class="card flex h-64 items-center justify-center">
+    <div v-if="isDataLoading" class="card flex h-64 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
     </div>
     <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
