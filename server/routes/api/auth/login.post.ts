@@ -1,4 +1,3 @@
-// server/routes/api/auth/login.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
 import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
@@ -43,7 +42,7 @@ export default defineEventHandler(async (event) => {
     throw new Error('Server not initialized: keys are missing.')
 
   // 访问令牌 (Access Token) 的有效期，保持 1 天不变，这是安全实践
-  const accessTokenExp = dayjs().add(1, 'day').toDate()
+  const accessTokenExp = dayjs().add(1, 'minutes').toDate()
   // 刷新令牌 (Refresh Token) 的有效期，延长至 1 个月
   const refreshTokenExp = dayjs().add(1, 'month').toDate()
 

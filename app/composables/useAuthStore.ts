@@ -3,7 +3,6 @@ import { acceptHMRUpdate, defineStore } from 'pinia'
 
 export const useAuthStore = defineStore('auth', () => {
   const user = ref<UserPayload | null>(null)
-  // 添加一个状态来跟踪 fetchUser 是否正在进行中
   const isLoadingUser = ref(false)
 
   const isAuthenticated = computed(() => !!user.value)
@@ -14,13 +13,11 @@ export const useAuthStore = defineStore('auth', () => {
       method: 'POST',
       body: credentials,
     })
-    // Cookies 由服务器设置
     user.value = data.user
     await navigateTo('/')
   }
 
   async function fetchUser() {
-    // 如果已经在获取用户，或者已经获取过了，则直接返回
     if (isLoadingUser.value || user.value)
       return
 
@@ -30,18 +27,26 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = await apiFetch<UserPayload>('/api/auth/me', { headers })
     }
     catch (e: any) {
-      console.error('User session not found or expired. User remains unauthenticated.')
-      console.error(e)
-      user.value = null
+      // [核心修改]
+      // 只有在错误不是 401 时才清除用户状态。
+      // 如果是 401，我们相信 apiFetch 拦截器会处理它。
+      // ofetch 抛出的错误对象中包含 response 属性。
+      if (e.response?.status !== 401) {
+        console.error('Non-401 error during fetchUser, clearing session:', e)
+        user.value = null
+      }
+      else {
+        // 这是 401 错误，我们什么都不做，让拦截器完成它的工作。
+        // 这个 log 可以在调试时打开，正常运行时可以注释掉。
+        // console.log('Caught a 401 in fetchUser. Interceptor will handle it.')
+      }
     }
     finally {
-      // 无论成功失败，都标记为加载完成
       isLoadingUser.value = false
     }
   }
 
   async function logout() {
-    // 调用后端的登出接口来清除 httpOnly cookie
     try {
       await $fetch('/api/auth/logout', { method: 'POST' })
     }
@@ -49,9 +54,7 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Error during logout:', e)
     }
     finally {
-      // 使用 client 判断，确保 navigateTo 只在客户端执行
       if (import.meta.client) {
-        // 使用 replace: true 来避免用户通过后退按钮回到需要认证的页面
         await navigateTo('/login', { replace: true })
       }
     }

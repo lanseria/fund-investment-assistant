@@ -94,6 +94,7 @@ export default defineNuxtConfig({
         'dayjs/plugin/relativeTime',
         'dayjs/plugin/utc',
         'vue-echarts',
+
       ],
     },
   },
