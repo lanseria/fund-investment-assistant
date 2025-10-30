@@ -1,19 +1,12 @@
 <script setup lang="ts">
-import type { HoldingHistoryPoint } from '~/types/holding'
+// [新增] 导入新创建的组件
+import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
+import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName } from '~/constants'
 
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
-
-// 定义需要展示的所有策略图表
-const strategiesToDisplay = [
-  { value: '', label: '基础走势' },
-  { value: 'rsi', label: 'RSI 策略' },
-  { value: 'macd', label: 'MACD 策略' },
-  { value: 'ma_cross', label: '双均线交叉策略' },
-  { value: 'bollinger_bands', label: '布林带策略' },
-]
 
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
@@ -29,7 +22,7 @@ const dateFilters = [
   { label: '全部', value: 'all' },
 ]
 
-// --- Modal State  ---
+// --- Modal State ---
 const isStrategyModalOpen = ref(false)
 const selectedSignal = ref<Record<string, any> | null>(null)
 function openSignalDetails(signal: Record<string, any>) {
@@ -37,26 +30,45 @@ function openSignalDetails(signal: Record<string, any>) {
   isStrategyModalOpen.value = true
 }
 
-// 使用 useAsyncData 和 Promise.all 一次性获取所有策略的数据
+// [重大修改] 更新 useAsyncData，使其返回一个结构化对象
 const { data, pending, error, refresh } = await useAsyncData(
-  `fund-all-strategies-${code}`,
+  `fund-all-strategies-structured-${code}`,
   async () => {
-    // 为每个策略创建一个 fetch Promise
-    const promises = strategiesToDisplay.map(strategy =>
-      apiFetch<{ history: HoldingHistoryPoint[], signals: any[] }>(`/api/fund/holdings/${code}/history`, {
+    // 定义获取通用策略数据的函数
+    const fetchGenericStrategy = (strategy: string = '') =>
+      apiFetch(`/api/fund/holdings/${code}/history`, {
         params: {
           ma: [5, 10, 20],
-          strategy: strategy.value || undefined,
+          strategy: strategy || undefined,
         },
-      }).then(response => ({
-        // 将策略的元信息（label, value）和API返回的数据合并
-        ...strategy,
-        history: response.history,
-        signals: response.signals,
-      })),
-    )
-    // 并发执行所有请求并等待结果
-    return Promise.all(promises)
+      })
+
+    // 定义获取 RSI 策略数据的函数
+    const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
+
+    // 并发执行所有请求
+    const [
+      baseData,
+      rsiData,
+      macData,
+      maCrossData,
+      bollingerData,
+    ] = await Promise.all([
+      fetchGenericStrategy(''),
+      fetchRsiStrategy(),
+      fetchGenericStrategy('macd'),
+      fetchGenericStrategy('ma_cross'),
+      fetchGenericStrategy('bollinger_bands'),
+    ])
+
+    // 返回一个结构清晰的对象
+    return {
+      base: baseData,
+      rsi: rsiData,
+      macd: macData,
+      maCross: maCrossData,
+      bollingerBands: bollingerData,
+    }
   },
 )
 
@@ -66,6 +78,10 @@ const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
   return holding ? holding.name : code
+})
+
+useHead({
+  title: () => `策略分析: ${fundName.value} (${code}) - ${appName}`,
 })
 
 const isSyncing = ref(false)
@@ -80,28 +96,22 @@ async function handleSyncHistory() {
   }
 }
 
-// 为执行策略分析添加本地加载状态
 const isRunningStrategies = ref(false)
 async function handleRunStrategies() {
   isRunningStrategies.value = true
   try {
     await runStrategiesForFund(code)
-    // 成功后，刷新图表数据以显示最新的信号
     await refresh()
   }
   finally {
     isRunningStrategies.value = false
   }
 }
-useHead({
-  title: () => `策略分析: ${fundName.value} (${code}) - ${appName}`,
-})
 
-// setDateRange 现在作用于所有图表
 function setDateRange(period: string) {
   activeFilter.value = period
-  // 使用第一个图表的历史数据来计算，因为所有图表的 history 是一样的
-  const historyData = data.value?.[0]?.history
+  // 现在可以安全地从 data.base.history 获取日期信息
+  const historyData = data.value?.base.history
   if (!historyData || historyData.length === 0)
     return
 
@@ -129,10 +139,9 @@ function setDateRange(period: string) {
   }
 }
 
-// 页面加载或数据获取完成后，设置一个默认的缩放范围
 watch(data, (newData) => {
-  if (newData && newData.length > 0)
-    setDateRange('3m') // 默认显示近1年
+  if (newData)
+    setDateRange('3m')
 }, { immediate: true })
 </script>
 
@@ -155,7 +164,6 @@ watch(data, (newData) => {
       </div>
     </header>
 
-    <!-- 控制面板不再有策略选择器 -->
     <div class="mb-8 p-4 card">
       <div class="flex flex-wrap gap-2">
         <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
@@ -164,7 +172,6 @@ watch(data, (newData) => {
       </div>
     </div>
 
-    <!-- --- Loading and Error States --- -->
     <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
     </div>
@@ -173,36 +180,57 @@ watch(data, (newData) => {
       <p>加载失败: {{ error.message }}</p>
     </div>
 
-    <!-- 使用 v-for 循环渲染所有图表 -->
-    <div v-else-if="data && data.length > 0" class="space-y-8">
-      <div
-        v-for="chartData in data"
-        :key="chartData.value"
-        class="p-4 card"
-      >
-        <FundChart
-          :history="chartData.history"
-          :signals="chartData.signals"
-          :title="`基金 ${fundName} - ${chartData.label}`"
-          :data-zoom-start="dataZoomStart"
-          :data-zoom-end="dataZoomEnd"
-          @signal-click="openSignalDetails"
-        />
-        <!-- 如果是 RSI 策略，则显示详情按钮 -->
-        <div v-if="chartData.value === 'rsi'" class="mt-4 flex justify-end">
-          <NuxtLink :to="`/fund/${code}/rsi-details`" class="text-sm btn flex">
-            <div i-carbon-analytics mr-1 />
-            查看 RSI 详情分析
-          </NuxtLink>
-        </div>
-      </div>
+    <!-- [重大修改] 显式调用每个策略图表组件 -->
+    <div v-else-if="data" class="space-y-8">
+      <GenericStrategyChart
+        :history="data.base.history"
+        :signals="data.base.signals"
+        :title="`基金 ${fundName} - 基础走势`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
+
+      <RsiStrategyChart
+        :chart-data="data.rsi"
+        :title="`基金 ${fundName} - RSI 策略`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+      />
+
+      <GenericStrategyChart
+        :history="data.macd.history"
+        :signals="data.macd.signals"
+        :title="`基金 ${fundName} - MACD 策略`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
+
+      <GenericStrategyChart
+        :history="data.maCross.history"
+        :signals="data.maCross.signals"
+        :title="`基金 ${fundName} - 双均线交叉策略`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
+
+      <GenericStrategyChart
+        :history="data.bollingerBands.history"
+        :signals="data.bollingerBands.signals"
+        :title="`基金 ${fundName} - 布林带策略`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
     </div>
+
     <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- --- Modal  --- -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
     </Modal>

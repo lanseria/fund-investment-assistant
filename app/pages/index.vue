@@ -2,12 +2,10 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
-import { useMarketStore } from '~/composables/useMarketStore'
 import { appName } from '~/constants'
 
 const router = useRouter()
 const route = useRoute()
-const marketStore = useMarketStore()
 
 useHead({
   title: `持仓列表 - ${appName}`,
@@ -29,19 +27,6 @@ watch(portfolioData, (newData) => {
     summary.value = newData.summary
   }
 }, { immediate: true })
-
-onMounted(() => {
-  const authStore = useAuthStore()
-  if (authStore.isAuthenticated) {
-    holdingStore.startSseUpdates()
-    marketStore.startMarketUpdates()
-  }
-})
-
-onUnmounted(() => {
-  holdingStore.stopSseUpdates()
-  marketStore.stopMarketUpdates()
-})
 
 // --- 排序逻辑 ---
 const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
@@ -131,6 +116,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
+    <!-- MarketOverview 组件内部会自己引入 useMarketStore，所以这里不需要做什么 -->
     <MarketOverview />
 
     <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
