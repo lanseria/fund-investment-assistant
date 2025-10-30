@@ -11,6 +11,9 @@ const { cycleTheme, currentTheme } = useTheme()
         基金助手
       </NuxtLink>
       <div v-if="authStore.isAuthenticated" class="flex gap-4 items-center">
+        <NuxtLink to="/charts-overview" class="hover:text-primary-hover">
+          策略视图
+        </NuxtLink>
         <NuxtLink to="/leaderboard" class="hover:text-primary-hover">
           排行榜
         </NuxtLink>
