@@ -70,9 +70,8 @@ const slicedData = computed(() => {
 <template>
   <div class="card overflow-hidden">
     <div class="p-3 border-b dark:border-gray-700">
-      <NuxtLink :to="`/fund/${fund.code}`" class="text-sm font-semibold transition-colors hover:text-primary">
+      <NuxtLink :to="`/fund/${fund.code}`" :title="fund.code" class="text-sm font-semibold transition-colors hover:text-primary">
         {{ fund.name }}
-        <span class="text-xs text-gray-400 font-normal font-numeric">({{ fund.code }})</span>
       </NuxtLink>
     </div>
 
