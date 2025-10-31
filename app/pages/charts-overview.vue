@@ -9,7 +9,6 @@ useHead({
 const holdingStore = useHoldingStore()
 const fundList = computed(() => holdingStore.holdings)
 
-// --- 筛选器状态 ---
 const strategyOptions = [
   { value: 'rsi', label: 'RSI 策略' },
   { value: 'macd', label: 'MACD 策略' },
@@ -21,7 +20,6 @@ const strategyOptions = [
 const selectedStrategy = ref('rsi')
 const activeDateFilter = ref('3m')
 
-// --- 数据获取逻辑 ---
 const { data: chartData, pending, error, refresh } = useAsyncData(
   'charts-overview-data-full',
   async () => {
@@ -118,7 +116,8 @@ onMounted(async () => {
       <p>暂无持仓基金或无法加载图表数据。</p>
     </div>
 
-    <div v-else class="gap-6 grid grid-cols-1 lg:grid-cols-2">
+    <!-- [重大修改] 更新网格布局以实现更好的响应式 -->
+    <div v-else class="gap-4 grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 xl:grid-cols-4">
       <OverviewChartCard
         v-for="fundData in chartData"
         :key="fundData!.code"

@@ -1,84 +1,89 @@
 <script setup lang="ts">
 import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
-import { dateFilterOptions } from '~/constants/chart' // 导入共享常量
+import MiniFundChart from '~/components/charts/MiniFundChart.vue'
+import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
+import { dateFilterOptions } from '~/constants/chart'
 
 interface ChartCardData {
   code: string
   name: string
   strategy: string
+  // data 是全量数据
   data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[] }
 }
 
 const props = defineProps<{
   fund: ChartCardData
-  // prop 名称，传递意图而非具体值
   activeDateFilter: string
 }>()
 
 const dayjs = useDayjs()
 
-// 在组件内部根据自身数据计算 dataZoom
-const zoomConfig = computed(() => {
+// [核心] 在卡片组件内部根据全量数据和筛选器，计算出需要传递给图表的数据切片
+const slicedData = computed(() => {
   const period = props.activeDateFilter
+  const isRsi = props.fund.strategy === 'rsi'
 
-  // 根据策略类型获取正确的日期数组
-  const dates = props.fund.strategy === 'rsi'
-    ? (props.fund.data as RsiChartData).dates
-    : (props.fund.data as { history: HoldingHistoryPoint[] }).history.map(p => p.date)
+  // 1. 获取全量日期和数据
+  const fullData = props.fund.data
+  const allDates = isRsi
+    ? (fullData as RsiChartData).dates
+    : (fullData as { history: HoldingHistoryPoint[] }).history.map(p => p.date)
 
-  if (!dates || dates.length === 0)
-    return { start: 0, end: 100 } // 数据为空则显示全部
+  if (!allDates || allDates.length === 0)
+    return isRsi ? { dates: [], netValues: [], rsiValues: [], signals: { buy: [], sell: [] }, config: (fullData as RsiChartData).config } : { history: [], signals: [] }
 
-  const totalPoints = dates.length
-  if (period === 'all')
-    return { start: 0, end: 100 }
-
-  const filter = dateFilterOptions.find(f => f.value === period)
-  if (!filter || !filter.unit)
-    return { start: 0, end: 100 } // 找不到过滤器则显示全部
-
-  // 从最后一天开始倒推
-  const targetDate = dayjs(dates[totalPoints - 1]).subtract(filter.amount, filter.unit as any)
-  const startIndex = dates.findIndex((d: string) => dayjs(d).isAfter(targetDate))
-
-  if (startIndex !== -1) {
-    return {
-      start: (startIndex / totalPoints) * 100,
-      end: 100,
+  // 2. 计算起始索引
+  const totalPoints = allDates.length
+  let startIndex = 0
+  if (period !== 'all') {
+    const filter = dateFilterOptions.find(f => f.value === period)
+    if (filter?.unit) {
+      const targetDate = dayjs(allDates[totalPoints - 1]).subtract(filter.amount, filter.unit as any)
+      const foundIndex = allDates.findIndex((d: string) => dayjs(d).isAfter(targetDate))
+      if (foundIndex !== -1)
+        startIndex = foundIndex
     }
   }
 
-  // 如果找不到开始索引（例如基金历史比筛选范围还短），则显示全部
-  return { start: 0, end: 100 }
+  // 3. 根据起始索引切片数据
+  if (isRsi) {
+    const rsiData = fullData as RsiChartData
+    return {
+      ...rsiData,
+      dates: rsiData.dates.slice(startIndex),
+      netValues: rsiData.netValues.slice(startIndex),
+      rsiValues: rsiData.rsiValues.slice(startIndex),
+    }
+  }
+  else {
+    const genericData = fullData as { history: HoldingHistoryPoint[], signals: any[] }
+    return {
+      ...genericData,
+      history: genericData.history.slice(startIndex),
+    }
+  }
 })
 </script>
 
 <template>
   <div class="card overflow-hidden">
-    <div class="p-4 border-b dark:border-gray-700">
-      <NuxtLink :to="`/fund/${fund.code}`" class="font-semibold transition-colors hover:text-primary">
+    <div class="p-3 border-b dark:border-gray-700">
+      <NuxtLink :to="`/fund/${fund.code}`" class="text-sm font-semibold transition-colors hover:text-primary">
         {{ fund.name }}
-        <span class="text-sm text-gray-400 font-normal font-numeric">({{ fund.code }})</span>
+        <span class="text-xs text-gray-400 font-normal font-numeric">({{ fund.code }})</span>
       </NuxtLink>
     </div>
 
-    <div class="p-2">
+    <div class="h-40">
       <template v-if="fund.strategy === 'rsi'">
-        <RsiDetailChart
-          :data="fund.data as RsiChartData"
-          title=""
-          :data-zoom-start="zoomConfig.start"
-          :data-zoom-end="zoomConfig.end"
-        />
+        <MiniRsiChart :data="slicedData as RsiChartData" />
       </template>
       <template v-else>
-        <FundChart
-          :history="(fund.data as any).history"
-          :signals="(fund.data as any).signals"
-          title=""
-          :data-zoom-start="zoomConfig.start"
-          :data-zoom-end="zoomConfig.end"
+        <MiniFundChart
+          :history="(slicedData as any).history"
+          :signals="(slicedData as any).signals"
         />
       </template>
     </div>
