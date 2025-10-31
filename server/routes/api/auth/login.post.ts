@@ -41,8 +41,8 @@ export default defineEventHandler(async (event) => {
   if (!localKey || !refreshPrivateKey)
     throw new Error('Server not initialized: keys are missing.')
 
-  // 访问令牌 (Access Token) 的有效期，保持 1 天不变，这是安全实践
-  const accessTokenExp = dayjs().add(1, 'd').toDate()
+  // 访问令牌 (Access Token) 的有效期，保持 15 天不变，这是安全实践
+  const accessTokenExp = dayjs().add(15, 'd').toDate()
   // 刷新令牌 (Refresh Token) 的有效期，延长至 1 个月
   const refreshTokenExp = dayjs().add(1, 'month').toDate()
 
