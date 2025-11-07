@@ -9,7 +9,7 @@ useHead({
 const holdingStore = useHoldingStore()
 const fundList = computed(() => holdingStore.holdings)
 
-const strategyOptions = [
+const strategySelectOptions = [
   { value: 'rsi', label: 'RSI 策略' },
   { value: 'macd', label: 'MACD 策略' },
   { value: 'ma_cross', label: '双均线交叉策略' },
@@ -83,11 +83,12 @@ onMounted(async () => {
     <div class="mb-8 p-4 card flex flex-wrap gap-4 items-center">
       <div>
         <label for="strategy-select" class="text-sm font-medium mr-2">策略选择:</label>
-        <select id="strategy-select" v-model="selectedStrategy" class="input-base w-48">
-          <option v-for="opt in strategyOptions" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
+        <CustomSelect
+          id="strategy-select"
+          v-model="selectedStrategy"
+          :options="strategySelectOptions"
+          class="w-48"
+        />
       </div>
       <div class="flex flex-grow flex-wrap gap-2 items-center">
         <label class="text-sm font-medium">时间范围:</label>

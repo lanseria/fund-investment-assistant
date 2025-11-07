@@ -41,6 +41,12 @@ const canSubmit = computed(() => {
   return true
 })
 
+// 为新组件准备 options 数组
+const fundTypeOptions = [
+  { value: 'open', label: '普通开放式基金' },
+  { value: 'qdii_lof', label: 'QDII-LOF / 场内基金' },
+]
+
 function handleSubmit() {
   if (canSubmit.value) {
     const payload: any = {
@@ -63,18 +69,11 @@ function handleSubmit() {
       <!-- 基金类型选择器 -->
       <div v-if="!isEditing">
         <label for="fund-type" class="text-sm font-medium mb-1 block">基金类型</label>
-        <select
+        <CustomSelect
           id="fund-type"
           v-model="formData.fundType"
-          class="input-base"
-        >
-          <option value="open">
-            普通开放式基金
-          </option>
-          <option value="qdii_lof">
-            QDII-LOF / 场内基金
-          </option>
-        </select>
+          :options="fundTypeOptions"
+        />
         <p class="text-xs text-gray-500 mt-1">
           选择正确类型以获取实时价格。此项添加后不可修改。
         </p>

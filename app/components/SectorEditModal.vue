@@ -15,7 +15,14 @@ const dictStore = useDictStore()
 
 // 获取板块字典列表
 
-const sectorOptions = computed(() => dictStore.getDictData(SECTOR_DICT_TYPE))
+const sectorOptions = computed(() => {
+  const options = dictStore.getDictData(SECTOR_DICT_TYPE)
+  // 添加一个“清空”选项在最前面
+  return [
+    { value: null, label: '-- 清空/不设置 --' },
+    ...options.map(opt => ({ value: opt.value, label: `${opt.label} (${opt.value})` })),
+  ]
+})
 
 const selectedSector = ref(props.currentSector)
 const isSubmitting = ref(false)
@@ -44,14 +51,11 @@ async function handleSubmit() {
       <p>正在为基金 <span class="font-semibold">{{ fundName }} ({{ fundCode }})</span> 设置板块。</p>
       <div>
         <label for="sector-select" class="text-sm font-medium mb-1 block">选择板块</label>
-        <select id="sector-select" v-model="selectedSector" class="input-base">
-          <option :value="null">
-            -- 清空/不设置 --
-          </option>
-          <option v-for="opt in sectorOptions" :key="opt.value" :value="opt.value">
-            {{ opt.label }}
-          </option>
-        </select>
+        <CustomSelect
+          id="sector-select"
+          v-model="selectedSector"
+          :options="sectorOptions"
+        />
       </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">

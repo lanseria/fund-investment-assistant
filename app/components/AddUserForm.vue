@@ -7,6 +7,11 @@ const formData = reactive({
   role: 'user' as 'user' | 'admin',
 })
 
+const roleOptions = [
+  { value: 'user', label: 'User' },
+  { value: 'admin', label: 'Admin' },
+]
+
 const canSubmit = computed(() => formData.username.length >= 3 && formData.password.length >= 6)
 
 function handleSubmit() {
@@ -47,18 +52,11 @@ function handleSubmit() {
       <!-- 角色 -->
       <div>
         <label for="role" class="text-sm font-medium mb-1 block">角色</label>
-        <select
+        <CustomSelect
           id="role"
           v-model="formData.role"
-          class="input-base"
-        >
-          <option value="user">
-            User
-          </option>
-          <option value="admin">
-            Admin
-          </option>
-        </select>
+          :options="roleOptions"
+        />
       </div>
     </div>
 
