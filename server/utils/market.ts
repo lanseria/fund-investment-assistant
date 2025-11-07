@@ -1,31 +1,9 @@
 // server/utils/market.ts
 /* eslint-disable no-console */
 import type { MarketIndexData } from './dataFetcher'
+import { ALL_INDEX_CODES } from '~~/shared/market'
 import { fetchMarketIndexes } from './dataFetcher'
 import { emitter } from './emitter'
-
-// 定义所有需要监控的指数代码
-const ALL_INDEX_CODES = [
-  // A 组
-  'sh000001', // 上证指数
-  'sh000300', // 沪深300
-  'sh000016', // 上证50
-  'sh000003', // B股指数
-  'sh000688', // 科创50
-  // B 组
-  'sz399001', // 深证成指
-  'sz399006', // 创业板指
-  'sz399106', // 深证综指
-  'sz399003', // 成份B指
-  // C 组
-  'hkHSI', // 恒生指数
-  'usDJI', // 道琼斯
-  'usIXIC', // 纳斯达克
-  'fuNIY', // 日经225
-  'fuNKD', // 美元指数
-  'fuGC', // COMEX黄金
-  'fuCL', // NYMEX原油
-]
 
 let isPolling = false
 let marketDataCache: Record<string, MarketIndexData> = {}

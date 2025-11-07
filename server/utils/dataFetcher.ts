@@ -189,7 +189,7 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
     return []
 
   const url = `https://qt.gtimg.cn/q=${codes.join(',')}`
-
+  // console.warn('[DEBUG] Fetching market indexes...', url)
   try {
     const responseBuffer = await $fetch<ArrayBuffer>(url, {
       responseType: 'arrayBuffer',

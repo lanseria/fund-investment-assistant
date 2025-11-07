@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { marketGroups } from '~~/shared/market'
+
 const marketStore = useMarketStore()
 const { activeGroup, activeGroupIndices, sseStatus } = storeToRefs(marketStore)
 </script>

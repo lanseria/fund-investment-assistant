@@ -1,34 +1,14 @@
 import type { MarketIndexData } from '~~/server/utils/dataFetcher'
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { marketGroups } from '~~/shared/market'
 
-// 定义分组
-export const marketGroups = {
-  A: {
-    label: 'A 股',
-    codes: ['sh000001', 'sh000300', 'sh000016', 'sh000003', 'sh000688'],
-  },
-  B: {
-    label: '深市',
-    codes: ['sz399001', 'sz399006', 'sz399106', 'sz399003'],
-  },
-  C: {
-    label: '全球',
-    codes: [
-      'hkHSI',
-      'usDJI',
-      'usIXIC',
-      'fuNIY',
-      'fuNKD',
-      'fuGC',
-      'fuCL',
-    ],
-  },
-}
+// [核心修改] 使用 keyof typeof 动态生成联合类型，使其与 marketGroups 的键保持同步
+type MarketGroupKey = keyof typeof marketGroups
 
 export const useMarketStore = defineStore('market', () => {
   // --- State ---
   const indices = ref<Record<string, MarketIndexData>>({})
-  const activeGroup = ref<'A' | 'B' | 'C'>('A')
+  const activeGroup = ref<MarketGroupKey>('A')
   const sseStatus = ref<'OPEN' | 'CONNECTING' | 'CLOSED'>('CLOSED')
   let sse: ReturnType<typeof useEventSource> | null = null
 
@@ -44,7 +24,7 @@ export const useMarketStore = defineStore('market', () => {
   })
 
   // --- Actions ---
-  function setActiveGroup(group: 'A' | 'B' | 'C') {
+  function setActiveGroup(group: MarketGroupKey) {
     activeGroup.value = group
   }
 

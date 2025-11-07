@@ -28,9 +28,9 @@ export default defineNuxtConfig({
     'dayjs-nuxt',
     'nuxt-echarts',
   ],
-  ssr: true,
+  ssr: false,
   devtools: {
-    enabled: false,
+    enabled: true,
   },
   app: {
     head: {
@@ -62,10 +62,6 @@ export default defineNuxtConfig({
     },
   },
 
-  future: {
-    compatibilityVersion: 4,
-  },
-
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
@@ -84,18 +80,6 @@ export default defineNuxtConfig({
     experimental: {
       database: true,
       tasks: true,
-    },
-  },
-  vite: {
-    optimizeDeps: {
-      include: [
-        'dayjs',
-        'dayjs/plugin/updateLocale',
-        'dayjs/plugin/relativeTime',
-        'dayjs/plugin/utc',
-        'vue-echarts',
-
-      ],
     },
   },
   echarts: {
