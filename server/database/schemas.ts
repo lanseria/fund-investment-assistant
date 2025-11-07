@@ -34,6 +34,8 @@ export const funds = fundSchema.table('funds', {
   code: varchar('code', { length: 10 }).primaryKey(),
   /** 基金名称 */
   name: text('name').notNull(),
+  /** 基金所属板块 (关联字典) */
+  sector: text('sector'), // 允许为 null
   /** 基金类型 */
   fundType: fundTypeEnum('fund_type').notNull().default('open'),
   /** 昨日单位净值 */

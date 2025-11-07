@@ -413,6 +413,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
     let holdingData: any = {
       code: fundInfo.code,
       name: fundInfo.name,
+      sector: fundInfo.sector,
       yesterdayNav: Number(fundInfo.yesterdayNav),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,

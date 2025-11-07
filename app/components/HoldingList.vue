@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
+import { SECTOR_DICT_TYPE } from '~/constants'
 
 const props = defineProps<{
   holdings: Holding[]
@@ -7,7 +8,9 @@ const props = defineProps<{
   sortOrder: 'asc' | 'desc'
 }>()
 
-const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position'])
+const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector'])
+
+const { getLabel } = useDictStore()
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
@@ -121,12 +124,19 @@ const strategiesForTags = {
           <tr v-for="h in sortedHoldings" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
             <!-- 基金名称 -->
             <td class="font-semibold p-4">
+              <button
+                class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors"
+                :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'"
+                @click="emit('edit-sector', h)"
+              >
+                {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
+              </button>
               <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
                 {{ h.name }}
-                <div class="text-xs text-gray-400 font-normal font-numeric dark:text-gray-500">
-                  {{ h.code }}
-                </div>
               </NuxtLink>
+              <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
+                {{ h.code }}
+              </div>
               <!-- 策略信号标签容器 -->
               <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
                 <span

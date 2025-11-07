@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."funds" ADD COLUMN "sector" text;

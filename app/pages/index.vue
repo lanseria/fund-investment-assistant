@@ -47,6 +47,10 @@ const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
 
+// 板块编辑模态框的状态
+const isSectorModalOpen = ref(false)
+const editingHoldingForSector = ref<Holding | null>(null)
+
 function openAddModal() {
   editingHolding.value = null
   isModalOpen.value = true
@@ -59,6 +63,12 @@ function openEditModal(holding: Holding) {
 
 function closeModal() {
   isModalOpen.value = false
+}
+
+// 打开板块编辑模态框的函数
+function openSectorModal(holding: Holding) {
+  editingHoldingForSector.value = holding
+  isSectorModalOpen.value = true
 }
 
 // --- 表单和操作处理 ---
@@ -112,6 +122,12 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
   if (result)
     alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
 }
+
+async function onSectorUpdateSuccess() {
+  isSectorModalOpen.value = false
+  // 重新从服务器获取最新的持仓数据，以确保数据同步
+  await holdingStore.fetchHoldings()
+}
 </script>
 
 <template>
@@ -163,6 +179,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       @delete="handleDelete"
       @set-sort="handleSetSort"
       @clear-position="handleClearPosition"
+      @edit-sector="openSectorModal"
     />
 
     <Modal v-model="isModalOpen" :title="modalTitle">
@@ -175,6 +192,17 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
     <Modal v-model="isImportModalOpen" title="导入持仓数据">
       <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
+    </Modal>
+
+    <!-- 添加板块编辑模态框到模板中 -->
+    <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
+      <SectorEditModal
+        :fund-code="editingHoldingForSector.code"
+        :fund-name="editingHoldingForSector.name"
+        :current-sector="editingHoldingForSector.sector"
+        @success="onSectorUpdateSuccess"
+        @cancel="isSectorModalOpen = false"
+      />
     </Modal>
   </div>
 </template>
