@@ -2,6 +2,10 @@
 <script setup lang="ts">
 import { apiFetch } from '~/utils/api'
 
+definePageMeta({
+  layout: 'account',
+})
+
 const { data: users, pending, error, refresh } = useAsyncData('admin-users', () =>
   apiFetch<any[]>('/api/admin/users'))
 
@@ -32,7 +36,7 @@ async function handleAddUser(formData: any) {
 </script>
 
 <template>
-  <div class="p-4 lg:p-8 sm:p-6">
+  <div>
     <header class="mb-4 flex items-center justify-between">
       <h1 class="text-2xl font-bold">
         用户管理
@@ -49,7 +53,7 @@ async function handleAddUser(formData: any) {
     <div v-else-if="error" class="text-red-500">
       加载失败: {{ error.message }}
     </div>
-    <div v-else class="card overflow-hidden">
+    <div v-else class="overflow-hidden">
       <table class="text-left w-full">
         <!-- 表格 aheader -->
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">

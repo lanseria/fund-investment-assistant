@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, date, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')
@@ -110,6 +110,38 @@ export const strategySignals = fundSchema.table('strategy_signals', {
 })
 
 /**
+ * 字典类型表 (dictionary_types) - 主表
+ * 定义了字典的类别，例如 '板块类型', '风险等级' 等
+ */
+export const dictionaryTypes = fundSchema.table('dictionary_types', {
+  /** 字典类型编码 (主键, 程序中使用的唯一标识) */
+  type: text('type').primaryKey(),
+  /** 字典类型名称/描述 (UI中显示) */
+  name: text('name').notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * 字典数据表 (dictionary_data) - 子表
+ * 存储每个字典类型下的具体键值对数据
+ */
+export const dictionaryData = fundSchema.table('dictionary_data', {
+  /** 数据项ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 关联的字典类型编码 (外键) */
+  dictType: text('dict_type').notNull().references(() => dictionaryTypes.type, { onDelete: 'cascade' }),
+  /** 标签名 (UI中显示的值) */
+  label: text('label').notNull(),
+  /** 数据值 (程序中使用的值) */
+  value: text('value').notNull(),
+  /** 排序字段 */
+  sortOrder: integer('sort_order').default(0),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
  * 持有与基金关联
  * 基金 一对多 持有
  */
@@ -117,5 +149,17 @@ export const fundsRelations = relations(holdings, ({ one }) => ({
   fund: one(funds, {
     fields: [holdings.fundCode],
     references: [funds.code],
+  }),
+}))
+
+// 定义字典主表和子表之间的关系
+export const dictionaryTypesRelations = relations(dictionaryTypes, ({ many }) => ({
+  data: many(dictionaryData),
+}))
+
+export const dictionaryDataRelations = relations(dictionaryData, ({ one }) => ({
+  type: one(dictionaryTypes, {
+    fields: [dictionaryData.dictType],
+    references: [dictionaryTypes.type],
   }),
 }))

@@ -17,10 +17,9 @@ const { cycleTheme, currentTheme } = useTheme()
         <NuxtLink to="/leaderboard" class="hover:text-primary-hover">
           排行榜
         </NuxtLink>
-        <NuxtLink v-if="authStore.isAdmin" to="/admin/users" class="hover:text-primary-hover">
-          用户管理
+        <NuxtLink to="/account" class="px-3 py-1 rounded-md transition-colors hover:bg-gray-200 dark:hover:bg-gray-700">
+          欢迎, {{ authStore.user?.username }}
         </NuxtLink>
-        <span>欢迎, {{ authStore.user?.username }}</span>
         <button class="icon-btn" :title="`切换主题: ${currentTheme.label}`" @click="cycleTheme()">
           <div i-carbon-color-palette />
         </button>

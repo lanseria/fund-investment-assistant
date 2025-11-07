@@ -64,6 +64,13 @@
       "when": 1753262961120,
       "tag": "0008_red_payback",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1762521367743,
+      "tag": "0009_fixed_otto_octavius",
+      "breakpoints": true
     }
   ]
 }
