@@ -19,6 +19,10 @@ export const marketGroups = {
     codes: [
       'hkHSI', // 恒生指数
       'hk02837', // 恒生科技
+      'hk01810', // 小米
+      'hk00981', // 中芯国际
+      'hk09988', // 阿里巴巴
+      'hk00700', // 腾讯
     ],
   },
   US: {
@@ -26,6 +30,9 @@ export const marketGroups = {
     codes: [
       'usDJI', // 道琼斯
       'usIXIC', // 纳斯达克
+      'usTSLA', // 特斯拉
+      'usAAPL', // 苹果
+      'usNVDA', // 英伟达
     ],
   },
   JP: {
@@ -37,9 +44,9 @@ export const marketGroups = {
   Futures: {
     label: '期货',
     codes: [
-      'fuNKD', // 美元指数
       'fuGC', // COMEX黄金
       'fuCL', // NYMEX原油
+      'fuNKD', // 美元指数
     ],
   },
 }
