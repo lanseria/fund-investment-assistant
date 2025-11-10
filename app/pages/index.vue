@@ -29,9 +29,10 @@ watch(portfolioData, (newData) => {
 }, { immediate: true })
 
 // --- 排序与分组逻辑 ---
-const isGroupedBySector = ref(false) // 新增：分组状态
-const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
+const isGroupedBySector = ref(route.query.group === 'true')
+const sortKey = ref<SortableKey | null>((route.query.sort as SortableKey) || (isGroupedBySector.value ? null : 'holdingAmount'))
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
+
 const { getLabel } = useDictStore()
 const SECTOR_UNCATEGORIZED_KEY = 'unclassified'
 const SECTOR_UNCATEGORIZED_LABEL = '未分类板块'
@@ -44,9 +45,27 @@ function handleSetSort(key: SortableKey) {
     sortKey.value = key
     sortOrder.value = 'desc'
   }
-  // 排序时自动取消分组，体验更佳
+  // 排序时自动取消分组
   isGroupedBySector.value = false
+  // 更新路由，移除 group 参数
   router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
+}
+
+function toggleGrouping() {
+  const newValue = !isGroupedBySector.value
+  isGroupedBySector.value = newValue
+
+  if (newValue) {
+    // 启用分组时，清除排序状态并更新路由
+    sortKey.value = null
+    router.replace({ query: { group: 'true' } })
+  }
+  else {
+    // 关闭分组时，恢复默认排序并更新路由
+    sortKey.value = 'holdingAmount'
+    sortOrder.value = 'desc'
+    router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
+  }
 }
 
 // [核心] 计算最终要显示的数据
@@ -73,7 +92,6 @@ const displayData = computed(() => {
 
     const groupedArray = Object.values(groups).map((group) => {
       group.holdingCount = group.holdings.length
-      // 计算分组汇总数据
       group.holdings.forEach((h: Holding) => {
         if (h.holdingAmount !== null)
           group.groupTotalAmount += h.holdingAmount
@@ -83,11 +101,10 @@ const displayData = computed(() => {
       return group
     })
 
-    // 按分组总金额降序排列
     return groupedArray.sort((a, b) => b.groupTotalAmount - a.groupTotalAmount)
   }
 
-  // 2. 扁平化排序逻辑 (原 HoldingList 中的逻辑移到此处)
+  // 2. 扁平化排序逻辑
   if (!sortKey.value)
     return sourceHoldings
 
@@ -213,7 +230,7 @@ async function onSectorUpdateSuccess() {
           class="icon-btn"
           :class="{ 'text-primary': isGroupedBySector }"
           title="按板块分组"
-          @click="isGroupedBySector = !isGroupedBySector"
+          @click="toggleGrouping"
         >
           <div i-carbon-table-split />
         </button>
