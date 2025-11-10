@@ -1,5 +1,7 @@
 <script setup lang="ts">
+import type { Holding } from '~/types/holding'
 import type { LeaderboardUser } from '~/types/leaderboard'
+import HoldingList from '~/components/HoldingList.vue'
 import { appName } from '~/constants'
 
 useHead({
@@ -11,7 +13,24 @@ const { data: leaderboardData, pending, error } = useAsyncData(
   () => apiFetch<LeaderboardUser[]>('/api/leaderboard'),
 )
 
-// 根据收益率获取文本颜色
+// --- 展开/折叠逻辑 ---
+const expandedUserId = ref<number | null>(null)
+function toggleDetails(userId: number) {
+  expandedUserId.value = expandedUserId.value === userId ? null : userId
+}
+
+// --- 异步获取持仓详情 ---
+const { data: userHoldings, pending: holdingsPending, error: holdingsError } = useAsyncData(
+  'leaderboard-details',
+  () => {
+    if (expandedUserId.value === null)
+      return Promise.resolve(null)
+    return apiFetch<Holding[]>(`/api/leaderboard/${expandedUserId.value}`)
+  },
+  { watch: [expandedUserId] }, // 监听 expandedUserId 的变化
+)
+
+// 样式和格式化函数 (保持不变)
 function getProfitRateClass(rate: number) {
   if (rate > 0)
     return 'text-red-500 dark:text-red-400'
@@ -19,8 +38,6 @@ function getProfitRateClass(rate: number) {
     return 'text-green-500 dark:text-green-400'
   return 'text-gray-500'
 }
-
-// 获取排名对应的奖牌图标
 function getRankIcon(rank: number) {
   if (rank === 1)
     return 'i-twemoji-1st-place-medal text-2xl'
@@ -30,8 +47,6 @@ function getRankIcon(rank: number) {
     return 'i-twemoji-3rd-place-medal text-2xl'
   return ''
 }
-
-// 格式化货币的辅助函数
 function formatCurrency(value: number) {
   if (value === null || value === undefined)
     return '-'
@@ -58,55 +73,67 @@ function formatCurrency(value: number) {
       ...
     </div>
 
-    <!-- 重新设计数据展示部分以容纳更多信息 -->
-    <div v-else-if="leaderboardData && leaderboardData.length > 0" class="p-4 card space-y-2">
-      <div
-        v-for="user in leaderboardData"
-        :key="user.rank"
-        class="p-3 rounded-md flex transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700/50"
-      >
-        <!-- 排名  -->
-        <div class="text-lg font-bold text-center flex-shrink-0 w-12" :class="getRankIcon(user.rank) || 'text-gray-400'">
-          <span v-if="!getRankIcon(user.rank)">{{ user.rank }}</span>
-        </div>
-
-        <!-- 用户名和持仓数  -->
-        <div class="flex-grow">
-          <p class="font-semibold">
-            {{ user.username }}
-          </p>
-          <p class="text-xs text-gray-500 dark:text-gray-400">
-            持有 {{ user.holdingCount }} 只基金
-          </p>
-        </div>
-
-        <!-- [新布局] 右侧数据区，分为两列 -->
-        <div class="flex flex-shrink-0 gap-6 items-start justify-end">
-          <!-- 今日数据列 -->
-          <div class="flex flex-col w-32 items-end">
-            <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.todayProfitLoss)">
-              {{ formatCurrency(user.todayProfitLoss) }}
+    <!-- 数据展示区域 -->
+    <div v-else-if="leaderboardData && leaderboardData.length > 0" class="card overflow-hidden">
+      <div v-for="user in leaderboardData" :key="user.id" class="border-b last:border-b-0 dark:border-gray-700">
+        <!-- 可点击的用户信息行 -->
+        <div class="p-3 flex cursor-pointer transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700/50" @click="toggleDetails(user.id)">
+          <!-- ... (用户信息内容保持不变) ... -->
+          <div class="text-lg font-bold text-center flex-shrink-0 w-12" :class="getRankIcon(user.rank) || 'text-gray-400'">
+            <span v-if="!getRankIcon(user.rank)">{{ user.rank }}</span>
+          </div>
+          <div class="flex-grow">
+            <p class="font-semibold">
+              {{ user.username }}
             </p>
-            <p class="text-xs font-numeric" :class="getProfitRateClass(user.todayProfitRate)">
-              {{ user.todayProfitRate > 0 ? '+' : '' }}{{ user.todayProfitRate.toFixed(2) }}%
-            </p>
-            <p class="text-xs text-gray-400 mt-1">
-              今日盈亏
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              持有 {{ user.holdingCount }} 只基金
             </p>
           </div>
-          <!-- 累计数据列 -->
-          <div class="flex flex-col w-32 items-end">
-            <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.profitRate)">
-              {{ user.profitRate.toFixed(2) }}%
-            </p>
-            <p class="text-xs text-gray-500 font-numeric">
-              {{ formatCurrency(user.totalCost) }}
-            </p>
-            <p class="text-xs text-gray-400 mt-1">
-              总收益率 / 成本
-            </p>
+          <div class="flex flex-shrink-0 gap-6 items-start justify-end">
+            <div class="flex flex-col w-32 items-end">
+              <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.todayProfitLoss)">
+                {{ formatCurrency(user.todayProfitLoss) }}
+              </p>
+              <p class="text-xs font-numeric" :class="getProfitRateClass(user.todayProfitRate)">
+                {{ user.todayProfitRate > 0 ? '+' : '' }}{{ user.todayProfitRate.toFixed(2) }}%
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                今日盈亏
+              </p>
+            </div>
+            <div class="flex flex-col w-32 items-end">
+              <p class="text-sm font-numeric font-semibold" :class="getProfitRateClass(user.profitRate)">
+                {{ user.profitRate.toFixed(2) }}%
+              </p>
+              <p class="text-xs text-gray-500 font-numeric">
+                {{ formatCurrency(user.totalCost) }}
+              </p>
+              <p class="text-xs text-gray-400 mt-1">
+                总收益率 / 成本
+              </p>
+            </div>
           </div>
+          <!-- 展开/折叠图标 -->
+          <div
+            class="i-carbon-chevron-down text-lg ml-4 transition-transform duration-300"
+            :class="{ 'rotate-180': expandedUserId === user.id }"
+          />
         </div>
+
+        <!-- 展开的持仓详情区域 -->
+        <Transition name="slide-fade">
+          <div v-if="expandedUserId === user.id" class="bg-gray-50/50 dark:bg-black/20">
+            <div v-if="holdingsPending" class="p-8 flex items-center justify-center">
+              <div i-carbon-circle-dash class="text-2xl text-primary animate-spin" />
+              <span class="ml-2">正在加载持仓详情...</span>
+            </div>
+            <div v-else-if="holdingsError" class="text-red-500 p-8 text-center">
+              加载持仓失败: {{ holdingsError.message }}
+            </div>
+            <HoldingList v-else-if="userHoldings" :data="userHoldings" :is-grouped="false" :sort-key="null" sort-order="desc" :show-actions="false" class="!rounded-none !shadow-none" />
+          </div>
+        </Transition>
       </div>
     </div>
 
@@ -116,3 +143,17 @@ function formatCurrency(value: number) {
     </div>
   </div>
 </template>
+
+<style scoped>
+.slide-fade-enter-active {
+  transition: all 0.3s ease-out;
+}
+.slide-fade-leave-active {
+  transition: all 0.3s cubic-bezier(1, 0.5, 0.8, 1);
+}
+.slide-fade-enter-from,
+.slide-fade-leave-to {
+  transform: translateY(-10px);
+  opacity: 0;
+}
+</style>

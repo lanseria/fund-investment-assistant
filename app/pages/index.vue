@@ -28,9 +28,14 @@ watch(portfolioData, (newData) => {
   }
 }, { immediate: true })
 
-// --- 排序逻辑 ---
+// --- 排序与分组逻辑 ---
+const isGroupedBySector = ref(false) // 新增：分组状态
 const sortKey = ref<SortableKey>((route.query.sort as SortableKey) || 'holdingAmount')
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
+const { getLabel } = useDictStore()
+const SECTOR_UNCATEGORIZED_KEY = 'unclassified'
+const SECTOR_UNCATEGORIZED_LABEL = '未分类板块'
+
 function handleSetSort(key: SortableKey) {
   if (sortKey.value === key) {
     sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
@@ -39,8 +44,64 @@ function handleSetSort(key: SortableKey) {
     sortKey.value = key
     sortOrder.value = 'desc'
   }
+  // 排序时自动取消分组，体验更佳
+  isGroupedBySector.value = false
   router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
 }
+
+// [核心] 计算最终要显示的数据
+const displayData = computed(() => {
+  const sourceHoldings = holdings.value || []
+
+  // 1. 分组逻辑
+  if (isGroupedBySector.value) {
+    const groups = sourceHoldings.reduce((acc, holding) => {
+      const key = holding.sector || SECTOR_UNCATEGORIZED_KEY
+      if (!acc[key]) {
+        acc[key] = {
+          sectorKey: key,
+          sectorLabel: key === SECTOR_UNCATEGORIZED_KEY ? SECTOR_UNCATEGORIZED_LABEL : (getLabel('sectors', key) || key),
+          holdings: [],
+          holdingCount: 0,
+          groupTotalAmount: 0,
+          groupTotalProfitLoss: 0,
+        }
+      }
+      acc[key]!.holdings.push(holding)
+      return acc
+    }, {} as Record<string, any>)
+
+    const groupedArray = Object.values(groups).map((group) => {
+      group.holdingCount = group.holdings.length
+      // 计算分组汇总数据
+      group.holdings.forEach((h: Holding) => {
+        if (h.holdingAmount !== null)
+          group.groupTotalAmount += h.holdingAmount
+        if (h.todayEstimateAmount !== null && h.holdingAmount !== null)
+          group.groupTotalProfitLoss += (h.todayEstimateAmount - h.holdingAmount)
+      })
+      return group
+    })
+
+    // 按分组总金额降序排列
+    return groupedArray.sort((a, b) => b.groupTotalAmount - a.groupTotalAmount)
+  }
+
+  // 2. 扁平化排序逻辑 (原 HoldingList 中的逻辑移到此处)
+  if (!sortKey.value)
+    return sourceHoldings
+
+  return [...sourceHoldings].sort((a, b) => {
+    const key = sortKey.value!
+    const valA = a[key] ?? -Infinity
+    const valB = b[key] ?? -Infinity
+
+    if (sortOrder.value === 'asc')
+      return Number(valA) - Number(valB)
+    else
+      return Number(valB) - Number(valA)
+  })
+})
 
 // --- 模态框状态管理 ---
 const isModalOpen = ref(false)
@@ -148,6 +209,14 @@ async function onSectorUpdateSuccess() {
         <button class="icon-btn" title="刷新所有估值" :disabled="isDataLoading" @click="() => refresh()">
           <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
         </button>
+        <button
+          class="icon-btn"
+          :class="{ 'text-primary': isGroupedBySector }"
+          title="按板块分组"
+          @click="isGroupedBySector = !isGroupedBySector"
+        >
+          <div i-carbon-table-split />
+        </button>
         <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
           <div i-carbon-upload />
         </button>
@@ -172,7 +241,8 @@ async function onSectorUpdateSuccess() {
     </div>
     <HoldingList
       v-else
-      :holdings="holdings"
+      :data="displayData"
+      :is-grouped="isGroupedBySector"
       :sort-key="sortKey"
       :sort-order="sortOrder"
       @edit="openEditModal"

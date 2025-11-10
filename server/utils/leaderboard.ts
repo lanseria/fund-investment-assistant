@@ -25,6 +25,8 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
       GROUP BY h.user_id
     )
     SELECT
+      -- [修改] 选择真实的用户 ID
+      u.id,
       -- 匿名化用户名
       CONCAT(SUBSTRING(u.username, 1, 3), '***') as username,
       -- 总收益率 (基于成本)
@@ -38,9 +40,9 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
         ELSE 0
       END as today_profit_rate,
       up.holding_count,
-      -- [新增] 直接选择持仓总成本
+      -- 直接选择持仓总成本
       up.total_cost,
-      -- [新增] 计算今日预估总盈亏
+      -- 计算今日预估总盈亏
       (up.total_estimate_value - up.total_yesterday_value) as today_profit_loss
     FROM user_portfolio as up
     JOIN ${users} as u ON up.user_id = u.id
@@ -54,6 +56,7 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
 
   // [修改] 映射新字段到返回对象
   return result.rows.map((row: any, index: number) => ({
+    id: Number(row.id), // [新增] 映射用户 ID
     rank: index + 1,
     username: row.username,
     profitRate: Number(row.profit_rate),

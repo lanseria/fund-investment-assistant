@@ -1,11 +1,6 @@
-import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
-export default defineEventHandler(async (event) => {
-  // 权限校验：确保用户已登录即可访问
-  // 如果未来需要，可以放开为公开接口
-  getUserFromEvent(event)
-
+export default defineEventHandler(async () => {
   const db = useDb()
   // 一次性查询所有字典数据
   const allData = await db.query.dictionaryData.findMany({

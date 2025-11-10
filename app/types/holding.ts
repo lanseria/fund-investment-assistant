@@ -34,3 +34,13 @@ export interface HoldingSummary {
   totalPercentageChange: number
   count: number
 }
+
+// 新增类型：用于描述按板块分组后的数据结构
+export interface GroupedHolding {
+  sectorKey: string
+  sectorLabel: string
+  holdings: Holding[]
+  holdingCount: number
+  groupTotalAmount: number
+  groupTotalProfitLoss: number
+}

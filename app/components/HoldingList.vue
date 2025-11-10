@@ -1,12 +1,16 @@
 <script setup lang="ts">
-import type { Holding, SortableKey } from '~/types/holding'
+import type { GroupedHolding, Holding, SortableKey } from '~/types/holding'
 import { SECTOR_DICT_TYPE } from '~/constants'
 
-const props = defineProps<{
-  holdings: Holding[]
+withDefaults(defineProps<{
+  data: Holding[] | GroupedHolding[] // 数据可以是扁平的或分组的
+  isGrouped: boolean // 标志位，用于区分模式
   sortKey: SortableKey | null
   sortOrder: 'asc' | 'desc'
-}>()
+  showActions?: boolean // [新增] 控制是否显示操作列
+}>(), {
+  showActions: true, // 默认显示操作列
+})
 
 const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector'])
 
@@ -16,23 +20,7 @@ function setSort(key: SortableKey) {
   emit('set-sort', key)
 }
 
-const sortedHoldings = computed(() => {
-  if (!props.sortKey)
-    return props.holdings
-
-  return [...props.holdings].sort((a, b) => {
-    const key = props.sortKey!
-    const valA = a[key] ?? -Infinity
-    const valB = b[key] ?? -Infinity
-
-    if (props.sortOrder === 'asc')
-      return Number(valA) - Number(valB)
-    else
-      return Number(valB) - Number(valA)
-  })
-})
-
-function getProfitClass(holding: Holding) {
+function getProfitClass(holding: { holdingProfitAmount: number | null }) {
   if (holding.holdingProfitAmount === null || holding.holdingProfitAmount === undefined)
     return 'text-gray-500'
   if (holding.holdingProfitAmount > 0)
@@ -42,7 +30,7 @@ function getProfitClass(holding: Holding) {
   return 'text-gray-500'
 }
 
-function getChangeClass(holding: Holding) {
+function getChangeClass(holding: { percentageChange: number | null }) {
   if (holding.percentageChange === null || holding.percentageChange === undefined)
     return 'text-gray-500'
   if (holding.percentageChange > 0)
@@ -115,20 +103,17 @@ const strategiesForTags = {
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               更新时间
             </th>
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-20 dark:text-gray-300">
+            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-20 dark:text-gray-300">
               操作
             </th>
           </tr>
         </thead>
-        <tbody>
-          <tr v-for="h in sortedHoldings" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-            <!-- 基金名称 -->
+        <!-- 默认列表视图 -->
+        <tbody v-if="!isGrouped">
+          <tr v-for="h in (data as Holding[])" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            <!-- ... (基金行内容保持不变，直接复制) ... -->
             <td class="font-semibold p-4">
-              <button
-                class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors"
-                :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'"
-                @click="emit('edit-sector', h)"
-              >
+              <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', h)">
                 {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
               </button>
               <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
@@ -137,22 +122,13 @@ const strategiesForTags = {
               <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
                 {{ h.code }}
               </div>
-              <!-- 策略信号标签容器 -->
               <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
-                <span
-                  v-for="(name, key) in strategiesForTags"
-                  :key="key"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full"
-                  :class="getSignalTagClass(h.signals[key] || '无信号')"
-                >
+                <span v-for="(name, key) in strategiesForTags" :key="key" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="getSignalTagClass(h.signals[key] || '无信号')">
                   {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
                 </span>
               </div>
             </td>
-
-            <!-- 持有市值和份额合并在一个单元格 -->
             <td class="font-mono p-4 text-right">
-              <!-- 处理关注状态 -->
               <template v-if="h.holdingAmount !== null">
                 <div class="font-numeric font-semibold">
                   {{ formatCurrency(h.holdingAmount) }}
@@ -168,10 +144,7 @@ const strategiesForTags = {
                 <span class="text-sm text-gray-400">仅关注</span>
               </template>
             </td>
-
-            <!-- 持有收益和收益率 -->
             <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-              <!-- 处理关注状态 -->
               <template v-if="h.holdingProfitRate !== null">
                 <div class="font-numeric font-semibold">
                   {{ formatCurrency(h.holdingProfitAmount) }}
@@ -187,13 +160,10 @@ const strategiesForTags = {
                 <span class="text-gray-400">-</span>
               </template>
             </td>
-
-            <!-- 估算涨跌和收益 -->
             <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
               <div class="font-numeric font-semibold">
                 {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
               </div>
-              <!-- 处理关注状态 -->
               <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
                 {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
               </div>
@@ -204,24 +174,18 @@ const strategiesForTags = {
                 {{ h.todayEstimateNav !== null ? h.todayEstimateNav : '-' }}
               </div>
             </td>
-
             <!-- 更新时间 -->
             <td class="text-sm text-gray-500 font-numeric p-4 text-right">
               {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
             </td>
 
             <!-- 操作 -->
-            <td class="p-4 text-right">
+            <td v-if="showActions" class="p-4 text-right">
               <div class="flex gap-2 justify-end">
                 <button class="icon-btn" title="修改" @click="emit('edit', h)">
                   <div i-carbon-edit />
                 </button>
-                <button
-                  v-if="h.holdingAmount !== null"
-                  class="icon-btn hover:text-orange-500"
-                  title="清仓 (转为仅关注)"
-                  @click="emit('clear-position', h)"
-                >
+                <button v-if="h.holdingAmount !== null" class="icon-btn hover:text-orange-500" title="清仓 (转为仅关注)" @click="emit('clear-position', h)">
                   <div i-carbon-shopping-cart-clear />
                 </button>
                 <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
@@ -231,6 +195,115 @@ const strategiesForTags = {
             </td>
           </tr>
         </tbody>
+        <!-- 板块分组视图 -->
+        <template v-if="isGrouped">
+          <tbody v-for="group in (data as GroupedHolding[])" :key="group.sectorKey" class="border-b-2 border-gray-200 dark:border-gray-700">
+            <!-- 分组头 -->
+            <tr class="bg-gray-100 dark:bg-gray-700/50">
+              <td class="font-semibold p-3" colspan="2">
+                {{ group.sectorLabel }} ({{ group.holdingCount }})
+              </td>
+              <td class="font-mono p-3 text-right" colspan="2">
+                <div class="font-numeric font-semibold">
+                  {{ formatCurrency(group.groupTotalAmount) }}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  板块市值
+                </div>
+              </td>
+              <td class="font-mono p-3 text-right" :colspan="showActions ? 2 : 1">
+                <div class="font-numeric font-semibold" :class="getChangeClass({ percentageChange: group.groupTotalProfitLoss })">
+                  {{ formatCurrency(group.groupTotalProfitLoss) }}
+                </div>
+                <div class="text-xs text-gray-500 dark:text-gray-400">
+                  今日预估盈亏
+                </div>
+              </td>
+            </tr>
+            <!-- 组内基金列表 -->
+            <tr v-for="h in group.holdings" :key="h.code" class="border-t transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+              <!-- ... (基金行内容保持不变，直接复制) ... -->
+              <td class="font-semibold p-4">
+                <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', h)">
+                  {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
+                </button>
+                <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
+                  {{ h.name }}
+                </NuxtLink>
+                <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
+                  {{ h.code }}
+                </div>
+                <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
+                  <span v-for="(name, key) in strategiesForTags" :key="key" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="getSignalTagClass(h.signals[key] || '无信号')">
+                    {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
+                  </span>
+                </div>
+              </td>
+              <td class="font-mono p-4 text-right">
+                <template v-if="h.holdingAmount !== null">
+                  <div class="font-numeric font-semibold">
+                    {{ formatCurrency(h.holdingAmount) }}
+                  </div>
+                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                    {{ h.shares?.toFixed(2) }} 份
+                  </div>
+                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                    {{ h.yesterdayNav }}
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="text-sm text-gray-400">仅关注</span>
+                </template>
+              </td>
+              <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
+                <template v-if="h.holdingProfitRate !== null">
+                  <div class="font-numeric font-semibold">
+                    {{ formatCurrency(h.holdingProfitAmount) }}
+                  </div>
+                  <div class="text-xs font-numeric">
+                    {{ `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` }}
+                  </div>
+                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                    {{ h.costPrice }}
+                  </div>
+                </template>
+                <template v-else>
+                  <span class="text-gray-400">-</span>
+                </template>
+              </td>
+              <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
+                <div class="font-numeric font-semibold">
+                  {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
+                </div>
+                <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
+                  {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
+                </div>
+                <div v-else class="text-xs font-numeric">
+                  -
+                </div>
+                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
+                  {{ h.todayEstimateNav !== null ? h.todayEstimateNav : '-' }}
+                </div>
+              </td>
+              <td class="text-sm text-gray-500 font-numeric p-4 text-right">
+                {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
+              </td>
+              <td v-if="showActions" class="p-4 text-right">
+                <div class="flex gap-2 justify-end">
+                  <button class="icon-btn" title="修改" @click="emit('edit', h)">
+                    <div i-carbon-edit />
+                  </button>
+                  <button v-if="h.holdingAmount !== null" class="icon-btn hover:text-orange-500" title="清仓 (转为仅关注)" @click="emit('clear-position', h)">
+                    <div i-carbon-shopping-cart-clear />
+                  </button>
+                  <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
+                    <div i-carbon-trash-can />
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </template>
       </table>
     </div>
   </div>
