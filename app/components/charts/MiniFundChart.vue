@@ -53,6 +53,7 @@ const chartOption = computed<EChartsOption>(() => {
       // 简化均线
       { name: 'MA5', type: 'line', data: props.history.map(p => p.ma5), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
       { name: 'MA20', type: 'line', data: props.history.map(p => p.ma20), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
+      { name: 'MA120', type: 'line', data: props.history.map(p => p.ma120), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
     ],
   }
 })

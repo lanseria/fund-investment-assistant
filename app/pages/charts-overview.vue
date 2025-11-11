@@ -36,7 +36,7 @@ const { data: chartData, pending, error, refresh } = useAsyncData(
           chartApiData = await apiFetch(`/api/fund/holdings/${fund.code}/history`, {
             params: {
               strategy: selectedStrategy.value || undefined,
-              ma: [5, 10, 20],
+              ma: [5, 10, 20, 120],
             },
           })
         }

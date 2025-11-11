@@ -25,6 +25,7 @@ export interface HoldingHistoryPoint {
   ma5?: number | null
   ma10?: number | null
   ma20?: number | null
+  ma120?: number | null
 }
 
 export interface HoldingSummary {

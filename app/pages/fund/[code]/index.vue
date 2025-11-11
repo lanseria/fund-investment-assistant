@@ -38,7 +38,7 @@ const { data, pending, error, refresh } = await useAsyncData(
     const fetchGenericStrategy = (strategy: string = '') =>
       apiFetch(`/api/fund/holdings/${code}/history`, {
         params: {
-          ma: [5, 10, 20],
+          ma: [5, 10, 20, 120],
           strategy: strategy || undefined,
         },
       })

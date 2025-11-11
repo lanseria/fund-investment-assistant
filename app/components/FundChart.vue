@@ -60,6 +60,7 @@ const chartOption = computed<EChartsOption>(() => {
   const ma5 = props.history.map(p => p.ma5)
   const ma10 = props.history.map(p => p.ma10)
   const ma20 = props.history.map(p => p.ma20)
+  const ma120 = props.history.map(p => p.ma120)
 
   const isDark = colorMode.value === 'dark'
   const textColor = isDark ? '#d1d5db' : '#374151'
@@ -67,7 +68,7 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     tooltip: { trigger: 'axis' },
-    legend: { data: ['净值', 'MA5', 'MA10', 'MA20'], top: 40, textStyle: { color: textColor } },
+    legend: { data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120'], top: 40, textStyle: { color: textColor } },
     grid: { top: 70, left: '10%', right: '10%', bottom: '15%' },
     xAxis: { type: 'category', data: dates, axisLabel: { color: textColor } },
     yAxis: { type: 'value', scale: true, axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) } },
@@ -101,6 +102,7 @@ const chartOption = computed<EChartsOption>(() => {
       { name: 'MA5', type: 'line', data: ma5, showSymbol: false, lineStyle: { type: 'dashed' } },
       { name: 'MA10', type: 'line', data: ma10, showSymbol: false, lineStyle: { type: 'dashed' } },
       { name: 'MA20', type: 'line', data: ma20, showSymbol: false, lineStyle: { type: 'dashed' } },
+      { name: 'MA120', type: 'line', data: ma120, showSymbol: false, lineStyle: { type: 'dashed' } },
     ],
   }
 })

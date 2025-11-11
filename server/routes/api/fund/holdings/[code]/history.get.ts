@@ -10,7 +10,7 @@ const querySchema = z.object({
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   ma: z.union([z.string(), z.array(z.string())]).optional(),
-  strategy: z.string().optional(), // [新增] 接收策略名称参数
+  strategy: z.string().optional(), // 接收策略名称参数
 })
 
 export default defineEventHandler(async (event) => {
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
 
   const history = await getHistoryWithMA(code, start_date, end_date, maOptions)
 
-  // [新增] 如果请求中包含策略名称，则查询并返回对应的信号
+  // 如果请求中包含策略名称，则查询并返回对应的信号
   let signals: any[] = []
   if (strategy) {
     const db = useDb()
@@ -39,7 +39,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // [修改] 返回包含历史数据和策略信号的对象
+  // 返回包含历史数据和策略信号的对象
   return {
     history,
     signals,
