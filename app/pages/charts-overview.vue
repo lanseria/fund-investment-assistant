@@ -80,8 +80,8 @@ onMounted(async () => {
       </p>
     </header>
 
-    <div class="mb-8 p-4 card flex flex-wrap gap-4 items-center">
-      <div>
+    <div class="mb-8 p-4 card flex flex-wrap gap-4 items-center justify-start">
+      <div class="flex gap-2 items-center">
         <label for="strategy-select" class="text-sm font-medium mr-2">策略选择:</label>
         <CustomSelect
           id="strategy-select"

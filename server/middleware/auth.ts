@@ -8,6 +8,7 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/logout',
   '/api/test-fetch',
   '/api/dev/init-admin',
+  '/api/dicts/all',
 ]
 
 export default defineEventHandler(async (event) => {
