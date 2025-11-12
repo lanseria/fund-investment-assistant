@@ -63,6 +63,22 @@ const chartOption = computed<EChartsOption>(() => {
             [{ yAxis: config.rsiLower, itemStyle: { color: '#22c55e' } }, { yAxis: 0 }],
           ],
         },
+        // [新增] 添加超买超卖标记线
+        markLine: {
+          silent: true,
+          symbol: 'none',
+          lineStyle: {
+            type: 'dashed',
+            width: 1,
+          },
+          data: [
+            // 超买线 (Overbought)
+            { yAxis: config.rsiUpper, lineStyle: { color: '#f87171' } },
+            // 超卖线 (Oversold)
+            { yAxis: config.rsiLower, lineStyle: { color: '#4ade80' } },
+          ],
+          label: { show: false }, // 在迷你图表中不显示标签，保持简洁
+        },
       },
     ],
   } as EChartsOption
