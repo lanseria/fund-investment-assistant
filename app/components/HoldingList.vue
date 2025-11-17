@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { GroupedHolding, Holding, SortableKey } from '~/types/holding'
+import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
 import { SECTOR_DICT_TYPE } from '~/constants'
 
 withDefaults(defineProps<{
@@ -15,6 +16,35 @@ withDefaults(defineProps<{
 const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector'])
 
 const { getLabel } = useDictStore()
+
+// --- [新增] 悬停图表逻辑 ---
+const hoveredFundCode = ref<string | null>(null)
+const hoveredStrategyKey = ref<string | null>(null)
+const tooltipStyle = ref({ top: '0px', left: '0px', opacity: 0 })
+
+function handleTagHover(event: MouseEvent, fundCode: string, strategyKey: string) {
+  const target = event.currentTarget as HTMLElement
+  if (!target)
+    return
+
+  const rect = target.getBoundingClientRect()
+  hoveredFundCode.value = fundCode
+  hoveredStrategyKey.value = strategyKey
+
+  // 定位在标签下方
+  tooltipStyle.value = {
+    top: `${rect.bottom + 8}px`, // +8px 间距，直接使用视口坐标
+    left: `${rect.left}px`, // 直接使用视口坐标
+    opacity: 1,
+  }
+}
+
+function handleTagLeave() {
+  hoveredFundCode.value = null
+  hoveredStrategyKey.value = null
+  tooltipStyle.value.opacity = 0
+}
+// --- [结束] ---
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
@@ -58,9 +88,9 @@ function getSignalTagClass(signal: string) {
 
 // 定义要显示的策略及其简称
 const strategiesForTags = {
-  bollinger_bands: '布林',
   rsi: 'RSI',
   macd: 'MACD',
+  bollinger_bands: '布林',
 }
 </script>
 
@@ -110,7 +140,6 @@ const strategiesForTags = {
         <!-- 默认列表视图 -->
         <tbody v-if="!isGrouped">
           <tr v-for="h in (data as Holding[])" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-            <!-- ... (基金行内容保持不变，直接复制) ... -->
             <td class="font-semibold p-4">
               <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', h)">
                 {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
@@ -122,7 +151,14 @@ const strategiesForTags = {
                 {{ h.code }}
               </div>
               <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
-                <span v-for="(name, key) in strategiesForTags" :key="key" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="getSignalTagClass(h.signals[key] || '无信号')">
+                <span
+                  v-for="(name, key) in strategiesForTags"
+                  :key="key"
+                  class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
+                  :class="getSignalTagClass(h.signals[key] || '无信号')"
+                  @mouseenter="handleTagHover($event, h.code, key as string)"
+                  @mouseleave="handleTagLeave"
+                >
                   {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
                 </span>
               </div>
@@ -233,7 +269,14 @@ const strategiesForTags = {
                   {{ h.code }}
                 </div>
                 <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
-                  <span v-for="(name, key) in strategiesForTags" :key="key" class="text-xs font-medium px-2 py-0.5 rounded-full" :class="getSignalTagClass(h.signals[key] || '无信号')">
+                  <span
+                    v-for="(name, key) in strategiesForTags"
+                    :key="key"
+                    class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
+                    :class="getSignalTagClass(h.signals[key] || '无信号')"
+                    @mouseenter="handleTagHover($event, h.code, key as string)"
+                    @mouseleave="handleTagLeave"
+                  >
                     {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
                   </span>
                 </div>
@@ -305,5 +348,19 @@ const strategiesForTags = {
         </template>
       </table>
     </div>
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="hoveredFundCode && hoveredStrategyKey"
+          class="pointer-events-none transition-opacity fixed z-50"
+          :style="tooltipStyle"
+        >
+          <StrategyChartTooltip
+            :fund-code="hoveredFundCode"
+            :strategy-key="hoveredStrategyKey"
+          />
+        </div>
+      </Transition>
+    </Teleport>
   </div>
 </template>

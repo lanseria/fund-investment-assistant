@@ -39,13 +39,12 @@ const { data: chartData, pending, error, refresh } = useAsyncData(
             },
           })
         }
-        // [核心修改] 返回更完整的基金信息
+        // 返回更完整的基金信息
         return {
           code: fund.code,
           name: fund.name,
           strategy: selectedStrategy.value,
           data: chartApiData,
-          // --- [新增] ---
           sector: fund.sector,
           holdingAmount: fund.holdingAmount,
           percentageChange: fund.percentageChange,
