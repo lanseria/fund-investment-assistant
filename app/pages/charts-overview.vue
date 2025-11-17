@@ -10,14 +10,14 @@ const holdingStore = useHoldingStore()
 const fundList = computed(() => holdingStore.holdings)
 
 const strategySelectOptions = [
+  { value: 'bollinger_bands', label: '布林带策略' },
   { value: 'rsi', label: 'RSI 策略' },
   { value: 'macd', label: 'MACD 策略' },
   { value: 'ma_cross', label: '双均线交叉策略' },
-  { value: 'bollinger_bands', label: '布林带策略' },
   { value: '', label: '基础走势' },
 ]
 
-const selectedStrategy = ref('rsi')
+const selectedStrategy = ref('bollinger_bands')
 const activeDateFilter = ref('3m')
 
 const { data: chartData, pending, error, refresh } = useAsyncData(

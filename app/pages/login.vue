@@ -30,6 +30,12 @@ async function handleLogin() {
     isLoading.value = false
   }
 }
+
+onMounted(() => {
+  if (authStore.isAuthenticated) {
+    navigateTo('/')
+  }
+})
 </script>
 
 <template>
