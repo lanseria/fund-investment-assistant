@@ -7,8 +7,8 @@ import { ofetch } from 'ofetch'
 import { holdings, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
-const STRATEGIES_TO_RUN = ['rsi', 'bollinger_bands', 'ma_cross', 'macd']
-const STRATEGIES_REQUIRING_HOLDING_STATUS = ['bollinger_bands', 'ma_cross', 'macd']
+const STRATEGIES_TO_RUN = ['rsi', 'bollinger_bands', 'macd']
+const STRATEGIES_REQUIRING_HOLDING_STATUS = ['bollinger_bands', 'macd']
 
 /**
  * 为所有持仓基金执行策略分析，并支持覆盖当天数据

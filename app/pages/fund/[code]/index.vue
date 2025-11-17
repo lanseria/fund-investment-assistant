@@ -51,13 +51,11 @@ const { data, pending, error, refresh } = await useAsyncData(
       baseData,
       rsiData,
       macData,
-      maCrossData,
       bollingerData,
     ] = await Promise.all([
       fetchGenericStrategy(''),
       fetchRsiStrategy(),
       fetchGenericStrategy('macd'),
-      fetchGenericStrategy('ma_cross'),
       fetchGenericStrategy('bollinger_bands'),
     ])
 
@@ -66,7 +64,6 @@ const { data, pending, error, refresh } = await useAsyncData(
       base: baseData,
       rsi: rsiData,
       macd: macData,
-      maCross: maCrossData,
       bollingerBands: bollingerData,
     }
   },
@@ -202,15 +199,6 @@ watch(data, (newData) => {
         :history="data.macd.history"
         :signals="data.macd.signals"
         :title="`基金 ${fundName} - MACD 策略`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
-        @signal-click="openSignalDetails"
-      />
-
-      <GenericStrategyChart
-        :history="data.maCross.history"
-        :signals="data.maCross.signals"
-        :title="`基金 ${fundName} - 双均线交叉策略`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"

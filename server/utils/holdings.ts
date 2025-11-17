@@ -466,6 +466,24 @@ export async function getUserHoldingsAndSummary(userId: number) {
     return holdingData
   }).filter(Boolean)
 
+  // 默认排序：持仓的基金优先，按持仓市值降序；仅关注的基金其次，按代码升序
+  formattedHoldings.sort((a, b) => {
+    const aIsHeld = a.holdingAmount !== null
+    const bIsHeld = b.holdingAmount !== null
+
+    if (aIsHeld && !bIsHeld)
+      return -1 // a (持仓) 在前
+    if (!aIsHeld && bIsHeld)
+      return 1 // b (持仓) 在前
+
+    // 如果两者都持仓，按持仓市值降序
+    if (aIsHeld && bIsHeld)
+      return b.holdingAmount! - a.holdingAmount!
+
+    // 如果两者都仅关注，按基金代码升序
+    return a.code.localeCompare(b.code)
+  })
+
   const totalProfitLoss = totalEstimateAmount.minus(totalHoldingAmount)
   const totalPercentageChange = totalHoldingAmount.isGreaterThan(0)
     ? totalProfitLoss.dividedBy(totalHoldingAmount).times(100)

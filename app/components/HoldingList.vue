@@ -58,10 +58,9 @@ function getSignalTagClass(signal: string) {
 
 // 定义要显示的策略及其简称
 const strategiesForTags = {
+  bollinger_bands: '布林',
   rsi: 'RSI',
   macd: 'MACD',
-  ma_cross: '均线',
-  bollinger_bands: '布林',
 }
 </script>
 
