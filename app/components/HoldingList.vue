@@ -31,10 +31,35 @@ function handleTagHover(event: MouseEvent, fundCode: string, strategyKey: string
   hoveredFundCode.value = fundCode
   hoveredStrategyKey.value = strategyKey
 
-  // 定位在标签下方
+  // Tooltip 尺寸预估 (基于 StrategyChartTooltip 组件的 h-40 w-64 + padding/border)
+  // h-40(160px) + p-2(16px) + border(2px) ≈ 178px
+  const TOOLTIP_HEIGHT = 180
+  const GAP = 8
+
+  // 获取视口高度
+  const viewportHeight = window.innerHeight
+
+  // 默认位置：在元素下方
+  let top = rect.bottom + GAP
+
+  // 智能判断：如果下方空间不足以容纳 tooltip，且上方空间充足，则显示在上方
+  const spaceBelow = viewportHeight - rect.bottom
+  if (spaceBelow < TOOLTIP_HEIGHT && rect.top > TOOLTIP_HEIGHT) {
+    // 显示在上方：元素顶部 - tooltip高度 - 间距
+    top = rect.top - TOOLTIP_HEIGHT - GAP
+  }
+
+  // 计算 Left (简单的右侧边界检查，防止溢出屏幕右侧)
+  const TOOLTIP_WIDTH = 270 // w-64(256px) + padding + border
+  const viewportWidth = window.innerWidth
+  let left = rect.left
+  if (left + TOOLTIP_WIDTH > viewportWidth) {
+    left = viewportWidth - TOOLTIP_WIDTH - GAP
+  }
+
   tooltipStyle.value = {
-    top: `${rect.bottom + 8}px`, // +8px 间距，直接使用视口坐标
-    left: `${rect.left}px`, // 直接使用视口坐标
+    top: `${top}px`,
+    left: `${left}px`,
     opacity: 1,
   }
 }

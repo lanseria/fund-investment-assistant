@@ -4,7 +4,6 @@ import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
-  // 权限校验
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
     throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
