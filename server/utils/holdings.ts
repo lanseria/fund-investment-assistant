@@ -45,7 +45,7 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
     const percentageChangeBN = new BigNumber(realtimeData.percentageChange)
     let estimateNavBN: BigNumber | null = null
 
-    // [核心逻辑修改] 如果昨日净值有效，则根据 API 返回的涨跌幅计算估算净值
+    // 如果昨日净值有效，则根据 API 返回的涨跌幅计算估算净值
     if (yesterdayNavBN.isGreaterThan(0)) {
       // 估值 = 昨日净值 * (1 + 涨跌幅 / 100)
       const multiplier = new BigNumber(1).plus(percentageChangeBN.dividedBy(100))
@@ -57,9 +57,7 @@ async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
       name: realtimeData.name,
       fundType,
       yesterdayNav: yesterdayNavBN.toString(),
-      // [修改] 存储从 API 获取的涨跌幅
       percentageChange: percentageChangeBN.toNumber(),
-      // [修改] 存储我们自己计算出的估值
       todayEstimateNav: estimateNavBN ? estimateNavBN.toNumber() : null,
       todayEstimateUpdateTime: new Date(realtimeData.updateTime) || null,
     };

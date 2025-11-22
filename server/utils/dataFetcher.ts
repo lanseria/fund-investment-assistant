@@ -96,7 +96,6 @@ export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundR
       headers: { Referer: 'http://fund.eastmoney.com/' },
     })
 
-    // 现在 responseText 保证是一个字符串，可以安全地调用 .replace()
     const jsonStr = responseText.replace('jsonpgz(', '').replace(');', '')
     const parsedData: RealtimeEstimateResponse = JSON.parse(jsonStr)
 
