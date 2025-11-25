@@ -15,9 +15,10 @@ export interface Holding {
   percentageChange: number | null
   todayEstimateUpdateTime: string | null
   signals: Record<string, string>
+  bias20: number | null
 }
 
-export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate'
+export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'bias20'
 
 export interface HoldingHistoryPoint {
   date: string

@@ -111,6 +111,15 @@ function getSignalTagClass(signal: string) {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300'
 }
 
+// 获取 BIAS 标签样式
+function getBiasTagClass(bias: number) {
+  // BIAS > 0 (价格在均线上方) -> 红色 (A股习惯)
+  // BIAS < 0 (价格在均线下方) -> 绿色
+  if (bias > 0)
+    return 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
+  return 'bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/50'
+}
+
 // 定义要显示的策略及其简称
 const strategiesForTags = {
   rsi: 'RSI',
@@ -125,7 +134,7 @@ const strategiesForTags = {
       <table class="text-left w-full table-fixed">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <th class="text-sm text-gray-600 font-semibold p-4 w-260px dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 w-280px dark:text-gray-300">
               基金名称 / 策略信号
             </th>
 
@@ -185,6 +194,15 @@ const strategiesForTags = {
                   @mouseleave="handleTagLeave"
                 >
                   {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
+                </span>
+                <!-- 实时 BIAS20 标签 (分组视图) -->
+                <span
+                  v-if="h.bias20 !== null && h.bias20 !== undefined"
+                  class="text-xs font-medium font-numeric px-2 py-0.5 rounded-full cursor-help"
+                  :class="getBiasTagClass(h.bias20)"
+                  title="实时乖离率 (BIAS20): (现价 - MA20) / MA20"
+                >
+                  BIAS: {{ h.bias20 > 0 ? '+' : '' }}{{ h.bias20.toFixed(2) }}%
                 </span>
               </div>
             </td>
@@ -303,6 +321,15 @@ const strategiesForTags = {
                     @mouseleave="handleTagLeave"
                   >
                     {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
+                  </span>
+                  <!-- 实时 BIAS20 标签 -->
+                  <span
+                    v-if="h.bias20 !== null && h.bias20 !== undefined"
+                    class="text-xs font-medium font-numeric px-2 py-0.5 rounded-full cursor-help"
+                    :class="getBiasTagClass(h.bias20)"
+                    title="实时乖离率 (BIAS20): (现价 - MA20) / MA20"
+                  >
+                    BIAS: {{ h.bias20 > 0 ? '+' : '' }}{{ h.bias20.toFixed(2) }}%
                   </span>
                 </div>
               </td>

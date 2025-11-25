@@ -1,7 +1,7 @@
 // server/utils/holdings.ts
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
-import { and, desc, eq, gte, inArray, lte } from 'drizzle-orm'
+import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
@@ -313,6 +313,49 @@ export async function syncSingleFundHistory(code: string): Promise<number> {
   return newRecords.length
 }
 
+/**
+ * [新增] 批量获取指定基金代码最近19天的净值总和与数量
+ * 用于计算实时 MA20
+ */
+async function getBatchLast19NavSums(codes: string[]) {
+  if (codes.length === 0)
+    return new Map<string, { sum: number, count: number }>()
+
+  const db = useDb()
+
+  // 使用 SQL 窗口函数获取每个基金最近的 19 条记录
+  // 注意：这里取19条，加上当天的实时估值正好凑成20条
+  const query = sql`
+    WITH RankedNavs AS (
+      SELECT 
+        code, 
+        nav,
+        ROW_NUMBER() OVER (PARTITION BY code ORDER BY nav_date DESC) as rn
+      FROM ${navHistory}
+      WHERE code IN ${codes}
+    )
+    SELECT 
+      code, 
+      SUM(nav) as total_nav, 
+      COUNT(nav) as nav_count
+    FROM RankedNavs
+    WHERE rn <= 19
+    GROUP BY code
+  `
+
+  const result = await db.execute(query)
+  const map = new Map<string, { sum: number, count: number }>()
+
+  for (const row of result.rows) {
+    map.set(String(row.code), {
+      sum: Number(row.total_nav),
+      count: Number(row.nav_count),
+    })
+  }
+
+  return map
+}
+
 // 获取历史和MA的函数基本不变，因为它操作的是 navHistory
 export async function getHistoryWithMA(code: string, startDate?: string, endDate?: string, maOptions: number[] = []) {
   const db = useDb()
@@ -395,6 +438,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       signalsMap.set(s.fundCode, {})
     signalsMap.get(s.fundCode)![s.strategyName] = s.signal
   }
+  const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
 
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
@@ -408,6 +452,32 @@ export async function getUserHoldingsAndSummary(userId: number) {
     // 判断是否为实际持仓
     const isHeld = h.shares !== null && h.costPrice !== null && new BigNumber(h.shares).isGreaterThan(0)
 
+    // 计算实时 BIAS20
+    let bias20: number | null = null
+    const historyStats = historyStatsMap.get(fundInfo.code)
+
+    // 确定当前价格：优先使用今日估值，否则使用昨日净值
+    const currentPrice = fundInfo.todayEstimateNav
+      ? Number(fundInfo.todayEstimateNav)
+      : Number(fundInfo.yesterdayNav)
+
+    if (currentPrice > 0 && historyStats) {
+      // 实时 MA20 = (历史19日之和 + 当前价格) / (历史条数 + 1)
+      const totalSum = new BigNumber(historyStats.sum).plus(currentPrice)
+      const count = historyStats.count + 1
+
+      // 只有数据足够多（比如至少有10天数据）才计算，避免偏差过大，这里宽松处理
+      if (count > 0) {
+        const ma20 = totalSum.dividedBy(count)
+        // BIAS = (Current - MA20) / MA20 * 100
+        bias20 = new BigNumber(currentPrice)
+          .minus(ma20)
+          .dividedBy(ma20)
+          .times(100)
+          .toNumber()
+      }
+    }
+
     let holdingData: any = {
       code: fundInfo.code,
       name: fundInfo.name,
@@ -417,6 +487,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
+      bias20,
     }
 
     if (isHeld) {
