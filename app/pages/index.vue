@@ -30,12 +30,21 @@ watch(portfolioData, (newData) => {
 
 // --- 排序与分组逻辑 ---
 const isGroupedBySector = ref(route.query.group === 'true')
+// 仅看持仓的状态初始化
+const isHeldOnly = ref(route.query.filter === 'held')
 const sortKey = ref<SortableKey | null>((route.query.sort as SortableKey) || (isGroupedBySector.value ? null : 'holdingAmount'))
 const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
 
 const { getLabel } = useDictStore()
 const SECTOR_UNCATEGORIZED_KEY = 'unclassified'
 const SECTOR_UNCATEGORIZED_LABEL = '未分类板块'
+// 辅助函数：构建当前的查询参数对象
+function getQueryParams() {
+  const query: Record<string, string> = {}
+  if (isHeldOnly.value)
+    query.filter = 'held'
+  return query
+}
 
 function handleSetSort(key: SortableKey) {
   if (sortKey.value === key) {
@@ -48,7 +57,7 @@ function handleSetSort(key: SortableKey) {
   // 排序时自动取消分组
   isGroupedBySector.value = false
   // 更新路由，移除 group 参数
-  router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
+  router.replace({ query: { ...getQueryParams(), sort: sortKey.value, order: sortOrder.value } })
 }
 
 function toggleGrouping() {
@@ -58,19 +67,38 @@ function toggleGrouping() {
   if (newValue) {
     // 启用分组时，清除排序状态并更新路由
     sortKey.value = null
-    router.replace({ query: { group: 'true' } })
+    router.replace({ query: { ...getQueryParams(), group: 'true' } })
   }
   else {
     // 关闭分组时，恢复默认排序并更新路由
     sortKey.value = 'holdingAmount'
     sortOrder.value = 'desc'
-    router.replace({ query: { sort: sortKey.value, order: sortOrder.value } })
+    router.replace({ query: { ...getQueryParams(), sort: sortKey.value, order: sortOrder.value } })
   }
 }
 
-// [核心] 计算最终要显示的数据
+// 切换仅显示持仓的函数
+function toggleHeldFilter() {
+  isHeldOnly.value = !isHeldOnly.value
+
+  // 保持当前的分组或排序状态
+  const query = { ...route.query }
+
+  if (isHeldOnly.value)
+    query.filter = 'held'
+  else
+    delete query.filter
+
+  router.replace({ query })
+}
+
+// 计算最终要显示的数据
 const displayData = computed(() => {
-  const sourceHoldings = holdings.value || []
+  let sourceHoldings = holdings.value || []
+  // 1. 先执行筛选逻辑
+  if (isHeldOnly.value) {
+    sourceHoldings = sourceHoldings.filter(h => h.holdingAmount !== null)
+  }
 
   // 1. 分组逻辑
   if (isGroupedBySector.value) {
@@ -228,6 +256,14 @@ async function onSectorUpdateSuccess() {
         </button>
         <button
           class="icon-btn"
+          :class="{ 'text-primary': isHeldOnly }"
+          :title="isHeldOnly ? '显示全部' : '仅显示持仓'"
+          @click="toggleHeldFilter"
+        >
+          <div i-carbon-wallet />
+        </button>
+        <button
+          class="icon-btn"
           :class="{ 'text-primary': isGroupedBySector }"
           title="按板块分组"
           @click="toggleGrouping"
@@ -255,6 +291,10 @@ async function onSectorUpdateSuccess() {
     <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>暂无持仓数据，请先添加基金。</p>
+    </div>
+    <div v-else-if="displayData.length === 0" class="text-gray-500 py-20 text-center card">
+      <div i-carbon-filter-remove class="text-5xl mx-auto mb-4" />
+      <p>当前筛选条件下无基金数据。</p>
     </div>
     <HoldingList
       v-else
