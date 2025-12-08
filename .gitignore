@@ -9,3 +9,4 @@ dist
 public/assets/fonts
 ai/project_context.txt
 .env.production
+ai/project_context.xml

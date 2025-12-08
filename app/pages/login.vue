@@ -15,6 +15,10 @@ const credentials = reactive({ username: '', password: '' })
 const isLoading = ref(false)
 const errorMessage = ref('') // 用于存储错误信息
 
+if (authStore.isAuthenticated) {
+  navigateTo('/')
+}
+
 async function handleLogin() {
   isLoading.value = true
   errorMessage.value = '' // 开始登录前清空错误信息
@@ -30,12 +34,6 @@ async function handleLogin() {
     isLoading.value = false
   }
 }
-
-onMounted(() => {
-  if (authStore.isAuthenticated) {
-    navigateTo('/')
-  }
-})
 </script>
 
 <template>

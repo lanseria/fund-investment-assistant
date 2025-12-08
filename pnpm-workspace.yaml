@@ -3,38 +3,38 @@ packages: []
 catalogs:
   backend:
     '@types/pg': ^8.15.6
-    drizzle-kit: ^0.31.7
-    drizzle-orm: ^0.44.7
+    drizzle-kit: ^0.31.8
+    drizzle-orm: ^0.45.0
     iconv-lite: ^0.7.0
     pg: ^8.16.3
   build:
     '@nuxt/devtools': ^3.1.1
-    '@nuxt/eslint': ^1.10.0
+    '@nuxt/eslint': ^1.11.0
     '@nuxt/kit': ^4.2.1
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.5.9
-    '@unocss/nuxt': ^66.5.9
-    '@vueuse/nuxt': ^14.0.0
+    '@unocss/eslint-config': ^66.5.10
+    '@unocss/nuxt': ^66.5.10
+    '@vueuse/nuxt': ^14.1.0
     nuxt: ^4.2.1
-    unocss: ^66.5.9
+    unocss: ^66.5.10
     unplugin: ^2.3.11
-    vite: ^7.2.4
+    vite: ^7.2.7
   dev:
-    '@antfu/eslint-config': ^6.2.0
+    '@antfu/eslint-config': ^6.5.1
     eslint: ^9.39.1
-    eslint-plugin-format: ^1.0.2
+    eslint-plugin-format: ^1.1.0
     typescript: ^5.9.3
-    vue-tsc: ^3.1.5
+    vue-tsc: ^3.1.7
   frontend:
-    '@vueuse/core': ^14.0.0
+    '@vueuse/core': ^14.1.0
     echarts: ^6.0.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
     vue: ^3.5.25
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.14
+    '@iconify-json/carbon': ^1.2.15
     '@iconify-json/twemoji': ^1.2.4
   utils:
     bignumber.js: ^9.3.1
