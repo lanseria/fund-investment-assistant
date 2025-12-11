@@ -45,8 +45,9 @@ export const marketGroups = {
     label: '期货',
     codes: [
       'fuGC', // COMEX黄金
+      'usPAAS', // 泛美白银
+      'usSLV', // 白银ETF-iShares
       'fuCL', // NYMEX原油
-      'fuNKD', // 美元指数
     ],
   },
 }

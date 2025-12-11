@@ -1,7 +1,7 @@
-<!-- eslint-disable no-console -->
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
+import { marketGroups } from '~~/shared/market'
 import { appName } from '~/constants'
 
 const router = useRouter()
@@ -12,6 +12,7 @@ useHead({
 })
 
 const holdingStore = useHoldingStore()
+const marketStore = useMarketStore()
 const { holdings, summary, sseStatus } = storeToRefs(holdingStore)
 
 // useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
@@ -222,6 +223,70 @@ async function handleExport() {
   await holdingStore.exportHoldings()
 }
 
+// 复制持仓信息到剪贴板
+const { copy } = useClipboard()
+
+async function handleCopyInfo() {
+  const allHoldings = holdingStore.holdings
+  const myHoldings = allHoldings.filter(h => h.holdingAmount !== null)
+  const myWatchlist = allHoldings.filter(h => h.holdingAmount === null)
+
+  const simplifyHolding = (h: Holding) => ({
+    code: h.code,
+    name: h.name,
+    sector: h.sector ? getLabel('sectors', h.sector) : '未分类',
+    ...(h.holdingAmount !== null
+      ? {
+          shares: h.shares,
+          costPrice: h.costPrice,
+          holdingAmount: h.holdingAmount,
+          profitAmount: h.holdingProfitAmount,
+          profitRate: h.holdingProfitRate,
+        }
+      : {}),
+    percentageChange: h.percentageChange,
+    todayEstimateNav: h.todayEstimateNav,
+    bias20: h.bias20,
+    signals: h.signals,
+  })
+
+  const marketData: Record<string, any[]> = {}
+
+  for (const [_, groupInfo] of Object.entries(marketGroups)) {
+    const indicesList = []
+    for (const code of groupInfo.codes) {
+      const indexData = marketStore.indices[code]
+      if (indexData) {
+        indicesList.push({
+          name: indexData.name,
+          value: indexData.value,
+          changeRate: indexData.changeRate,
+        })
+      }
+    }
+    if (indicesList.length > 0) {
+      marketData[groupInfo.label] = indicesList
+    }
+  }
+
+  const clipboardData = {
+    timestamp: new Date().toLocaleString(),
+    summary: holdingStore.summary,
+    holdings: myHoldings.map(simplifyHolding),
+    watchlist: myWatchlist.map(simplifyHolding),
+    market: marketData,
+  }
+
+  try {
+    await copy(JSON.stringify(clipboardData, null, 2))
+    alert('持仓及市场信息已复制到剪贴板！')
+  }
+  catch (e) {
+    console.error('复制失败', e)
+    alert('复制失败，请重试')
+  }
+}
+
 async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: boolean }) {
   const result = await holdingStore.importHoldings(file, overwrite)
   isImportModalOpen.value = false
@@ -275,6 +340,9 @@ async function onSectorUpdateSuccess() {
         </button>
         <button class="icon-btn" title="导出数据" @click="handleExport">
           <div i-carbon-download />
+        </button>
+        <button class="icon-btn" title="复制持仓信息" @click="handleCopyInfo">
+          <div i-carbon-copy />
         </button>
         <button class="btn flex items-center" @click="openAddModal">
           <div i-carbon-add mr-1 />
