@@ -224,7 +224,9 @@ async function handleExport() {
 }
 
 // 复制持仓信息到剪贴板
-const { copy } = useClipboard()
+const { copy } = useClipboard({
+  legacy: true,
+})
 
 async function handleCopyInfo() {
   const allHoldings = holdingStore.holdings
