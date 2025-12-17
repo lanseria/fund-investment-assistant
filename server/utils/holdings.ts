@@ -2,7 +2,7 @@
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { funds, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
+import { funds, fundTransactions, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 
@@ -409,6 +409,31 @@ export async function getUserHoldingsAndSummary(userId: number) {
     },
   })
 
+  // [新增] 获取用户所有状态为 'pending' 的交易记录
+  const pendingTxs = await db.query.fundTransactions.findMany({
+    where: and(
+      eq(fundTransactions.userId, userId),
+      eq(fundTransactions.status, 'pending'),
+    ),
+    orderBy: [desc(fundTransactions.createdAt)],
+  })
+
+  // [新增] 将交易记录按 fundCode 分组
+  const pendingTxMap = new Map<string, any[]>()
+  for (const tx of pendingTxs) {
+    if (!pendingTxMap.has(tx.fundCode)) {
+      pendingTxMap.set(tx.fundCode, [])
+    }
+    pendingTxMap.get(tx.fundCode)!.push({
+      id: tx.id,
+      type: tx.type,
+      orderAmount: tx.orderAmount ? Number(tx.orderAmount) : null,
+      orderShares: tx.orderShares ? Number(tx.orderShares) : null,
+      orderDate: tx.orderDate,
+      createdAt: tx.createdAt,
+    })
+  }
+
   if (userHoldings.length === 0) {
     return {
       holdings: [],
@@ -442,34 +467,28 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
-  let heldCount = 0 // 只计算持有的基金数量
+  let heldCount = 0
 
   const formattedHoldings = userHoldings.map((h) => {
     const { fund: fundInfo } = h
     if (!fundInfo)
       return null
 
-    // 判断是否为实际持仓
     const isHeld = h.shares !== null && h.costPrice !== null && new BigNumber(h.shares).isGreaterThan(0)
 
-    // 计算实时 BIAS20
     let bias20: number | null = null
     const historyStats = historyStatsMap.get(fundInfo.code)
 
-    // 确定当前价格：优先使用今日估值，否则使用昨日净值
     const currentPrice = fundInfo.todayEstimateNav
       ? Number(fundInfo.todayEstimateNav)
       : Number(fundInfo.yesterdayNav)
 
     if (currentPrice > 0 && historyStats) {
-      // 实时 MA20 = (历史19日之和 + 当前价格) / (历史条数 + 1)
       const totalSum = new BigNumber(historyStats.sum).plus(currentPrice)
       const count = historyStats.count + 1
 
-      // 只有数据足够多（比如至少有10天数据）才计算，避免偏差过大，这里宽松处理
       if (count > 0) {
         const ma20 = totalSum.dividedBy(count)
-        // BIAS = (Current - MA20) / MA20 * 100
         bias20 = new BigNumber(currentPrice)
           .minus(ma20)
           .dividedBy(ma20)
@@ -488,10 +507,12 @@ export async function getUserHoldingsAndSummary(userId: number) {
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
       bias20,
+      // [新增] 挂载待确认交易
+      pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
     }
 
     if (isHeld) {
-      heldCount++ // 统计持仓数量
+      heldCount++
       const shares = new BigNumber(h.shares!)
       const costPrice = new BigNumber(h.costPrice!)
       const yesterdayNav = new BigNumber(fundInfo.yesterdayNav)
@@ -521,7 +542,6 @@ export async function getUserHoldingsAndSummary(userId: number) {
       }
     }
     else {
-      // 如果是关注的基金，这些值为 null
       holdingData = {
         ...holdingData,
         shares: null,
@@ -535,21 +555,18 @@ export async function getUserHoldingsAndSummary(userId: number) {
     return holdingData
   }).filter(Boolean)
 
-  // 默认排序：持仓的基金优先，按持仓市值降序；仅关注的基金其次，按代码升序
   formattedHoldings.sort((a, b) => {
     const aIsHeld = a.holdingAmount !== null
     const bIsHeld = b.holdingAmount !== null
 
     if (aIsHeld && !bIsHeld)
-      return -1 // a (持仓) 在前
+      return -1
     if (!aIsHeld && bIsHeld)
-      return 1 // b (持仓) 在前
+      return 1
 
-    // 如果两者都持仓，按持仓市值降序
     if (aIsHeld && bIsHeld)
       return b.holdingAmount! - a.holdingAmount!
 
-    // 如果两者都仅关注，按基金代码升序
     return a.code.localeCompare(b.code)
   })
 
@@ -565,7 +582,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       totalEstimateAmount: totalEstimateAmount.toNumber(),
       totalProfitLoss: totalProfitLoss.toNumber(),
       totalPercentageChange: totalPercentageChange.toNumber(),
-      count: heldCount, // 汇总里的数量只显示持仓数
+      count: heldCount,
     },
   }
 }

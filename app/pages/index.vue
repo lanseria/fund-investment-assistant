@@ -154,6 +154,45 @@ const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
 
+// 交易模态框状态
+const isTradeModalOpen = ref(false)
+const tradeTarget = ref<Holding | null>(null)
+const tradeType = ref<'buy' | 'sell'>('buy')
+
+function openTradeModal(holding: Holding, type: 'buy' | 'sell') {
+  tradeTarget.value = holding
+  tradeType.value = type
+  isTradeModalOpen.value = true
+}
+
+async function handleTradeSubmit(payload: any) {
+  try {
+    await holdingStore.submitTrade(payload)
+    isTradeModalOpen.value = false
+    alert('交易请求已记录！将在下一交易日净值更新后生效。')
+    refresh()
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+
+// 处理撤销交易
+async function handleDeleteTransaction(tx: any) {
+  const typeText = tx.type === 'buy' ? '买入' : '卖出'
+  const amountText = tx.type === 'buy' ? `金额 ${tx.orderAmount}元` : `份额 ${tx.orderShares}份`
+
+  if (confirm(`确认撤销这笔交易申请吗？\n\n${typeText} - ${amountText}\n申请日期: ${tx.orderDate}`)) {
+    try {
+      await holdingStore.deleteTransaction(tx.id)
+      // 成功后 holdingStore 会自动刷新数据
+    }
+    catch (e) {
+      console.error(e)
+    }
+  }
+}
+
 // 板块编辑模态框的状态
 const isSectorModalOpen = ref(false)
 const editingHoldingForSector = ref<Holding | null>(null)
@@ -377,6 +416,8 @@ async function onSectorUpdateSuccess() {
       @set-sort="handleSetSort"
       @clear-position="handleClearPosition"
       @edit-sector="openSectorModal"
+      @trade="openTradeModal"
+      @delete-transaction="handleDeleteTransaction"
     />
 
     <Modal v-model="isModalOpen" :title="modalTitle">
@@ -384,6 +425,18 @@ async function onSectorUpdateSuccess() {
         :initial-data="editingHolding"
         @submit="handleSubmit"
         @cancel="closeModal"
+      />
+    </Modal>
+
+    <Modal v-if="tradeTarget" v-model="isTradeModalOpen" :title="tradeType === 'buy' ? '买入基金' : '卖出基金'">
+      <TradeForm
+        :fund-code="tradeTarget.code"
+        :fund-name="tradeTarget.name"
+        :type="tradeType"
+        :current-shares="tradeTarget.shares || 0"
+        :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
+        @submit="handleTradeSubmit"
+        @cancel="isTradeModalOpen = false"
       />
     </Modal>
 

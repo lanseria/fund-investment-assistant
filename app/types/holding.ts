@@ -1,3 +1,13 @@
+// 待确认交易的类型定义
+export interface PendingTransaction {
+  id: number
+  type: 'buy' | 'sell'
+  orderAmount: number | null
+  orderShares: number | null
+  orderDate: string
+  createdAt: string
+}
+
 export interface Holding {
   code: string
   name: string
@@ -16,6 +26,8 @@ export interface Holding {
   todayEstimateUpdateTime: string | null
   signals: Record<string, string>
   bias20: number | null
+  // [新增] 该基金关联的待确认交易列表
+  pendingTransactions?: PendingTransaction[]
 }
 
 export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'bias20'

@@ -13,7 +13,15 @@ withDefaults(defineProps<{
   showActions: true, // 默认显示操作列
 })
 
-const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector'])
+const emit = defineEmits([
+  'edit',
+  'delete',
+  'set-sort',
+  'clear-position',
+  'edit-sector',
+  'trade',
+  'delete-transaction',
+])
 
 const { getLabel } = useDictStore()
 
@@ -166,7 +174,7 @@ const strategiesForTags = {
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               更新时间
             </th>
-            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-20 dark:text-gray-300">
+            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               操作
             </th>
           </tr>
@@ -183,6 +191,25 @@ const strategiesForTags = {
               </NuxtLink>
               <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
                 {{ h.code }}
+              </div>
+              <!-- 待确认交易展示区 -->
+              <div v-if="h.pendingTransactions && h.pendingTransactions.length > 0" class="mt-1.5 space-y-1">
+                <div
+                  v-for="tx in h.pendingTransactions"
+                  :key="tx.id"
+                  class="group text-xs text-amber-800 px-2 py-0.5 border border-amber-200 rounded bg-amber-100 inline-flex cursor-pointer transition-colors items-center dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                  title="点击撤销此交易申请"
+                  @click.stop="emit('delete-transaction', tx)"
+                >
+                  <div class="i-carbon-time mr-1 animate-pulse" />
+                  <span class="font-bold mr-1">{{ tx.type === 'buy' ? '买入' : '卖出' }}</span>
+                  <span class="font-numeric">
+                    {{ tx.type === 'buy' ? formatCurrency(tx.orderAmount) : `${tx.orderShares}份` }}
+                  </span>
+                  <span class="ml-1 opacity-75">(待确认)</span>
+                  <!-- 悬停时显示的删除图标 -->
+                  <div class="i-carbon-close-filled text-amber-600 ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
               </div>
               <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
                 <span
@@ -258,8 +285,20 @@ const strategiesForTags = {
             </td>
 
             <!-- 操作 -->
-            <td v-if="showActions" class="p-4 text-right">
-              <div class="flex gap-2 justify-end">
+            <td v-if="showActions" class="p-4 text-right align-middle">
+              <div class="ml-auto flex flex-wrap gap-x-1 gap-y-2 max-w-[60px] justify-end">
+                <!-- 第一组：交易操作 (通常在第一行) -->
+                <button class="icon-btn text-red-500/80 hover:text-red-500" title="买入" @click="emit('trade', h, 'buy')">
+                  <div i-carbon-money />
+                </button>
+                <button v-if="h.holdingAmount !== null" class="icon-btn text-green-500/80 hover:text-green-500" title="卖出" @click="emit('trade', h, 'sell')">
+                  <div i-carbon-delivery />
+                </button>
+
+                <!-- 强制换行的视觉分隔 (可选，也可以靠容器宽度自动换行) -->
+                <!-- 这里靠 max-w-[110px] 自动换行，或者当只有买入按钮时它们会排在第一行 -->
+
+                <!-- 第二组：管理操作 -->
                 <button class="icon-btn" title="修改" @click="emit('edit', h)">
                   <div i-carbon-edit />
                 </button>
@@ -310,6 +349,26 @@ const strategiesForTags = {
                 </NuxtLink>
                 <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
                   {{ h.code }}
+                </div>
+                <!-- 再次插入相同的代码片段 -->
+                <!-- 待确认交易展示区 -->
+                <div v-if="h.pendingTransactions && h.pendingTransactions.length > 0" class="mt-1.5 space-y-1">
+                  <div
+                    v-for="tx in h.pendingTransactions"
+                    :key="tx.id"
+                    class="group text-xs text-amber-800 px-2 py-0.5 border border-amber-200 rounded bg-amber-100 inline-flex cursor-pointer transition-colors items-center dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
+                    title="点击撤销此交易申请"
+                    @click.stop="emit('delete-transaction', tx)"
+                  >
+                    <div class="i-carbon-time mr-1 animate-pulse" />
+                    <span class="font-bold mr-1">{{ tx.type === 'buy' ? '买入' : '卖出' }}</span>
+                    <span class="font-numeric">
+                      {{ tx.type === 'buy' ? formatCurrency(tx.orderAmount) : `${tx.orderShares}份` }}
+                    </span>
+                    <span class="ml-1 opacity-75">(待确认)</span>
+                    <!-- 悬停时显示的删除图标 -->
+                    <div class="i-carbon-close-filled text-amber-600 ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
                 </div>
                 <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
                   <span
@@ -382,8 +441,15 @@ const strategiesForTags = {
               <td class="text-sm text-gray-500 font-numeric p-4 text-right">
                 {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
               </td>
-              <td v-if="showActions" class="p-4 text-right">
-                <div class="flex gap-2 justify-end">
+              <td v-if="showActions" class="p-4 text-right align-middle">
+                <div class="ml-auto flex flex-wrap gap-x-1 gap-y-2 max-w-[60px] justify-end">
+                  <button class="icon-btn text-red-500/80 hover:text-red-500" title="买入" @click="emit('trade', h, 'buy')">
+                    <div i-carbon-money />
+                  </button>
+                  <button v-if="h.holdingAmount !== null" class="icon-btn text-green-500/80 hover:text-green-500" title="卖出" @click="emit('trade', h, 'sell')">
+                    <div i-carbon-delivery />
+                  </button>
+
                   <button class="icon-btn" title="修改" @click="emit('edit', h)">
                     <div i-carbon-edit />
                   </button>

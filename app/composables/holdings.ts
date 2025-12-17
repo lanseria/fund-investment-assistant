@@ -223,6 +223,44 @@ export const useHoldingStore = defineStore('holding', () => {
       isLoading.value = false
     }
   }
+
+  /**
+   * 提交基金买入/卖出交易
+   */
+  async function submitTrade(payload: { fundCode: string, type: 'buy' | 'sell', amount?: number, shares?: number, date: string }) {
+    try {
+      await apiFetch('/api/fund/transactions', {
+        method: 'POST',
+        body: payload,
+      })
+      // 这里不刷新持仓 fetchHoldings()，因为交易只是记录，尚未成交，不会改变持仓份额
+      // 可以选择给用户一个提示
+      return true
+    }
+    catch (error: any) {
+      console.error('提交交易失败:', error)
+      const detail = error.data?.message || '发生未知错误'
+      alert(`交易提交失败: ${detail}`)
+      throw error
+    }
+  }
+  // 撤销/删除待确认的交易
+  async function deleteTransaction(transactionId: number) {
+    try {
+      await apiFetch(`/api/fund/transactions/${transactionId}`, {
+        method: 'DELETE',
+      })
+      // 删除成功后刷新持仓列表，以便 UI 移除该标签
+      await fetchHoldings()
+    }
+    catch (error: any) {
+      console.error('撤销交易失败:', error)
+      const detail = error.data?.message || '发生未知错误'
+      alert(`撤销失败: ${detail}`)
+      throw error
+    }
+  }
+
   /**
    * 手动触发单个基金的所有策略分析
    * @param code 基金代码
@@ -282,6 +320,8 @@ export const useHoldingStore = defineStore('holding', () => {
     refreshAllEstimates,
     syncHistory,
     runStrategiesForFund,
+    submitTrade,
+    deleteTransaction,
   }
 })
 

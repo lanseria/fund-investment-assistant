@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     // 处理 Zod 验证错误
     if (error instanceof z.ZodError) {
       // 返回第一个验证错误信息，对前端更友好
-      throw createError({ statusCode: 400, statusMessage: error.errors[0]?.message || '输入数据无效。' })
+      throw createError({ statusCode: 400, statusMessage: error.message || '输入数据无效。' })
     }
     // 处理 JSON 解析错误
     if (error instanceof SyntaxError) {

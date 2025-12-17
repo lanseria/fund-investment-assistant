@@ -1,3 +1,9 @@
+catalogMode: prefer
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
+
 packages: []
 
 catalogs:
@@ -19,7 +25,7 @@ catalogs:
     nuxt: ^4.2.2
     unocss: ^66.5.10
     unplugin: ^2.3.11
-    vite: ^7.2.7
+    vite: ^7.3.0
   dev:
     '@antfu/eslint-config': ^6.7.1
     eslint: ^9.39.2
@@ -42,7 +48,7 @@ catalogs:
     es-toolkit: ^1.43.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
-    zod: ^4.1.13
+    zod: ^4.2.1
 
 onlyBuiltDependencies:
   - '@parcel/watcher'

@@ -143,6 +143,55 @@ export const dictionaryData = fundSchema.table('dictionary_data', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+// 定义交易类型的枚举
+export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell'])
+// 定义交易状态枚举 (目前只负责记录，后续逻辑会用到)
+export const transactionStatusEnum = fundSchema.enum('transaction_status', ['pending', 'confirmed', 'failed'])
+
+/**
+ * 基金交易记录表 (fund_transactions)
+ * 记录用户的买入和卖出操作
+ */
+export const fundTransactions = fundSchema.table('fund_transactions', {
+  /** 交易ID */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 用户ID */
+  userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 基金代码 */
+  fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
+  /** 交易类型: buy (买入) / sell (卖出) */
+  type: transactionTypeEnum('type').notNull(),
+  /** 交易状态 */
+  status: transactionStatusEnum('status').default('pending').notNull(),
+  /**
+   * 申报金额 (买入时必填)
+   * 注意：卖出时通常按份额卖，但也可能有按金额卖出的情况(有些平台支持)，这里主要用于买入
+   */
+  orderAmount: numeric('order_amount', { precision: 18, scale: 2 }),
+  /**
+   * 申报份额 (卖出时必填)
+   */
+  orderShares: numeric('order_shares', { precision: 18, scale: 2 }),
+  /**
+   * 订单日期
+   * 通常是操作当日，如果是15点后操作则归为下一个交易日。
+   * 这里由前端或后端逻辑决定，暂存为日期类型。
+   */
+  orderDate: date('order_date').notNull(),
+  /** 备注 */
+  note: text('note'),
+  /** 确认成交的净值 */
+  confirmedNav: numeric('confirmed_nav', { precision: 10, scale: 4 }),
+  /** 确认成交的份额 */
+  confirmedShares: numeric('confirmed_shares', { precision: 18, scale: 2 }),
+  /** 确认成交的金额 */
+  confirmedAmount: numeric('confirmed_amount', { precision: 18, scale: 2 }),
+  /** 确认时间 */
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
 /**
  * 持有与基金关联
  * 基金 一对多 持有
