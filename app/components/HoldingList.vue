@@ -1,36 +1,48 @@
 <script setup lang="ts">
 import type { GroupedHolding, Holding, SortableKey } from '~/types/holding'
 import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
-import { SECTOR_DICT_TYPE } from '~/constants'
+// 导入新组件
+import HoldingListRow from './HoldingListRow.vue'
 
 withDefaults(defineProps<{
-  data: Holding[] | GroupedHolding[] // 数据可以是扁平的或分组的
-  isGrouped: boolean // 标志位，用于区分模式
+  data: Holding[] | GroupedHolding[]
+  isGrouped: boolean
   sortKey: SortableKey | null
   sortOrder: 'asc' | 'desc'
-  showActions?: boolean // [新增] 控制是否显示操作列
+  showActions?: boolean
 }>(), {
-  showActions: true, // 默认显示操作列
+  showActions: true,
 })
 
-const emit = defineEmits([
-  'edit',
-  'delete',
-  'set-sort',
-  'clear-position',
-  'edit-sector',
-  'trade',
-  'delete-transaction',
-])
+const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector', 'trade', 'delete-transaction'])
 
-const { getLabel } = useDictStore()
+function setSort(key: SortableKey) {
+  emit('set-sort', key)
+}
 
-// --- [新增] 悬停图表逻辑 ---
+function formatCurrency(value: number | null | undefined) {
+  if (value === null || value === undefined)
+    return '-'
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
+}
+
+function getChangeClass(value: number | null) {
+  if (value === null || value === undefined)
+    return 'text-gray-500'
+  if (value > 0)
+    return 'text-red-500 dark:text-red-400'
+  if (value < 0)
+    return 'text-green-500 dark:text-green-400'
+  return 'text-gray-500'
+}
+
+// --- Tooltip 逻辑 ---
 const hoveredFundCode = ref<string | null>(null)
 const hoveredStrategyKey = ref<string | null>(null)
 const tooltipStyle = ref({ top: '0px', left: '0px', opacity: 0 })
 
-function handleTagHover(event: MouseEvent, fundCode: string, strategyKey: string) {
+// 接收子组件传来的显示 Tooltip 请求
+function handleShowTooltip({ event, fundCode, strategyKey }: { event: MouseEvent, fundCode: string, strategyKey: string }) {
   const target = event.currentTarget as HTMLElement
   if (!target)
     return
@@ -39,26 +51,18 @@ function handleTagHover(event: MouseEvent, fundCode: string, strategyKey: string
   hoveredFundCode.value = fundCode
   hoveredStrategyKey.value = strategyKey
 
-  // Tooltip 尺寸预估 (基于 StrategyChartTooltip 组件的 h-40 w-64 + padding/border)
-  // h-40(160px) + p-2(16px) + border(2px) ≈ 178px
+  // 计算位置逻辑 (保持不变)
   const TOOLTIP_HEIGHT = 180
   const GAP = 8
-
-  // 获取视口高度
   const viewportHeight = window.innerHeight
 
-  // 默认位置：在元素下方
   let top = rect.bottom + GAP
-
-  // 智能判断：如果下方空间不足以容纳 tooltip，且上方空间充足，则显示在上方
   const spaceBelow = viewportHeight - rect.bottom
   if (spaceBelow < TOOLTIP_HEIGHT && rect.top > TOOLTIP_HEIGHT) {
-    // 显示在上方：元素顶部 - tooltip高度 - 间距
     top = rect.top - TOOLTIP_HEIGHT - GAP
   }
 
-  // 计算 Left (简单的右侧边界检查，防止溢出屏幕右侧)
-  const TOOLTIP_WIDTH = 270 // w-64(256px) + padding + border
+  const TOOLTIP_WIDTH = 270
   const viewportWidth = window.innerWidth
   let left = rect.left
   if (left + TOOLTIP_WIDTH > viewportWidth) {
@@ -72,67 +76,10 @@ function handleTagHover(event: MouseEvent, fundCode: string, strategyKey: string
   }
 }
 
-function handleTagLeave() {
+function handleHideTooltip() {
   hoveredFundCode.value = null
   hoveredStrategyKey.value = null
   tooltipStyle.value.opacity = 0
-}
-// --- [结束] ---
-
-function setSort(key: SortableKey) {
-  emit('set-sort', key)
-}
-
-function getProfitClass(holding: { holdingProfitAmount: number | null }) {
-  if (holding.holdingProfitAmount === null || holding.holdingProfitAmount === undefined)
-    return 'text-gray-500'
-  if (holding.holdingProfitAmount > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (holding.holdingProfitAmount < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray-500'
-}
-
-function getChangeClass(holding: { percentageChange: number | null }) {
-  if (holding.percentageChange === null || holding.percentageChange === undefined)
-    return 'text-gray-500'
-  if (holding.percentageChange > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (holding.percentageChange < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray-500'
-}
-
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
-}
-
-// 获取信号标签样式的辅助函数
-function getSignalTagClass(signal: string) {
-  if (signal.includes('买入'))
-    return 'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300'
-  if (signal.includes('卖出'))
-    return 'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300'
-  // 默认为持有/观望/平仓等中性信号
-  return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300'
-}
-
-// 获取 BIAS 标签样式
-function getBiasTagClass(bias: number) {
-  // BIAS > 0 (价格在均线上方) -> 红色 (A股习惯)
-  // BIAS < 0 (价格在均线下方) -> 绿色
-  if (bias > 0)
-    return 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
-  return 'bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/50'
-}
-
-// 定义要显示的策略及其简称
-const strategiesForTags = {
-  rsi: 'RSI',
-  macd: 'MACD',
-  bollinger_bands: '布林',
 }
 </script>
 
@@ -146,7 +93,6 @@ const strategiesForTags = {
               基金名称 / 策略信号
             </th>
 
-            <!-- 合并 "持有金额" 和 "持有份额" 的表头，排序按 holdingAmount -->
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingAmount')">
               持有市值 / 份额
               <span v-if="sortKey === 'holdingAmount'" class="ml-1 align-middle inline-block">
@@ -162,7 +108,6 @@ const strategiesForTags = {
               </span>
             </th>
 
-            <!-- 合并 "估算涨跌" 和 "估算金额" 的表头，排序按 percentageChange -->
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('percentageChange')">
               估算涨跌 / 收益
               <span v-if="sortKey === 'percentageChange'" class="ml-1 align-middle inline-block">
@@ -174,148 +119,35 @@ const strategiesForTags = {
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               更新时间
             </th>
-            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
+            <!-- 这里使用了优化的宽度 w-28 -->
+            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-28 dark:text-gray-300">
               操作
             </th>
           </tr>
         </thead>
-        <!-- 默认列表视图 -->
+
+        <!-- 1. 默认列表视图 -->
         <tbody v-if="!isGrouped">
-          <tr v-for="h in (data as Holding[])" :key="h.code" class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-            <td class="font-semibold p-4">
-              <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', h)">
-                {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
-              </button>
-              <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
-                {{ h.name }}
-              </NuxtLink>
-              <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
-                {{ h.code }}
-              </div>
-              <!-- 待确认交易展示区 -->
-              <div v-if="h.pendingTransactions && h.pendingTransactions.length > 0" class="mt-1.5 space-y-1">
-                <div
-                  v-for="tx in h.pendingTransactions"
-                  :key="tx.id"
-                  class="group text-xs text-amber-800 px-2 py-0.5 border border-amber-200 rounded bg-amber-100 inline-flex cursor-pointer transition-colors items-center dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
-                  title="点击撤销此交易申请"
-                  @click.stop="emit('delete-transaction', tx)"
-                >
-                  <div class="i-carbon-time mr-1 animate-pulse" />
-                  <span class="font-bold mr-1">{{ tx.type === 'buy' ? '买入' : '卖出' }}</span>
-                  <span class="font-numeric">
-                    {{ tx.type === 'buy' ? formatCurrency(tx.orderAmount) : `${tx.orderShares}份` }}
-                  </span>
-                  <span class="ml-1 opacity-75">(待确认)</span>
-                  <!-- 悬停时显示的删除图标 -->
-                  <div class="i-carbon-close-filled text-amber-600 ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
-                </div>
-              </div>
-              <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
-                <span
-                  v-for="(name, key) in strategiesForTags"
-                  :key="key"
-                  class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
-                  :class="getSignalTagClass(h.signals[key] || '无信号')"
-                  @mouseenter="handleTagHover($event, h.code, key as string)"
-                  @mouseleave="handleTagLeave"
-                >
-                  {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
-                </span>
-                <!-- 实时 BIAS20 标签 (分组视图) -->
-                <span
-                  v-if="h.bias20 !== null && h.bias20 !== undefined"
-                  class="text-xs font-medium font-numeric px-2 py-0.5 rounded-full cursor-help"
-                  :class="getBiasTagClass(h.bias20)"
-                  title="实时乖离率 (BIAS20): (现价 - MA20) / MA20"
-                >
-                  BIAS: {{ h.bias20 > 0 ? '+' : '' }}{{ h.bias20.toFixed(2) }}%
-                </span>
-              </div>
-            </td>
-            <td class="font-mono p-4 text-right">
-              <template v-if="h.holdingAmount !== null">
-                <div class="font-numeric font-semibold">
-                  {{ formatCurrency(h.holdingAmount) }}
-                </div>
-                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                  {{ h.shares?.toFixed(2) }} 份
-                </div>
-                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                  {{ h.yesterdayNav }}
-                </div>
-              </template>
-              <template v-else>
-                <span class="text-sm text-gray-400">仅关注</span>
-              </template>
-            </td>
-            <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-              <template v-if="h.holdingProfitRate !== null">
-                <div class="font-numeric font-semibold">
-                  {{ formatCurrency(h.holdingProfitAmount) }}
-                </div>
-                <div class="text-xs font-numeric">
-                  {{ `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` }}
-                </div>
-                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                  {{ h.costPrice }}
-                </div>
-              </template>
-              <template v-else>
-                <span class="text-gray-400">-</span>
-              </template>
-            </td>
-            <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-              <div class="font-numeric font-semibold">
-                {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
-              </div>
-              <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
-                {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
-              </div>
-              <div v-else class="text-xs font-numeric">
-                -
-              </div>
-              <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                {{ h.todayEstimateNav !== null ? h.todayEstimateNav : '-' }}
-              </div>
-            </td>
-            <!-- 更新时间 -->
-            <td class="text-sm text-gray-500 font-numeric p-4 text-right">
-              {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
-            </td>
-
-            <!-- 操作 -->
-            <td v-if="showActions" class="p-4 text-right align-middle">
-              <div class="ml-auto flex flex-wrap gap-x-1 gap-y-2 max-w-[60px] justify-end">
-                <!-- 第一组：交易操作 (通常在第一行) -->
-                <button class="icon-btn text-red-500/80 hover:text-red-500" title="买入" @click="emit('trade', h, 'buy')">
-                  <div i-carbon-money />
-                </button>
-                <button v-if="h.holdingAmount !== null" class="icon-btn text-green-500/80 hover:text-green-500" title="卖出" @click="emit('trade', h, 'sell')">
-                  <div i-carbon-delivery />
-                </button>
-
-                <!-- 强制换行的视觉分隔 (可选，也可以靠容器宽度自动换行) -->
-                <!-- 这里靠 max-w-[110px] 自动换行，或者当只有买入按钮时它们会排在第一行 -->
-
-                <!-- 第二组：管理操作 -->
-                <button class="icon-btn" title="修改" @click="emit('edit', h)">
-                  <div i-carbon-edit />
-                </button>
-                <button v-if="h.holdingAmount !== null" class="icon-btn hover:text-orange-500" title="清仓 (转为仅关注)" @click="emit('clear-position', h)">
-                  <div i-carbon-shopping-cart-clear />
-                </button>
-                <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
-                  <div i-carbon-trash-can />
-                </button>
-              </div>
-            </td>
-          </tr>
+          <HoldingListRow
+            v-for="h in (data as Holding[])"
+            :key="h.code"
+            :holding="h"
+            :show-actions="showActions"
+            @edit="emit('edit', $event)"
+            @delete="emit('delete', $event)"
+            @clear-position="emit('clear-position', $event)"
+            @edit-sector="emit('edit-sector', $event)"
+            @trade="(h, type) => emit('trade', h, type)"
+            @delete-transaction="emit('delete-transaction', $event)"
+            @show-strategy-tooltip="handleShowTooltip"
+            @hide-strategy-tooltip="handleHideTooltip"
+          />
         </tbody>
-        <!-- 板块分组视图 -->
-        <template v-if="isGrouped">
+
+        <!-- 2. 板块分组视图 -->
+        <template v-else>
           <tbody v-for="group in (data as GroupedHolding[])" :key="group.sectorKey" class="border-b-2 border-gray-200 dark:border-gray-700">
-            <!-- 分组头 -->
+            <!-- 分组头 (保持不变，这部分不重复) -->
             <tr class="bg-gray-100 dark:bg-gray-700/50">
               <td class="font-semibold p-3" colspan="2">
                 {{ group.sectorLabel }} ({{ group.holdingCount }})
@@ -329,7 +161,7 @@ const strategiesForTags = {
                 </div>
               </td>
               <td class="font-mono p-3 text-right" :colspan="showActions ? 2 : 1">
-                <div class="font-numeric font-semibold" :class="getChangeClass({ percentageChange: group.groupTotalProfitLoss })">
+                <div class="font-numeric font-semibold" :class="getChangeClass(group.groupTotalProfitLoss)">
                   {{ formatCurrency(group.groupTotalProfitLoss) }}
                 </div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -337,135 +169,28 @@ const strategiesForTags = {
                 </div>
               </td>
             </tr>
-            <!-- 组内基金列表 -->
-            <tr v-for="h in group.holdings" :key="h.code" class="border-t transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-              <!-- ... (基金行内容保持不变，直接复制) ... -->
-              <td class="font-semibold p-4">
-                <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="h.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', h)">
-                  {{ getLabel(SECTOR_DICT_TYPE, h.sector) || '未设置' }}
-                </button>
-                <NuxtLink :to="`/fund/${h.code}`" class="transition-colors hover:text-primary-hover">
-                  {{ h.name }}
-                </NuxtLink>
-                <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
-                  {{ h.code }}
-                </div>
-                <!-- 再次插入相同的代码片段 -->
-                <!-- 待确认交易展示区 -->
-                <div v-if="h.pendingTransactions && h.pendingTransactions.length > 0" class="mt-1.5 space-y-1">
-                  <div
-                    v-for="tx in h.pendingTransactions"
-                    :key="tx.id"
-                    class="group text-xs text-amber-800 px-2 py-0.5 border border-amber-200 rounded bg-amber-100 inline-flex cursor-pointer transition-colors items-center dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
-                    title="点击撤销此交易申请"
-                    @click.stop="emit('delete-transaction', tx)"
-                  >
-                    <div class="i-carbon-time mr-1 animate-pulse" />
-                    <span class="font-bold mr-1">{{ tx.type === 'buy' ? '买入' : '卖出' }}</span>
-                    <span class="font-numeric">
-                      {{ tx.type === 'buy' ? formatCurrency(tx.orderAmount) : `${tx.orderShares}份` }}
-                    </span>
-                    <span class="ml-1 opacity-75">(待确认)</span>
-                    <!-- 悬停时显示的删除图标 -->
-                    <div class="i-carbon-close-filled text-amber-600 ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
-                  </div>
-                </div>
-                <div v-if="h.signals" class="mt-2 flex flex-wrap gap-1.5">
-                  <span
-                    v-for="(name, key) in strategiesForTags"
-                    :key="key"
-                    class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
-                    :class="getSignalTagClass(h.signals[key] || '无信号')"
-                    @mouseenter="handleTagHover($event, h.code, key as string)"
-                    @mouseleave="handleTagLeave"
-                  >
-                    {{ name }}: {{ h.signals[key] ? h.signals[key].slice(0, 1) : '-' }}
-                  </span>
-                  <!-- 实时 BIAS20 标签 -->
-                  <span
-                    v-if="h.bias20 !== null && h.bias20 !== undefined"
-                    class="text-xs font-medium font-numeric px-2 py-0.5 rounded-full cursor-help"
-                    :class="getBiasTagClass(h.bias20)"
-                    title="实时乖离率 (BIAS20): (现价 - MA20) / MA20"
-                  >
-                    BIAS: {{ h.bias20 > 0 ? '+' : '' }}{{ h.bias20.toFixed(2) }}%
-                  </span>
-                </div>
-              </td>
-              <td class="font-mono p-4 text-right">
-                <template v-if="h.holdingAmount !== null">
-                  <div class="font-numeric font-semibold">
-                    {{ formatCurrency(h.holdingAmount) }}
-                  </div>
-                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                    {{ h.shares?.toFixed(2) }} 份
-                  </div>
-                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                    {{ h.yesterdayNav }}
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="text-sm text-gray-400">仅关注</span>
-                </template>
-              </td>
-              <td class="font-mono p-4 text-right" :class="getProfitClass(h)">
-                <template v-if="h.holdingProfitRate !== null">
-                  <div class="font-numeric font-semibold">
-                    {{ formatCurrency(h.holdingProfitAmount) }}
-                  </div>
-                  <div class="text-xs font-numeric">
-                    {{ `${h.holdingProfitRate > 0 ? '+' : ''}${h.holdingProfitRate.toFixed(2)}%` }}
-                  </div>
-                  <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                    {{ h.costPrice }}
-                  </div>
-                </template>
-                <template v-else>
-                  <span class="text-gray-400">-</span>
-                </template>
-              </td>
-              <td class="font-mono p-4 text-right" :class="getChangeClass(h)">
-                <div class="font-numeric font-semibold">
-                  {{ h.percentageChange !== null ? `${h.percentageChange > 0 ? '+' : ''}${h.percentageChange.toFixed(2)}%` : '-' }}
-                </div>
-                <div v-if="h.todayEstimateAmount !== null && h.holdingAmount !== null" class="text-xs font-numeric">
-                  {{ formatCurrency(h.todayEstimateAmount - h.holdingAmount) }}
-                </div>
-                <div v-else class="text-xs font-numeric">
-                  -
-                </div>
-                <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-                  {{ h.todayEstimateNav !== null ? h.todayEstimateNav : '-' }}
-                </div>
-              </td>
-              <td class="text-sm text-gray-500 font-numeric p-4 text-right">
-                {{ h.todayEstimateUpdateTime ? useDayjs()(h.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
-              </td>
-              <td v-if="showActions" class="p-4 text-right align-middle">
-                <div class="ml-auto flex flex-wrap gap-x-1 gap-y-2 max-w-[60px] justify-end">
-                  <button class="icon-btn text-red-500/80 hover:text-red-500" title="买入" @click="emit('trade', h, 'buy')">
-                    <div i-carbon-money />
-                  </button>
-                  <button v-if="h.holdingAmount !== null" class="icon-btn text-green-500/80 hover:text-green-500" title="卖出" @click="emit('trade', h, 'sell')">
-                    <div i-carbon-delivery />
-                  </button>
 
-                  <button class="icon-btn" title="修改" @click="emit('edit', h)">
-                    <div i-carbon-edit />
-                  </button>
-                  <button v-if="h.holdingAmount !== null" class="icon-btn hover:text-orange-500" title="清仓 (转为仅关注)" @click="emit('clear-position', h)">
-                    <div i-carbon-shopping-cart-clear />
-                  </button>
-                  <button class="icon-btn hover:text-red-500" title="删除" @click="emit('delete', h)">
-                    <div i-carbon-trash-can />
-                  </button>
-                </div>
-              </td>
-            </tr>
+            <!-- 组内循环调用子组件 -->
+            <HoldingListRow
+              v-for="h in group.holdings"
+              :key="h.code"
+              :holding="h"
+              :show-actions="showActions"
+              @edit="emit('edit', $event)"
+              @delete="emit('delete', $event)"
+              @clear-position="emit('clear-position', $event)"
+              @edit-sector="emit('edit-sector', $event)"
+              @trade="(h, type) => emit('trade', h, type)"
+              @delete-transaction="emit('delete-transaction', $event)"
+              @show-strategy-tooltip="handleShowTooltip"
+              @hide-strategy-tooltip="handleHideTooltip"
+            />
           </tbody>
         </template>
       </table>
     </div>
+
+    <!-- Tooltip 保持不变 -->
     <Teleport to="body">
       <Transition name="fade">
         <div

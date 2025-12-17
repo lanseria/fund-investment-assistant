@@ -1,10 +1,9 @@
-catalogMode: prefer
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
-
 packages: []
+
+catalog:
+  '@iconify-json/si-glyph': ^1.2.2
+
+catalogMode: prefer
 
 catalogs:
   backend:
@@ -54,3 +53,7 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
