@@ -1,9 +1,9 @@
-packages: []
-
-catalog:
-  '@iconify-json/si-glyph': ^1.2.2
-
 catalogMode: prefer
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
+packages: []
 
 catalogs:
   backend:
@@ -36,7 +36,7 @@ catalogs:
     echarts: ^6.0.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
-    vue: ^3.5.25
+    vue: ^3.5.26
     vue-echarts: ^8.0.1
   icons:
     '@iconify-json/carbon': ^1.2.15
@@ -53,7 +53,3 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
-
-shellEmulator: true
-
-trustPolicy: no-downgrade

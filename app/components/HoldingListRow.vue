@@ -198,13 +198,17 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         <!-- 左列：交易操作 (图标加大 text-xl) -->
         <div class="flex flex-col gap-y-3 items-center">
           <!-- 买入 -->
-          <button class="icon-btn text-red-500/80 transition-transform hover:text-red-500 hover:scale-110" title="买入" @click="emit('trade', holding, 'buy')">
-            <div i-si-glyph-button-buy class="text-xl" />
+          <button class="icon-btn text-red-500/80 transition-transform hover:text-red-500" title="买入" @click="emit('trade', holding, 'buy')">
+            <div class="font-bold">
+              买入
+            </div>
           </button>
 
           <!-- 卖出 (仅持仓时显示) -->
-          <button v-if="holding.holdingAmount !== null" class="icon-btn text-green-500/80 transition-transform hover:text-green-500 hover:scale-110" title="卖出" @click="emit('trade', holding, 'sell')">
-            <div i-si-glyph-button-sell class="text-xl" />
+          <button v-if="holding.holdingAmount !== null" class="icon-btn text-green-500/80 transition-transform hover:text-green-500" title="卖出" @click="emit('trade', holding, 'sell')">
+            <div class="font-bold">
+              卖出
+            </div>
           </button>
         </div>
 
