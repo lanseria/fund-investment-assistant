@@ -10,6 +10,7 @@ const PUBLIC_API_ROUTES = [
   '/api/dev/init-admin',
   '/api/dev/process-transactions',
   '/api/dicts/all',
+  '/api/webhooks/trend-radar',
 ]
 
 export default defineEventHandler(async (event) => {
