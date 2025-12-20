@@ -30,6 +30,9 @@ function handleLogout() {
         基金助手
       </NuxtLink>
       <div v-if="authStore.isAuthenticated" class="flex gap-4 items-center">
+        <NuxtLink to="/news" class="hover:text-primary-hover">
+          市场情报
+        </NuxtLink>
         <NuxtLink to="/charts-overview" class="hover:text-primary-hover">
           策略视图
         </NuxtLink>

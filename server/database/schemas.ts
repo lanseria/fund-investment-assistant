@@ -193,6 +193,25 @@ export const fundTransactions = fundSchema.table('fund_transactions', {
 })
 
 /**
+ * 每日新闻表 (daily_news)
+ * 存储 Webhook 推送的每日新闻汇总
+ */
+export const dailyNews = fundSchema.table('daily_news', {
+  /** ID */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 新闻日期 (YYYY-MM-DD)，设置唯一约束以便于按日合并 */
+  date: date('date').notNull().unique(),
+  /** 标题 */
+  title: text('title'),
+  /** 新闻内容 (长文本) */
+  content: text('content').notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  /** 更新时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
  * 持有与基金关联
  * 基金 一对多 持有
  */
