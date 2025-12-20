@@ -14,10 +14,8 @@ const props = defineProps<{
 const emit = defineEmits(['submit', 'cancel'])
 
 const dayjs = useDayjs()
-// 默认日期：如果当前时间超过15:00，则默认为下一个交易日(简单处理为+1天)，否则为今天
-// 这里简化处理，用户可手动调整
 const now = dayjs()
-const defaultDate = now.hour() >= 15 ? now.add(1, 'day').format('YYYY-MM-DD') : now.format('YYYY-MM-DD')
+const defaultDate = now.hour() >= 15 ? now.format('YYYY-MM-DD') : now.format('YYYY-MM-DD')
 
 const formData = reactive({
   date: defaultDate,

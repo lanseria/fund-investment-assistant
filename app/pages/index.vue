@@ -156,13 +156,35 @@ const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添�
 
 // 交易模态框状态
 const isTradeModalOpen = ref(false)
+// 转换模态框状态
+const isConvertModalOpen = ref(false)
+
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
 
-function openTradeModal(holding: Holding, type: 'buy' | 'sell') {
+function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
-  tradeType.value = type
-  isTradeModalOpen.value = true
+
+  if (type === 'convert') {
+    isConvertModalOpen.value = true
+  }
+  else {
+    tradeType.value = type
+    isTradeModalOpen.value = true
+  }
+}
+
+// 处理转换提交
+async function handleConvertSubmit(payload: any) {
+  try {
+    await holdingStore.submitConversion(payload)
+    isConvertModalOpen.value = false
+    alert('转换申请已提交！\n将在卖出确认后自动处理买入。')
+    refresh()
+  }
+  catch (e) {
+    console.error(e)
+  }
 }
 
 async function handleTradeSubmit(payload: any) {
@@ -452,6 +474,17 @@ async function onSectorUpdateSuccess() {
         :current-sector="editingHoldingForSector.sector"
         @success="onSectorUpdateSuccess"
         @cancel="isSectorModalOpen = false"
+      />
+    </Modal>
+    <!-- 转换模态框 -->
+    <Modal v-if="tradeTarget" v-model="isConvertModalOpen" title="基金转换">
+      <ConvertForm
+        :from-code="tradeTarget.code"
+        :from-name="tradeTarget.name"
+        :current-shares="tradeTarget.shares || 0"
+        :available-funds="holdings"
+        @submit="handleConvertSubmit"
+        @cancel="isConvertModalOpen = false"
       />
     </Modal>
   </div>

@@ -180,6 +180,8 @@ export const fundTransactions = fundSchema.table('fund_transactions', {
   orderDate: date('order_date').notNull(),
   /** 备注 */
   note: text('note'),
+  /** 关联交易ID：用于基金转换，指向另一笔交易的ID */
+  relatedId: bigint('related_id', { mode: 'number' }),
   /** 确认成交的净值 */
   confirmedNav: numeric('confirmed_nav', { precision: 10, scale: 4 }),
   /** 确认成交的份额 */

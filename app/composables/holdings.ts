@@ -244,6 +244,25 @@ export const useHoldingStore = defineStore('holding', () => {
       throw error
     }
   }
+  /**
+   * 提交基金转换申请
+   */
+  async function submitConversion(payload: { fromCode: string, toCode: string, shares: number, date: string }) {
+    try {
+      await apiFetch('/api/fund/convert', {
+        method: 'POST',
+        body: payload,
+      })
+      // 转换是异步的，无需立即刷新持仓
+      return true
+    }
+    catch (error: any) {
+      console.error('提交转换失败:', error)
+      const detail = error.data?.message || '发生未知错误'
+      alert(`转换提交失败: ${detail}`)
+      throw error
+    }
+  }
   // 撤销/删除待确认的交易
   async function deleteTransaction(transactionId: number) {
     try {
@@ -322,6 +341,7 @@ export const useHoldingStore = defineStore('holding', () => {
     runStrategiesForFund,
     submitTrade,
     deleteTransaction,
+    submitConversion,
   }
 })
 

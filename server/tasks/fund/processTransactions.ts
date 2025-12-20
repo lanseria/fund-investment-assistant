@@ -1,4 +1,5 @@
 /* eslint-disable no-console */
+// server/tasks/fund/processTransactions.ts
 import BigNumber from 'bignumber.js'
 import { and, eq } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory } from '~~/server/database/schemas'
@@ -20,15 +21,48 @@ export default defineTask({
     })
 
     if (pendingTxs.length === 0) {
-      console.log('没有待处理的交易。')
       return { result: 'No pending transactions' }
     }
+
+    // [关键] 预处理：将交易分为两组，优先处理卖出
+    // 这样确保转换交易中的“卖出”先结算，从而计算出“买入”的金额
+    const sellTxs = pendingTxs.filter(t => t.type === 'sell')
+    const buyTxs = pendingTxs.filter(t => t.type === 'buy')
+
+    // 合并列表：先卖后买
+    const sortedTxs = [...sellTxs, ...buyTxs]
 
     let processedCount = 0
     let skippedCount = 0
 
-    for (const tx of pendingTxs) {
+    // 辅助函数：更新关联的买入交易金额
+    const updateRelatedBuyAmount = async (sellTxId: number, confirmedAmount: string) => {
+      await db.update(fundTransactions)
+        .set({ orderAmount: confirmedAmount }) // 将卖出的钱填入买入单
+        .where(eq(fundTransactions.relatedId, sellTxId))
+    }
+
+    for (const tx of sortedTxs) {
       try {
+        // [新增] 检查：如果是转换买入交易，需要检查金额是否已填
+        if (tx.type === 'buy' && tx.relatedId && !tx.orderAmount) {
+          // 尝试从数据库重新查一下最新的 orderAmount (因为刚才可能被 updateRelatedBuyAmount 更新了)
+          const freshTx = await db.query.fundTransactions.findFirst({
+            where: eq(fundTransactions.id, tx.id),
+          })
+
+          if (freshTx && freshTx.orderAmount) {
+            tx.orderAmount = freshTx.orderAmount // 更新内存中的数据
+          }
+          else {
+            // 对应的卖出还没成交，或者今日无净值，跳过本次循环，等待卖出成交
+            // (如果是同一天的交易，上面的 sellTxs 循环应该已经处理了卖出并更新了 DB)
+            // 如果走到这里，说明卖出可能失败了或者净值没更新
+            skippedCount++
+            continue
+          }
+        }
+
         // 2. 获取订单日期对应的历史净值
         const navRecord = await db.query.navHistory.findFirst({
           where: and(
@@ -37,8 +71,6 @@ export default defineTask({
           ),
         })
 
-        // 如果找不到当天的净值（可能是因为还没更新，或者是周末/节假日递延）
-        // 暂时跳过，等待下次任务（例如第二天）再处理
         if (!navRecord) {
           skippedCount++
           continue
@@ -46,12 +78,11 @@ export default defineTask({
 
         const nav = new BigNumber(navRecord.nav)
         if (nav.lte(0)) {
-          console.warn(`交易 ID ${tx.id}: 净值无效 (${nav.toString()})，跳过。`)
           skippedCount++
           continue
         }
 
-        // 3. 获取用户当前的持仓 (可能为空)
+        // 3. 获取用户当前的持仓
         const currentHolding = await db.query.holdings.findFirst({
           where: and(
             eq(holdings.userId, tx.userId),
@@ -59,86 +90,71 @@ export default defineTask({
           ),
         })
 
-        // 准备更新持仓的数据
         let finalShares = new BigNumber(currentHolding?.shares || 0)
         let finalCostPrice = new BigNumber(currentHolding?.costPrice || 0)
-
-        // 记录本次交易确认的数据
         let confirmedShares = new BigNumber(0)
         let confirmedAmount = new BigNumber(0)
 
         // --- 逻辑分支：买入 ---
         if (tx.type === 'buy') {
+          // 此时 orderAmount 应该已经被前面的 Sell 逻辑填充了（如果是转换交易）
           const orderAmount = new BigNumber(tx.orderAmount || 0)
 
-          // 计算份额 = 金额 / 净值 (暂忽略手续费)
           confirmedShares = orderAmount.dividedBy(nav)
           confirmedAmount = orderAmount
 
           if (currentHolding && finalShares.gt(0)) {
-            // 已有持仓：计算加权平均成本
-            // 新成本价 = (旧持仓市值 + 本次买入金额) / (旧份额 + 本次份额)
-            // 注意：旧持仓市值 = 旧份额 * 旧成本价 (这是基于成本的计算)
             const oldTotalCost = finalShares.multipliedBy(finalCostPrice)
             const newTotalCost = oldTotalCost.plus(confirmedAmount)
             const newTotalShares = finalShares.plus(confirmedShares)
-
             finalCostPrice = newTotalCost.dividedBy(newTotalShares)
             finalShares = newTotalShares
           }
           else {
-            // 新建仓 (或之前已清仓)
             finalShares = confirmedShares
-            finalCostPrice = nav // 初始成本价即为当前净值
+            finalCostPrice = nav
           }
         }
         // --- 逻辑分支：卖出 ---
         else if (tx.type === 'sell') {
           const orderShares = new BigNumber(tx.orderShares || 0)
 
-          // 检查持仓是否足够
           if (!currentHolding || finalShares.lt(orderShares)) {
-            console.error(`交易 ID ${tx.id}: 卖出失败，持仓不足。持有: ${finalShares}, 卖出: ${orderShares}`)
-            // 标记为失败
+            // 失败逻辑
             await db.update(fundTransactions)
-              .set({ status: 'failed', note: '持仓份额不足' })
+              .set({ status: 'failed', note: `持仓不足 (需${orderShares}, 有${finalShares})` })
               .where(eq(fundTransactions.id, tx.id))
+
+            // 如果是关联交易，卖出失败，对应的买入也应该标记失败或取消
+            // 这里暂不处理复杂的级联失败，留给买入逻辑自己判断（没有金额就一直 pending）
             continue
           }
 
           confirmedShares = orderShares
           confirmedAmount = orderShares.multipliedBy(nav)
-
-          // 卖出：份额减少，成本价(单位成本)通常保持不变
           finalShares = finalShares.minus(confirmedShares)
 
-          // 如果份额极小，视为清仓，重置成本价
           if (finalShares.lt(0.01)) {
             finalShares = new BigNumber(0)
             finalCostPrice = new BigNumber(0)
           }
+
+          // [核心] 卖出成功后，立即更新关联的买入交易
+          // 这里的 tx.id 就是买入交易记录中 relatedId 指向的值
+          await updateRelatedBuyAmount(tx.id, confirmedAmount.toString())
         }
 
-        // 4. 更新数据库
-
-        // A. 更新或创建持仓
+        // 4. 更新持仓数据库
         if (currentHolding) {
-          // 如果是清仓(份额为0)，可以选择删除记录或者保留但设为0
-          // 这里我们选择更新为0，保持“仅关注”状态
           await updateHolding(tx.userId, tx.fundCode, {
             shares: finalShares.toNumber(),
             costPrice: finalCostPrice.toNumber(),
           })
         }
         else {
-          // 新建仓 (仅买入会走到这里)
-          // 需要先确保 fundType 存在。addHolding 内部会处理 findOrCreateFund
-          // 我们需要知道 fundType。可以先查 funds 表，如果是个新基金可能需要从接口查
-          // 为简单起见，addHolding 需要 fundType。我们查询现有的 funds 表
+          // 新建仓 (转换买入可能会走到这里)
           const fundInfo = await db.query.funds.findFirst({ where: eq(funds.code, tx.fundCode) })
-          // 如果 funds 表也没这个基金(极少见，因为添加交易时通常已有)，默认为 open
           const fundType = fundInfo?.fundType || 'open'
-
           await addHolding({
             userId: tx.userId,
             code: tx.fundCode,
@@ -148,7 +164,7 @@ export default defineTask({
           })
         }
 
-        // B. 更新交易记录状态
+        // 5. 更新交易记录状态
         await db.update(fundTransactions)
           .set({
             status: 'confirmed',
@@ -163,19 +179,10 @@ export default defineTask({
       }
       catch (error) {
         console.error(`处理交易 ID ${tx.id} 时出错:`, error)
-        // 可以选择标记为 failed 或保持 pending 等待人工修复
       }
     }
 
-    console.log(`交易处理完成。成功: ${processedCount}, 跳过(无净值): ${skippedCount}`)
-
-    // 任务完成后，发出更新通知
-    if (processedCount > 0) {
-      // 这里的 emitter 需要引入，或者不做通知，等待前端轮询
-      // import { emitter } from '~~/server/utils/emitter'
-      // emitter.emit('holdings:updated')
-    }
-
+    console.log(`交易处理完成。成功: ${processedCount}, 跳过: ${skippedCount}`)
     return { processed: processedCount, skipped: skippedCount }
   },
 })

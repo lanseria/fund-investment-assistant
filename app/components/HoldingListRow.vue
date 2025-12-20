@@ -307,7 +307,16 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
               买入
             </div>
           </button>
-
+          <!-- 转换按钮 (仅当有持仓时显示) -->
+          <button
+            v-if="holding.holdingAmount !== null"
+            class="icon-btn text-blue-500/80 transition-transform hover:text-blue-500"
+            title="转换 (Switch)"
+            @click="emit('trade', holding, 'convert')"
+          >
+            <!-- 两个水平箭头图标 -->
+            <div i-carbon-arrows-horizontal class="text-lg font-bold" />
+          </button>
           <!-- 卖出 (仅持仓时显示) -->
           <button v-if="holding.holdingAmount !== null" class="icon-btn text-green-500/80 transition-transform hover:text-green-500" title="卖出" @click="emit('trade', holding, 'sell')">
             <div class="font-bold">

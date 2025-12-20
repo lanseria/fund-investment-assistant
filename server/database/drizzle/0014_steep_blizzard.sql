@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."fund_transactions" ADD COLUMN "related_id" bigint;
