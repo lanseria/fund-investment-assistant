@@ -8,6 +8,16 @@ export interface PendingTransaction {
   createdAt: string
 }
 
+// 最近已确认交易的类型定义
+export interface RecentTransaction {
+  id: number
+  type: 'buy' | 'sell'
+  date: string // 交易日期 (orderDate)
+  amount: number | null // 确认金额
+  shares: number | null // 确认份额
+  nav: number | null // 确认净值
+}
+
 export interface Holding {
   code: string
   name: string
@@ -26,8 +36,10 @@ export interface Holding {
   todayEstimateUpdateTime: string | null
   signals: Record<string, string>
   bias20: number | null
-  // [新增] 该基金关联的待确认交易列表
+  // 该基金关联的待确认交易列表
   pendingTransactions?: PendingTransaction[]
+  // 最近的交易历史 (已确认)
+  recentTransactions?: RecentTransaction[]
 }
 
 export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'bias20'

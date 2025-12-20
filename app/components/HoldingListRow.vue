@@ -14,14 +14,58 @@ const emit = defineEmits([
   'edit-sector',
   'trade',
   'delete-transaction',
-  'show-strategy-tooltip', // [新增] 通知父组件显示 tooltip
-  'hide-strategy-tooltip', // [新增] 通知父组件隐藏 tooltip
+  'show-strategy-tooltip',
+  'hide-strategy-tooltip',
 ])
 
 const { getLabel } = useDictStore()
 const dayjs = useDayjs()
 
-// --- 辅助函数 (从父组件移动过来) ---
+// --- 辅助函数 ---
+
+// [新增] 计算最近一次买入的持有状态
+const lastBuyStatus = computed(() => {
+  const txs = props.holding.recentTransactions
+  if (!txs || txs.length === 0)
+    return { isSafe: true, label: '无近买', days: 7 }
+
+  // 找到最近的一笔买入交易
+  const lastBuy = txs.find(t => t.type === 'buy')
+
+  // 如果最近7笔没有买入，说明买入很久了，肯定是安全的
+  if (!lastBuy)
+    return { isSafe: true, label: '7天+', days: 8, date: null }
+
+  const buyDate = dayjs(lastBuy.date)
+  // 计算持有天数 (今天 - 买入日期)
+  // 注意：基金持有天数通常包含周末，从确认日开始算。
+  // 这里做简单计算：当前日期 - 订单日期。如果刚好卡在临界点，建议用户去券商APP确认。
+  const diffDays = dayjs().diff(buyDate, 'day')
+
+  return {
+    isSafe: diffDays >= 7,
+    label: diffDays >= 7 ? '7天+' : `${diffDays}天`,
+    days: diffDays,
+    date: lastBuy.date,
+  }
+})
+
+// [优化] 格式化交易详情 tooltip
+function getTransactionTooltip(tx: any) {
+  const typeStr = tx.type === 'buy' ? '买入' : '卖出'
+  const dateStr = tx.date
+  let detailStr = ''
+
+  if (tx.type === 'buy' && tx.amount)
+    detailStr = `金额: ¥${Number(tx.amount).toLocaleString()}`
+  else if (tx.type === 'sell' && tx.shares)
+    detailStr = `份额: ${Number(tx.shares).toFixed(2)}`
+
+  const navStr = tx.nav ? ` (净值: ${Number(tx.nav).toFixed(4)})` : ''
+  return `${dateStr} ${typeStr}\n${detailStr}${navStr}`
+}
+
+// ... (其他原有函数保持不变: formatCurrency, getProfitClass, etc.)
 function formatCurrency(value: number | null | undefined) {
   if (value === null || value === undefined)
     return '-'
@@ -68,7 +112,6 @@ const strategiesForTags = {
   bollinger_bands: '布林',
 }
 
-// 处理悬停事件，向父组件发送相关信息（DOM元素和数据）
 function handleMouseEnter(event: MouseEvent, strategyKey: string) {
   emit('show-strategy-tooltip', {
     event,
@@ -82,18 +125,79 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
   <tr class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
     <!-- 1. 基金名称与信号 -->
     <td class="font-semibold p-4">
-      <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
-        {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
-      </button>
-      <NuxtLink :to="`/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
-        {{ holding.name }}
-      </NuxtLink>
-      <div class="text-xs text-gray-400 font-normal font-numeric mt-1 dark:text-gray-500">
-        {{ holding.code }}
+      <div class="mb-1 flex items-center">
+        <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
+          {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
+        </button>
+        <NuxtLink :to="`/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
+          {{ holding.name }}
+        </NuxtLink>
+      </div>
+
+      <!-- 优化后的基金代码与交易状态行 -->
+      <div class="flex gap-3 h-5 items-center">
+        <!-- 基金代码 -->
+        <div class="text-xs text-gray-400 font-normal font-numeric dark:text-gray-500">
+          {{ holding.code }}
+        </div>
+
+        <!-- 分隔线 -->
+        <div v-if="holding.recentTransactions?.length" class="bg-gray-300 h-3 w-[1px] dark:bg-gray-600" />
+
+        <!-- 7天持有期提示 (仅在有近期买入且不足7天时高亮) -->
+        <div
+          v-if="holding.recentTransactions?.some(t => t.type === 'buy')"
+          class="text-[10px] px-1.5 py-0.5 border rounded flex gap-1 cursor-help items-center"
+          :class="lastBuyStatus.isSafe
+            ? 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500' // 安全状态：低调显示
+            : 'border-amber-200 text-amber-600 bg-amber-50 animate-pulse dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400' // 警告状态：高亮显示
+          "
+          :title="lastBuyStatus.isSafe
+            ? `安全: 最近买入于 ${lastBuyStatus.date}，已持有 ${lastBuyStatus.days} 天。赎回费率较低。`
+            : `警告: 最近买入于 ${lastBuyStatus.date}，仅持有 ${lastBuyStatus.days} 天！现在卖出可能面临 1.5% 惩罚性费率。`
+          "
+        >
+          <div :class="lastBuyStatus.isSafe ? 'i-carbon-shield-check' : 'i-carbon-hourglass'" />
+          <span class="font-bold">{{ lastBuyStatus.label }}</span>
+        </div>
+
+        <!-- 交易热点图 (Visual Timeline) -->
+        <div v-if="holding.recentTransactions?.length" class="flex flex-row-reverse gap-[-2px] items-center">
+          <!-- 注意：flex-row-reverse 让 DOM 中第一个元素(最新的)显示在最右侧?
+               不，通常习惯左边是旧的，右边是新的(时间轴)。
+               但API返回的是[新, 旧, 旧...]。
+               为了直观，我们让最新的显示在最左边（强调“最近发生了什么”）。
+               所以这里不使用 reverse，直接遍历即可。
+          -->
+          <div
+            v-for="(tx, idx) in holding.recentTransactions"
+            :key="tx.id"
+            class="group relative"
+            :style="{ zIndex: 10 - idx }"
+          >
+            <!-- 交易圆点 -->
+            <div
+              class="rounded-full h-2.5 w-2.5 cursor-pointer ring-1 ring-white transition-all dark:ring-gray-800 hover:scale-125 hover:z-20"
+              :class="[
+                tx.type === 'buy' ? 'bg-red-500 dark:bg-red-400' : 'bg-green-500 dark:bg-green-400',
+                idx === 0 ? 'ring-2 !ring-offset-1 !ring-offset-transparent' : '', // 最新一笔加粗圈
+              ]"
+            >
+              <!-- 悬浮 Tooltip (纯CSS实现，比 title 更快) -->
+              <div class="mb-2 opacity-0 pointer-events-none whitespace-pre translate-y-1 transform transition-all bottom-full left-1/2 absolute z-50 group-hover:opacity-100 -translate-x-1/2 group-hover:translate-y-0">
+                <div class="text-xs text-white p-2 rounded bg-gray-800/90 shadow-lg backdrop-blur-sm dark:text-gray-900 dark:bg-white/90">
+                  {{ getTransactionTooltip(tx) }}
+                </div>
+                <!-- 小三角 -->
+                <div class="border-4 border-transparent border-t-gray-800/90 h-0 w-0 bottom-[-8px] left-1/2 absolute dark:border-t-white/90 -translate-x-1/2" />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- 待确认交易展示区 -->
-      <div v-if="holding.pendingTransactions && holding.pendingTransactions.length > 0" class="mt-1.5 space-y-1">
+      <div v-if="holding.pendingTransactions && holding.pendingTransactions.length > 0" class="mt-2 space-y-1">
         <div
           v-for="tx in holding.pendingTransactions"
           :key="tx.id"
@@ -134,6 +238,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
+    <!-- ... (后续的 td: 市值、收益、涨跌、更新时间、操作 保持不变) -->
     <!-- 2. 持有市值 / 份额 -->
     <td class="font-mono p-4 text-right">
       <template v-if="holding.holdingAmount !== null">
@@ -191,11 +296,10 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       {{ holding.todayEstimateUpdateTime ? dayjs(holding.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
     </td>
 
-    <!-- 6. 操作 (明确分行布局) -->
-    <!-- 6. 操作 (两列纵向布局) -->
+    <!-- 6. 操作 -->
     <td v-if="showActions" class="p-4 text-right align-middle">
       <div class="flex gap-x-3 items-center justify-end">
-        <!-- 左列：交易操作 (图标加大 text-xl) -->
+        <!-- 左列：交易操作 -->
         <div class="flex flex-col gap-y-3 items-center">
           <!-- 买入 -->
           <button class="icon-btn text-red-500/80 transition-transform hover:text-red-500" title="买入" @click="emit('trade', holding, 'buy')">

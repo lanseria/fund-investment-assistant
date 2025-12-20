@@ -89,7 +89,7 @@ function handleHideTooltip() {
       <table class="text-left w-full table-fixed">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <th class="text-sm text-gray-600 font-semibold p-4 w-280px dark:text-gray-300">
+            <th class="text-sm text-gray-600 font-semibold p-4 w-290px dark:text-gray-300">
               基金名称 / 策略信号
             </th>
 
@@ -119,8 +119,7 @@ function handleHideTooltip() {
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               更新时间
             </th>
-            <!-- 这里使用了优化的宽度 w-28 -->
-            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-28 dark:text-gray-300">
+            <th v-if="showActions" class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300">
               操作
             </th>
           </tr>

@@ -409,7 +409,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
     },
   })
 
-  // [新增] 获取用户所有状态为 'pending' 的交易记录
+  // 获取用户所有状态为 'pending' 的交易记录
   const pendingTxs = await db.query.fundTransactions.findMany({
     where: and(
       eq(fundTransactions.userId, userId),
@@ -418,7 +418,18 @@ export async function getUserHoldingsAndSummary(userId: number) {
     orderBy: [desc(fundTransactions.createdAt)],
   })
 
-  // [新增] 将交易记录按 fundCode 分组
+  // 获取用户所有状态为 'confirmed' 的历史交易记录
+  // 这里为了性能简单处理：获取该用户所有历史记录，然后在内存中分组切片
+  // 对于个人用户来说，交易记录通常不会大到造成内存问题
+  const confirmedTxs = await db.query.fundTransactions.findMany({
+    where: and(
+      eq(fundTransactions.userId, userId),
+      eq(fundTransactions.status, 'confirmed'),
+    ),
+    orderBy: [desc(fundTransactions.orderDate), desc(fundTransactions.createdAt)],
+  })
+
+  // 将待处理交易记录按 fundCode 分组
   const pendingTxMap = new Map<string, any[]>()
   for (const tx of pendingTxs) {
     if (!pendingTxMap.has(tx.fundCode)) {
@@ -432,6 +443,25 @@ export async function getUserHoldingsAndSummary(userId: number) {
       orderDate: tx.orderDate,
       createdAt: tx.createdAt,
     })
+  }
+
+  // 将交易记录按 fundCode 分组
+  const historyTxMap = new Map<string, any[]>()
+  for (const tx of confirmedTxs) {
+    if (!historyTxMap.has(tx.fundCode)) {
+      historyTxMap.set(tx.fundCode, [])
+    }
+    const list = historyTxMap.get(tx.fundCode)!
+    if (list.length < 7) {
+      list.push({
+        id: tx.id,
+        type: tx.type,
+        date: tx.orderDate,
+        amount: tx.confirmedAmount ? Number(tx.confirmedAmount) : null,
+        shares: tx.confirmedShares ? Number(tx.confirmedShares) : null,
+        nav: tx.confirmedNav ? Number(tx.confirmedNav) : null,
+      })
+    }
   }
 
   if (userHoldings.length === 0) {
@@ -507,8 +537,10 @@ export async function getUserHoldingsAndSummary(userId: number) {
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
       bias20,
-      // [新增] 挂载待确认交易
+      // 挂载待确认交易
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
+      // 挂载最近交易历史
+      recentTransactions: historyTxMap.get(fundInfo.code) || [],
     }
 
     if (isHeld) {
