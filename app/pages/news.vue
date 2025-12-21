@@ -8,14 +8,14 @@ useHead({
 })
 
 const dayjs = useDayjs()
-const { copy, copied } = useClipboard()
+const { copy, copied } = useClipboard({ legacy: true })
 
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期（用于查询数据）
 const viewDate = ref(dayjs()) // 当前日历视图显示的月份
 
 // --- 获取数据 ---
-const { data: newsData, pending, refresh } = await useAsyncData(
+const { data: newsData, pending } = await useAsyncData(
   `news-${selectedDate.value}`,
   () => apiFetch(`/api/news/${selectedDate.value}`),
   {
@@ -152,9 +152,9 @@ function handleCopy() {
       </div>
 
       <!-- 右侧：新闻内容展示 -->
-      <div class="card flex flex-grow flex-col min-h-[500px] w-full">
+      <div class="card flex flex-grow flex-col w-full">
         <!-- 标题栏 -->
-        <div class="p-4 border-b flex items-center justify-between dark:border-gray-700">
+        <div class="p-4 border-b flex flex-shrink-0 items-center justify-between dark:border-gray-700">
           <div>
             <h2 class="text-lg font-bold">
               {{ newsData?.title || `${selectedDate} 简报` }}
@@ -176,19 +176,19 @@ function handleCopy() {
         </div>
 
         <!-- 内容区域 -->
-        <div class="p-6 flex-grow relative">
+        <div class="p-6 h-[700px] relative overflow-auto">
           <div v-if="pending" class="bg-white/50 flex items-center inset-0 justify-center absolute z-10 dark:bg-gray-800/50">
             <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
           </div>
 
           <div v-if="newsData?.content" class="max-w-none prose dark:prose-invert">
-            <!-- 使用 whitespace-pre-wrap 保留 markdown 文本的换行格式，或者如果你引入了 markdown 渲染器可以使用 v-html -->
+            <!-- 使用 whitespace-pre-wrap 保留 markdown 文本的换行格式 -->
             <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap dark:text-gray-200">
               {{ newsData.content }}
             </div>
           </div>
 
-          <div v-else-if="!pending" class="text-gray-400 flex flex-col h-full min-h-[300px] items-center justify-center">
+          <div v-else-if="!pending" class="text-gray-400 flex flex-col h-full items-center justify-center">
             <div i-carbon-document-unknown class="text-5xl mb-4 opacity-50" />
             <p>该日期暂无新闻数据</p>
           </div>
