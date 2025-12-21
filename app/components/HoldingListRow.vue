@@ -126,7 +126,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <!-- 1. 基金名称与信号 -->
     <td class="font-semibold p-4">
       <div class="mb-1 flex items-center">
-        <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
+        <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full flex-none transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
           {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
         </button>
         <NuxtLink :to="`/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
@@ -163,12 +163,6 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
         <!-- 交易热点图 (Visual Timeline) -->
         <div v-if="holding.recentTransactions?.length" class="flex flex-row-reverse gap-[-2px] items-center">
-          <!-- 注意：flex-row-reverse 让 DOM 中第一个元素(最新的)显示在最右侧?
-               不，通常习惯左边是旧的，右边是新的(时间轴)。
-               但API返回的是[新, 旧, 旧...]。
-               为了直观，我们让最新的显示在最左边（强调“最近发生了什么”）。
-               所以这里不使用 reverse，直接遍历即可。
-          -->
           <div
             v-for="(tx, idx) in holding.recentTransactions"
             :key="tx.id"
@@ -300,7 +294,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <td v-if="showActions" class="p-4 text-right align-middle">
       <div class="flex gap-x-3 items-center justify-end">
         <!-- 左列：交易操作 -->
-        <div class="flex flex-col gap-y-3 items-center">
+        <div class="flex flex-col gap-y-1 items-center">
           <!-- 买入 -->
           <button class="icon-btn text-red-500/80 transition-transform hover:text-red-500" title="买入" @click="emit('trade', holding, 'buy')">
             <div class="font-bold">
