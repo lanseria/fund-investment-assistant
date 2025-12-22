@@ -278,6 +278,30 @@ async function handleClearPosition(holding: Holding) {
   }
 }
 
+const isProcessingTransactions = ref(false)
+
+async function handleProcessTransactions() {
+  if (isProcessingTransactions.value)
+    return
+  isProcessingTransactions.value = true
+  try {
+    // 调用处理交易的 API
+    const res: any = await apiFetch('/api/dev/process-transactions', { method: 'POST' })
+    // runTask 返回结构为 { result: { processed: x, skipped: y } }
+    const { processed, skipped } = res.result || {}
+    alert(`交易处理完成！\n成功: ${processed ?? 0}, 跳过: ${skipped ?? 0}`)
+    // 刷新页面数据
+    await refresh()
+  }
+  catch (e: any) {
+    console.error(e)
+    alert(`处理失败: ${e.data?.message || e.message}`)
+  }
+  finally {
+    isProcessingTransactions.value = false
+  }
+}
+
 const isImportModalOpen = ref(false)
 
 async function handleExport() {
@@ -381,6 +405,9 @@ async function onSectorUpdateSuccess() {
       <div class="flex gap-2 items-center sm:gap-4">
         <button class="icon-btn" title="刷新所有估值" :disabled="isDataLoading" @click="() => refresh()">
           <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
+        </button>
+        <button class="icon-btn" title="手动处理待确认交易" :disabled="isProcessingTransactions" @click="handleProcessTransactions">
+          <div i-carbon-calculator-check :class="{ 'animate-pulse': isProcessingTransactions }" />
         </button>
         <button
           class="icon-btn"
