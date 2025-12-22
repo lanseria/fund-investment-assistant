@@ -86,7 +86,7 @@ function handleSubmit() {
         <div class="input-base bg-gray-100 opacity-70 flex cursor-not-allowed justify-between dark:bg-gray-700">
           <span>{{ fromName }} ({{ fromCode }})</span>
           <span class="text-xs text-gray-500 flex items-center">
-            持仓: {{ currentShares }} 份
+            可用: {{ currentShares }} 份
           </span>
         </div>
       </div>

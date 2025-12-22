@@ -52,13 +52,22 @@ const lastBuyStatus = computed(() => {
 
 // [优化] 格式化交易详情 tooltip
 function getTransactionTooltip(tx: any) {
-  const typeStr = tx.type === 'buy' ? '买入' : '卖出'
+  let typeStr = ''
+  if (tx.type === 'buy')
+    typeStr = '买入'
+  else if (tx.type === 'sell')
+    typeStr = '卖出'
+  else if (tx.type === 'convert_out')
+    typeStr = '转出'
+  else if (tx.type === 'convert_in')
+    typeStr = '转入'
+
   const dateStr = tx.date
   let detailStr = ''
 
-  if (tx.type === 'buy' && tx.amount)
+  if ((tx.type === 'buy' || tx.type === 'convert_in') && tx.amount)
     detailStr = `金额: ¥${Number(tx.amount).toLocaleString()}`
-  else if (tx.type === 'sell' && tx.shares)
+  else if ((tx.type === 'sell' || tx.type === 'convert_out') && tx.shares)
     detailStr = `份额: ${Number(tx.shares).toFixed(2)}`
 
   const navStr = tx.nav ? ` (净值: ${Number(tx.nav).toFixed(4)})` : ''
@@ -173,7 +182,10 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
             <div
               class="rounded-full h-2.5 w-2.5 cursor-pointer ring-1 ring-white transition-all dark:ring-gray-800 hover:scale-125 hover:z-20"
               :class="[
-                tx.type === 'buy' ? 'bg-red-500 dark:bg-red-400' : 'bg-green-500 dark:bg-green-400',
+                // 买入/转入为红/紫，卖出/转出为绿/蓝
+                (tx.type === 'buy' || tx.type === 'convert_in')
+                  ? (tx.type === 'convert_in' ? 'bg-purple-500 dark:bg-purple-400' : 'bg-red-500 dark:bg-red-400')
+                  : (tx.type === 'convert_out' ? 'bg-blue-500 dark:bg-blue-400' : 'bg-green-500 dark:bg-green-400'),
                 idx === 0 ? 'ring-2 !ring-offset-1 !ring-offset-transparent' : '', // 最新一笔加粗圈
               ]"
             >
@@ -195,17 +207,32 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         <div
           v-for="tx in holding.pendingTransactions"
           :key="tx.id"
-          class="group text-xs text-amber-800 px-2 py-0.5 border border-amber-200 rounded bg-amber-100 inline-flex cursor-pointer transition-colors items-center dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200 dark:hover:bg-amber-900/50"
-          title="点击撤销此交易申请"
-          @click.stop="emit('delete-transaction', tx)"
+          class="group text-xs px-2 py-0.5 border rounded inline-flex transition-colors items-center"
+          :class="{
+            'text-amber-800 border-amber-200 bg-amber-100 dark:text-amber-300 dark:border-amber-800/50 dark:bg-amber-900/30 hover:bg-amber-200': tx.type === 'buy' || tx.type === 'sell',
+            'text-indigo-800 border-indigo-200 bg-indigo-100 dark:text-indigo-300 dark:border-indigo-800/50 dark:bg-indigo-900/30 hover:bg-indigo-200': tx.type === 'convert_out' || tx.type === 'convert_in',
+            'cursor-pointer': tx.type !== 'convert_in', // 转入不能直接点击删除
+            'cursor-not-allowed opacity-80': tx.type === 'convert_in',
+          }"
+          :title="tx.type === 'convert_in' ? '请删除对应的 [转出] 记录以撤销' : '点击撤销此交易申请'"
+          @click.stop="tx.type !== 'convert_in' && emit('delete-transaction', tx)"
         >
           <div class="i-carbon-time mr-1 animate-pulse" />
-          <span class="font-bold mr-1">{{ tx.type === 'buy' ? '买入' : '卖出' }}</span>
-          <span class="font-numeric">
-            {{ tx.type === 'buy' ? formatCurrency(tx.orderAmount) : `${tx.orderShares}份` }}
+
+          <!-- 类型标签 -->
+          <span class="font-bold mr-1">
+            {{ tx.type === 'buy' ? '买入' : (tx.type === 'sell' ? '卖出' : (tx.type === 'convert_out' ? '转出' : '转入')) }}
           </span>
+
+          <!-- 金额/份额 -->
+          <span class="font-numeric">
+            {{ (tx.type === 'buy' || tx.type === 'convert_in') ? (tx.orderAmount ? formatCurrency(tx.orderAmount) : '等待确认') : `${tx.orderShares}份` }}
+          </span>
+
           <span class="ml-1 opacity-75">(待确认)</span>
-          <div class="i-carbon-close-filled text-amber-600 ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
+
+          <!-- 删除图标 (转入时不显示或显示禁用状态) -->
+          <div v-if="tx.type !== 'convert_in'" class="i-carbon-close-filled ml-1 opacity-0 transition-opacity group-hover:opacity-100" />
         </div>
       </div>
 

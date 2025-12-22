@@ -71,7 +71,7 @@ function handleSubmit() {
           {{ type === 'buy' ? '买入' : '卖出' }}
         </p>
         <p v-if="type === 'sell'" class="text-xs text-gray-500 mt-1">
-          持仓份额: {{ currentShares }} 份
+          可用份额: {{ currentShares }} 份
           <span v-if="currentMarketValue">(≈ ¥{{ currentMarketValue.toFixed(2) }})</span>
         </p>
       </div>

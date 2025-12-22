@@ -8,6 +8,10 @@ export const fundSchema = pgSchema('fund_app')
 export const userRoleEnum = fundSchema.enum('user_role', ['admin', 'user'])
 // 定义基金类型的枚举
 export const fundTypeEnum = fundSchema.enum('fund_type', ['open', 'qdii_lof'])
+// [修改] 扩展交易类型，增加 convert_out 和 convert_in
+export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell', 'convert_out', 'convert_in'])
+// 定义交易状态枚举 (目前只负责记录，后续逻辑会用到)
+export const transactionStatusEnum = fundSchema.enum('transaction_status', ['pending', 'confirmed', 'failed'])
 /**
  * 用户表 (users)
  * 存储应用的用户信息
@@ -142,11 +146,6 @@ export const dictionaryData = fundSchema.table('dictionary_data', {
   /** 创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
-
-// 定义交易类型的枚举
-export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell'])
-// 定义交易状态枚举 (目前只负责记录，后续逻辑会用到)
-export const transactionStatusEnum = fundSchema.enum('transaction_status', ['pending', 'confirmed', 'failed'])
 
 /**
  * 基金交易记录表 (fund_transactions)

@@ -1,5 +1,4 @@
 /* eslint-disable no-console */
-// server/tasks/fund/processTransactions.ts
 import BigNumber from 'bignumber.js'
 import { and, eq } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory } from '~~/server/database/schemas'
@@ -24,16 +23,17 @@ export default defineTask({
       return { result: 'No pending transactions' }
     }
 
-    // [关键] 预处理：将交易分为两组，优先处理卖出
+    // [关键] 预处理：将交易分为两组，优先处理卖出/转出
     // 这样确保转换交易中的“卖出”先结算，从而计算出“买入”的金额
-    const sellTxs = pendingTxs.filter(t => t.type === 'sell')
-    const buyTxs = pendingTxs.filter(t => t.type === 'buy')
+    const sellTxs = pendingTxs.filter(t => t.type === 'sell' || t.type === 'convert_out')
+    const buyTxs = pendingTxs.filter(t => t.type === 'buy' || t.type === 'convert_in')
 
-    // 合并列表：先卖后买
+    // 合并列表：先卖(转出) 后 买(转入)
     const sortedTxs = [...sellTxs, ...buyTxs]
 
     let processedCount = 0
     let skippedCount = 0
+    const skippedReasons: string[] = []
 
     // 辅助函数：更新关联的买入交易金额
     const updateRelatedBuyAmount = async (sellTxId: number, confirmedAmount: string) => {
@@ -44,8 +44,9 @@ export default defineTask({
 
     for (const tx of sortedTxs) {
       try {
-        // [新增] 检查：如果是转换买入交易，需要检查金额是否已填
-        if (tx.type === 'buy' && tx.relatedId && !tx.orderAmount) {
+        // [新增] 检查：如果是转换买入(convert_in)交易，需要检查金额是否已填
+        // 这里兼容旧数据的 'buy' 类型转换，以及新的 'convert_in'
+        if ((tx.type === 'buy' || tx.type === 'convert_in') && tx.relatedId && !tx.orderAmount) {
           // 尝试从数据库重新查一下最新的 orderAmount (因为刚才可能被 updateRelatedBuyAmount 更新了)
           const freshTx = await db.query.fundTransactions.findFirst({
             where: eq(fundTransactions.id, tx.id),
@@ -59,6 +60,7 @@ export default defineTask({
             // (如果是同一天的交易，上面的 sellTxs 循环应该已经处理了卖出并更新了 DB)
             // 如果走到这里，说明卖出可能失败了或者净值没更新
             skippedCount++
+            skippedReasons.push(`[${tx.fundCode}] 转换买入等待卖出确认 (TxID: ${tx.id})`)
             continue
           }
         }
@@ -73,12 +75,14 @@ export default defineTask({
 
         if (!navRecord) {
           skippedCount++
+          skippedReasons.push(`[${tx.fundCode}] 缺少 ${tx.orderDate} 的净值数据 (TxID: ${tx.id})`)
           continue
         }
 
         const nav = new BigNumber(navRecord.nav)
         if (nav.lte(0)) {
           skippedCount++
+          skippedReasons.push(`[${tx.fundCode}] ${tx.orderDate} 净值无效(${nav}) (TxID: ${tx.id})`)
           continue
         }
 
@@ -95,9 +99,9 @@ export default defineTask({
         let confirmedShares = new BigNumber(0)
         let confirmedAmount = new BigNumber(0)
 
-        // --- 逻辑分支：买入 ---
-        if (tx.type === 'buy') {
-          // 此时 orderAmount 应该已经被前面的 Sell 逻辑填充了（如果是转换交易）
+        // --- 逻辑分支：买入 / 转入 ---
+        if (tx.type === 'buy' || tx.type === 'convert_in') {
+          // 此时 orderAmount 应该已经被前面的 Sell/ConvertOut 逻辑填充了
           const orderAmount = new BigNumber(tx.orderAmount || 0)
 
           confirmedShares = orderAmount.dividedBy(nav)
@@ -115,8 +119,8 @@ export default defineTask({
             finalCostPrice = nav
           }
         }
-        // --- 逻辑分支：卖出 ---
-        else if (tx.type === 'sell') {
+        // --- 逻辑分支：卖出 / 转出 ---
+        else if (tx.type === 'sell' || tx.type === 'convert_out') {
           const orderShares = new BigNumber(tx.orderShares || 0)
 
           if (!currentHolding || finalShares.lt(orderShares)) {
@@ -177,12 +181,14 @@ export default defineTask({
 
         processedCount++
       }
-      catch (error) {
+      catch (error: any) {
         console.error(`处理交易 ID ${tx.id} 时出错:`, error)
+        skippedCount++
+        skippedReasons.push(`[${tx.fundCode}] 处理异常: ${error.message} (TxID: ${tx.id})`)
       }
     }
 
     console.log(`交易处理完成。成功: ${processedCount}, 跳过: ${skippedCount}`)
-    return { processed: processedCount, skipped: skippedCount }
+    return { processed: processedCount, skipped: skippedCount, skippedReasons }
   },
 })

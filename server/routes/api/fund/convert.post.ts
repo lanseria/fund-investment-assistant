@@ -26,27 +26,27 @@ export default defineEventHandler(async (event) => {
 
     // 使用事务确保原子性：同时创建卖出和买入记录
     await db.transaction(async (tx) => {
-      // 1. 创建卖出记录 (Source)
-      const [sellRecord] = await tx.insert(fundTransactions).values({
+      // 1. 创建转出记录 (Source) - [修改] 类型改为 convert_out
+      const [outRecord] = await tx.insert(fundTransactions).values({
         userId: user.id,
         fundCode: data.fromCode,
-        type: 'sell',
+        type: 'convert_out',
         status: 'pending',
         orderShares: String(data.shares),
         orderDate: data.date,
-        note: `转换卖出 -> ${data.toCode}`,
+        note: `基金转换 -> ${data.toCode}`,
       }).returning()
 
-      // 2. 创建买入记录 (Target)
-      // orderAmount 暂时为空，等待卖出确认后由定时任务回填
+      // 2. 创建转入记录 (Target) - [修改] 类型改为 convert_in
+      // orderAmount 暂时为空，等待转出确认后由定时任务回填
       await tx.insert(fundTransactions).values({
         userId: user.id,
         fundCode: data.toCode,
-        type: 'buy',
+        type: 'convert_in',
         status: 'pending',
         orderDate: data.date,
-        relatedId: sellRecord!.id, // 关键：关联到卖出记录
-        note: `转换买入 <- ${data.fromCode}`,
+        relatedId: outRecord!.id, // 关键：关联到转出记录
+        note: `基金转换 <- ${data.fromCode}`,
       })
     })
 

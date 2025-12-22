@@ -137,7 +137,7 @@ _提示：如果修改了 `server/database/schemas.ts`，可以先运行 `pnpm d
 pnpm nuxt task run initAdmin
 ```
 
-默认用户名: `admin`，密码: `123456`。请在首次登录后立即修改密码。
+请在首次登录后立即修改密码。
 
 **方式二：通过开发 API (仅限开发环境)**
 启动开发服务器后，访问 `http://localhost:3000/api/dev/init-admin`。

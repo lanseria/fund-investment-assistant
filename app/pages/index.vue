@@ -161,9 +161,27 @@ const isConvertModalOpen = ref(false)
 
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
+// [新增] 计算后的可用份额 (总持仓 - 待确认卖出/转出)
+const availableShares = ref(0)
+
+// 辅助函数：计算冻结份额
+function calculateAvailableShares(holding: Holding) {
+  const currentShares = holding.shares || 0
+  if (!holding.pendingTransactions)
+    return currentShares
+
+  // 累加所有待确认的 卖出 和 转出 份额
+  const frozenShares = holding.pendingTransactions
+    .filter(t => t.type === 'sell' || t.type === 'convert_out')
+    .reduce((sum, t) => sum + (Number(t.orderShares) || 0), 0)
+
+  return Math.max(0, currentShares - frozenShares)
+}
 
 function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
+  // [新增] 计算可用份额
+  availableShares.value = calculateAvailableShares(holding)
 
   if (type === 'convert') {
     isConvertModalOpen.value = true
@@ -287,9 +305,13 @@ async function handleProcessTransactions() {
   try {
     // 调用处理交易的 API
     const res: any = await apiFetch('/api/dev/process-transactions', { method: 'POST' })
-    // runTask 返回结构为 { result: { processed: x, skipped: y } }
-    const { processed, skipped } = res.result || {}
-    alert(`交易处理完成！\n成功: ${processed ?? 0}, 跳过: ${skipped ?? 0}`)
+    const { processed, skipped, skippedReasons } = res.result || {}
+
+    let msg = `交易处理完成！\n成功: ${processed ?? 0}, 跳过: ${skipped ?? 0}`
+    if (skippedReasons && skippedReasons.length > 0) {
+      msg += `\n\n跳过原因:\n${skippedReasons.join('\n')}`
+    }
+    alert(msg)
     // 刷新页面数据
     await refresh()
   }
@@ -482,7 +504,7 @@ async function onSectorUpdateSuccess() {
         :fund-code="tradeTarget.code"
         :fund-name="tradeTarget.name"
         :type="tradeType"
-        :current-shares="tradeTarget.shares || 0"
+        :current-shares="availableShares"
         :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
         @submit="handleTradeSubmit"
         @cancel="isTradeModalOpen = false"
@@ -508,7 +530,7 @@ async function onSectorUpdateSuccess() {
       <ConvertForm
         :from-code="tradeTarget.code"
         :from-name="tradeTarget.name"
-        :current-shares="tradeTarget.shares || 0"
+        :current-shares="availableShares"
         :available-funds="holdings"
         @submit="handleConvertSubmit"
         @cancel="isConvertModalOpen = false"

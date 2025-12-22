@@ -1,7 +1,8 @@
 // 待确认交易的类型定义
 export interface PendingTransaction {
   id: number
-  type: 'buy' | 'sell'
+  // [修改] 增加转出转入类型
+  type: 'buy' | 'sell' | 'convert_out' | 'convert_in'
   orderAmount: number | null
   orderShares: number | null
   orderDate: string
@@ -11,7 +12,7 @@ export interface PendingTransaction {
 // 最近已确认交易的类型定义
 export interface RecentTransaction {
   id: number
-  type: 'buy' | 'sell'
+  type: 'buy' | 'sell' | 'convert_out' | 'convert_in'
   date: string // 交易日期 (orderDate)
   amount: number | null // 确认金额
   shares: number | null // 确认份额
