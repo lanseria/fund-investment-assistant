@@ -1,9 +1,6 @@
-catalogMode: prefer
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
 packages: []
+
+catalogMode: prefer
 
 catalogs:
   backend:
@@ -53,3 +50,7 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade

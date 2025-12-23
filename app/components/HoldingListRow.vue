@@ -29,8 +29,8 @@ const lastBuyStatus = computed(() => {
   if (!txs || txs.length === 0)
     return { isSafe: true, label: '无近买', days: 7 }
 
-  // 找到最近的一笔买入交易
-  const lastBuy = txs.find(t => t.type === 'buy')
+  // 找到最近的一笔买入交易（包含普通买入和转换转入）
+  const lastBuy = txs.find(t => t.type === 'buy' || t.type === 'convert_in')
 
   // 如果最近7笔没有买入，说明买入很久了，肯定是安全的
   if (!lastBuy)
@@ -155,7 +155,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
         <!-- 7天持有期提示 (仅在有近期买入且不足7天时高亮) -->
         <div
-          v-if="holding.recentTransactions?.some(t => t.type === 'buy')"
+          v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
           class="text-[10px] px-1.5 py-0.5 border rounded flex gap-1 cursor-help items-center"
           :class="lastBuyStatus.isSafe
             ? 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500' // 安全状态：低调显示
