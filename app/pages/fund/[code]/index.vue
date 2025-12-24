@@ -56,7 +56,6 @@ function formatCurrency(val: any) {
 const { data, pending, error, refresh } = await useAsyncData(
   `fund-all-strategies-structured-${code}`,
   async () => {
-    // 定义获取通用策略数据的函数 (baseData 现在会包含 transactions)
     const fetchGenericStrategy = (strategy: string = '') =>
       apiFetch(`/api/fund/holdings/${code}/history`, {
         params: {
@@ -64,26 +63,25 @@ const { data, pending, error, refresh } = await useAsyncData(
           strategy: strategy || undefined,
         },
       })
-
     const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
 
-    const [
-      baseData,
-      rsiData,
-      macData,
-      bollingerData,
-    ] = await Promise.all([
-      fetchGenericStrategy(''), // 获取基础数据（含交易记录）
+    // [新增] 获取区间涨跌幅数据
+    const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
+
+    const [baseData, rsiData, macData, bollingerData, performanceData] = await Promise.all([
+      fetchGenericStrategy(''),
       fetchRsiStrategy(),
       fetchGenericStrategy('macd'),
       fetchGenericStrategy('bollinger_bands'),
+      fetchPerformance(), // [新增]
     ])
 
     return {
-      base: baseData, // baseData 包含 history, signals, 和 transactions
+      base: baseData,
       rsi: rsiData,
       macd: macData,
       bollingerBands: bollingerData,
+      performance: performanceData, // [新增]
     }
   },
 )
@@ -122,6 +120,33 @@ async function handleRunStrategies() {
   finally {
     isRunningStrategies.value = false
   }
+}
+
+// [新增] 辅助函数：获取特定区间的性能数据
+function getPerformanceValue(key: string) {
+  if (!data.value?.performance)
+    return null
+  return data.value.performance[key]
+}
+
+// [新增] 辅助函数：格式化显示
+function formatPerformance(key: string) {
+  const val = getPerformanceValue(key)
+  if (val === null || val === undefined)
+    return '--'
+  return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`
+}
+
+// [新增] 辅助函数：获取颜色样式
+function getPerformanceClass(key: string) {
+  const val = getPerformanceValue(key)
+  if (val === null || val === undefined)
+    return 'text-gray-400'
+  if (val > 0)
+    return 'text-red-500 dark:text-red-400'
+  if (val < 0)
+    return 'text-green-500 dark:text-green-400'
+  return 'text-gray-500'
 }
 
 function setDateRange(period: string) {
@@ -180,10 +205,35 @@ watch(data, (newData) => {
       </div>
     </header>
 
+    <!-- [修改] 顶部数据卡片区域 -->
     <div class="mb-8 p-4 card">
-      <div class="flex flex-wrap gap-2">
-        <button v-for="filter in dateFilters" :key="filter.value" class="text-sm px-3 py-1.5 rounded-md transition-colors" :class="[activeFilter === filter.value ? 'bg-primary text-white' : 'bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600']" @click="setDateRange(filter.value)">
-          {{ filter.label }}
+      <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
+        <button
+          v-for="filter in dateFilters"
+          :key="filter.value"
+          class="p-2 border rounded-lg flex flex-col transition-all duration-200 items-center justify-center"
+          :class="[
+            activeFilter === filter.value
+              ? 'bg-primary/5 border-primary shadow-sm'
+              : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/60',
+          ]"
+          @click="setDateRange(filter.value)"
+        >
+          <!-- 标签 -->
+          <span
+            class="text-xs mb-1"
+            :class="activeFilter === filter.value ? 'text-primary font-bold' : 'text-gray-500 dark:text-gray-400'"
+          >
+            {{ filter.label }}
+          </span>
+
+          <!-- 数值 -->
+          <div class="flex h-6 items-center justify-center">
+            <span v-if="!data && pending" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
+            <span v-else class="text-sm font-bold font-numeric" :class="getPerformanceClass(filter.value)">
+              {{ formatPerformance(filter.value) }}
+            </span>
+          </div>
         </button>
       </div>
     </div>
