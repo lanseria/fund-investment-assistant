@@ -1,8 +1,7 @@
-// File: server/routes/api/fund/holdings/[code]/history.get.ts
-
-import { and, eq, gte, lte } from 'drizzle-orm'
+import { and, asc, eq, gte, lte } from 'drizzle-orm' // [修改] 添加 asc 导入
 import { z } from 'zod'
-import { strategySignals } from '~~/server/database/schemas'
+import { fundTransactions, strategySignals } from '~~/server/database/schemas' // [修改] 导入 fundTransactions
+import { getUserFromEvent } from '~~/server/utils/auth' // [新增] 导入认证工具
 import { useDb } from '~~/server/utils/db'
 import { getHistoryWithMA } from '~~/server/utils/holdings'
 
@@ -10,10 +9,11 @@ const querySchema = z.object({
   start_date: z.string().optional(),
   end_date: z.string().optional(),
   ma: z.union([z.string(), z.array(z.string())]).optional(),
-  strategy: z.string().optional(), // 接收策略名称参数
+  strategy: z.string().optional(),
 })
 
 export default defineEventHandler(async (event) => {
+  const user = getUserFromEvent(event) // [新增] 获取当前用户
   const code = getRouterParam(event, 'code')
   if (!code)
     throw createError({ statusCode: 400, statusMessage: 'Fund code is required.' })
@@ -25,10 +25,23 @@ export default defineEventHandler(async (event) => {
 
   const history = await getHistoryWithMA(code, start_date, end_date, maOptions)
 
-  // 如果请求中包含策略名称，则查询并返回对应的信号
+  const db = useDb()
+
+  // 查询用户的已确认交易记录
+  // 只查询 status = 'confirmed' 的记录，确保有准确的日期和净值
+  const transactions = await db.query.fundTransactions.findMany({
+    where: and(
+      eq(fundTransactions.fundCode, code),
+      eq(fundTransactions.userId, user.id),
+      eq(fundTransactions.status, 'confirmed'),
+      start_date ? gte(fundTransactions.orderDate, start_date) : undefined,
+      end_date ? lte(fundTransactions.orderDate, end_date) : undefined,
+    ),
+    orderBy: [asc(fundTransactions.orderDate)],
+  })
+
   let signals: any[] = []
   if (strategy) {
-    const db = useDb()
     signals = await db.query.strategySignals.findMany({
       where: and(
         eq(strategySignals.fundCode, code),
@@ -39,9 +52,9 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // 返回包含历史数据和策略信号的对象
   return {
     history,
     signals,
+    transactions, // 返回交易记录
   }
 })

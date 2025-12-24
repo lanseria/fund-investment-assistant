@@ -357,6 +357,20 @@ async function handleCopyInfo() {
     todayEstimateNav: h.todayEstimateNav,
     bias20: h.bias20,
     signals: h.signals,
+    // 增加待确认和最近交易信息
+    pendingTransactions: h.pendingTransactions?.map(t => ({
+      type: t.type,
+      date: t.orderDate,
+      amount: t.orderAmount,
+      shares: t.orderShares,
+    })),
+    recentTransactions: h.recentTransactions?.map(t => ({
+      type: t.type,
+      date: t.date,
+      nav: t.nav,
+      amount: t.amount,
+      shares: t.shares,
+    })),
   })
 
   const marketData: Record<string, any[]> = {}

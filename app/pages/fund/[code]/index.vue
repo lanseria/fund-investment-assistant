@@ -30,11 +30,33 @@ function openSignalDetails(signal: Record<string, any>) {
   isStrategyModalOpen.value = true
 }
 
-// [重大修改] 更新 useAsyncData，使其返回一个结构化对象
+// --- Transaction Modal State ---
+const isTransactionModalOpen = ref(false)
+const selectedTransactionList = ref<any[]>([])
+
+function openTransactionDetails(txList: any[]) {
+  selectedTransactionList.value = txList
+  isTransactionModalOpen.value = true
+}
+
+// 辅助函数：获取交易类型的显示文本和颜色
+function getTransactionTypeInfo(type: string) {
+  switch (type) {
+    case 'buy': return { label: '买入', color: 'text-red-500' }
+    case 'sell': return { label: '卖出', color: 'text-green-500' }
+    case 'convert_in': return { label: '转换转入', color: 'text-purple-500' }
+    case 'convert_out': return { label: '转换转出', color: 'text-blue-500' }
+    default: return { label: type, color: 'text-gray-500' }
+  }
+}
+function formatCurrency(val: any) {
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(val))
+}
+
 const { data, pending, error, refresh } = await useAsyncData(
   `fund-all-strategies-structured-${code}`,
   async () => {
-    // 定义获取通用策略数据的函数
+    // 定义获取通用策略数据的函数 (baseData 现在会包含 transactions)
     const fetchGenericStrategy = (strategy: string = '') =>
       apiFetch(`/api/fund/holdings/${code}/history`, {
         params: {
@@ -43,25 +65,22 @@ const { data, pending, error, refresh } = await useAsyncData(
         },
       })
 
-    // 定义获取 RSI 策略数据的函数
     const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
 
-    // 并发执行所有请求
     const [
       baseData,
       rsiData,
       macData,
       bollingerData,
     ] = await Promise.all([
-      fetchGenericStrategy(''),
+      fetchGenericStrategy(''), // 获取基础数据（含交易记录）
       fetchRsiStrategy(),
       fetchGenericStrategy('macd'),
       fetchGenericStrategy('bollinger_bands'),
     ])
 
-    // 返回一个结构清晰的对象
     return {
-      base: baseData,
+      base: baseData, // baseData 包含 history, signals, 和 transactions
       rsi: rsiData,
       macd: macData,
       bollingerBands: bollingerData,
@@ -177,15 +196,17 @@ watch(data, (newData) => {
       <p>加载失败: {{ error.message }}</p>
     </div>
 
-    <!-- [重大修改] 显式调用每个策略图表组件 -->
     <div v-else-if="data" class="space-y-8">
+      <!-- 监听 transaction-click 事件 -->
       <GenericStrategyChart
         :history="data.base.history"
         :signals="data.base.signals"
+        :transactions="(data.base as any).transactions"
         :title="`基金 ${fundName} - 基础走势`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
+        @transaction-click="openTransactionDetails"
       />
 
       <RsiStrategyChart
@@ -219,8 +240,41 @@ watch(data, (newData) => {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
+    <!-- 策略信号模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
+    </Modal>
+
+    <!-- 交易详情模态框: 改为支持列表展示 -->
+    <Modal v-model="isTransactionModalOpen" :title="`交易详情 (${selectedTransactionList.length}笔)`">
+      <div v-if="selectedTransactionList.length > 0" class="pr-1 max-h-[60vh] overflow-y-auto space-y-4">
+        <!-- 遍历交易列表 -->
+        <div v-for="tx in selectedTransactionList" :key="tx.id" class="p-4 rounded-md bg-gray-100 dark:bg-gray-700">
+          <div class="mb-2 flex items-baseline justify-between">
+            <span class="text-lg font-bold" :class="getTransactionTypeInfo(tx.type).color">
+              {{ getTransactionTypeInfo(tx.type).label }}
+            </span>
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {{ tx.orderDate }}
+            </span>
+          </div>
+
+          <div class="text-sm pt-2 border-t gap-2 grid dark:border-gray-600">
+            <div class="flex justify-between">
+              <span class="text-gray-500">确认金额</span>
+              <span class="font-mono">{{ tx.confirmedAmount ? formatCurrency(tx.confirmedAmount) : '-' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">确认份额</span>
+              <span class="font-mono">{{ tx.confirmedShares ? `${Number(tx.confirmedShares).toFixed(2)} 份` : '-' }}</span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-gray-500">确认净值</span>
+              <span class="font-mono">{{ tx.confirmedNav ? Number(tx.confirmedNav).toFixed(4) : '-' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
     </Modal>
   </div>
 </template>

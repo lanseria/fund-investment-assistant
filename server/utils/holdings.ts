@@ -385,7 +385,7 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
           new BigNumber(0),
         )
         const movingAverage = sum.dividedBy(ma)
-        ;(data[i] as any)[`ma${ma}`] = movingAverage.toNumber()
+        ;(data[i] as any)[`ma${ma}`] = Number(movingAverage.toNumber().toFixed(4))
       }
     }
   }
