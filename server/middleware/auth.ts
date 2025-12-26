@@ -40,7 +40,13 @@ export default defineEventHandler(async (event) => {
     event.context.user = payload
   }
   catch (error: any) {
-    console.error(`Token validation failed for path ${path}:`, error.message)
+    // [修复] 当解密失败（如密钥轮换导致 invalid authentication tag）时，
+    // 主动清除无效的 Cookie，防止客户端一直发送错误的 Token
+    deleteCookie(event, 'auth-token', { path: '/' })
+
+    // 降级日志级别为 warn，因为这是预期的认证失败，不是系统崩溃
+    console.warn(`Token validation failed for path ${path}:`, error.message)
+
     throw createError({
       statusCode: 401,
       statusMessage: 'Invalid or expired token',

@@ -17,7 +17,20 @@ export default defineEventHandler(async (event) => {
     throw new Error('Server not initialized: public key is missing.')
 
   // PASETO 会自动验证 refreshToken 是否已过期
-  const { payload } = await verify(refreshPublicKey, refreshToken)
+  // [修复] 增加 try-catch 捕获签名无效或过期错误
+  let payload: any
+  try {
+    const result = await verify(refreshPublicKey, refreshToken)
+    payload = result.payload
+  }
+  catch (error) {
+    console.error(error)
+    // 如果签名无效（例如服务器密钥轮换）或 Token 过期，清除 Cookie 并返回 401
+    deleteCookie(event, 'auth-token', { path: '/' })
+    deleteCookie(event, 'auth-refresh-token', { path: '/' })
+    throw createError({ statusCode: 401, statusMessage: 'Invalid or expired refresh token.' })
+  }
+
   const userId = payload.sub
 
   const db = useDb()

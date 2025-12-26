@@ -265,14 +265,30 @@ export async function syncAllFundsEstimates() {
   if (allFunds.length === 0)
     return { total: 0, success: 0, failed: 0 }
 
-  const results = await Promise.allSettled(
-    allFunds.map(fund => syncSingleFundEstimate(fund.code)),
-  )
+  // [修改] 改为串行执行 + 随机延时，避免触发 514 频率限制
+  let successCount = 0
+  let failedCount = 0
 
-  const successCount = results.filter(r => r.status === 'fulfilled').length
-  const failedCount = results.length - successCount
+  // 辅助延时函数
+  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-  return { total: results.length, success: successCount, failed: failedCount }
+  for (const [index, fund] of allFunds.entries()) {
+    try {
+      await syncSingleFundEstimate(fund.code)
+      successCount++
+    }
+    catch (e) {
+      failedCount++
+      console.error(`同步基金 ${fund.code} 估值失败:`, e)
+    }
+
+    // 如果不是最后一个，则暂停 300ms ~ 600ms
+    if (index < allFunds.length - 1) {
+      await sleep(300 + Math.random() * 300)
+    }
+  }
+
+  return { total: allFunds.length, success: successCount, failed: failedCount }
 }
 
 /**

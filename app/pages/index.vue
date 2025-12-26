@@ -13,7 +13,7 @@ useHead({
 
 const holdingStore = useHoldingStore()
 const marketStore = useMarketStore()
-const { holdings, summary, sseStatus } = storeToRefs(holdingStore)
+const { holdings, summary, sseStatus, isRefreshing } = storeToRefs(holdingStore)
 
 // useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
 const { data: portfolioData, pending: isDataLoading, refresh } = await useAsyncData(
@@ -439,7 +439,10 @@ async function onSectorUpdateSuccess() {
         </p>
       </div>
       <div class="flex gap-2 items-center sm:gap-4">
-        <button class="icon-btn" title="刷新所有估值" :disabled="isDataLoading" @click="() => refresh()">
+        <button class="icon-btn" title="同步实时估值" :disabled="isRefreshing" @click="holdingStore.refreshAllEstimates()">
+          <div i-carbon-update-now :class="{ 'animate-spin': isRefreshing }" />
+        </button>
+        <button class="icon-btn" title="刷新列表数据" :disabled="isDataLoading" @click="() => refresh()">
           <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
         </button>
         <button class="icon-btn" title="手动处理待确认交易" :disabled="isProcessingTransactions" @click="handleProcessTransactions">
