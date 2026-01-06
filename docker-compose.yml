@@ -1,7 +1,7 @@
 services:
   app:
     build: .
-    container_name: fund_investment_assistant 
+    container_name: fund_investment_assistant
     env_file:
       - .env.production
     ports:
