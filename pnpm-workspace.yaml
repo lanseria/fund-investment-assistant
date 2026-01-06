@@ -15,19 +15,19 @@ catalogs:
     '@nuxt/kit': ^4.2.2
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.5.10
-    '@unocss/nuxt': ^66.5.10
+    '@unocss/eslint-config': ^66.5.12
+    '@unocss/nuxt': ^66.5.12
     '@vueuse/nuxt': ^14.1.0
     nuxt: ^4.2.2
-    unocss: ^66.5.10
+    unocss: ^66.5.12
     unplugin: ^2.3.11
     vite: ^7.3.0
   dev:
     '@antfu/eslint-config': ^6.7.3
     eslint: ^9.39.2
-    eslint-plugin-format: ^1.1.0
+    eslint-plugin-format: ^1.2.0
     typescript: ^5.9.3
-    vue-tsc: ^3.2.1
+    vue-tsc: ^3.2.2
   frontend:
     '@vueuse/core': ^14.1.0
     echarts: ^6.0.0
@@ -44,7 +44,7 @@ catalogs:
     es-toolkit: ^1.43.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
-    zod: ^4.2.1
+    zod: ^4.3.5
 
 onlyBuiltDependencies:
   - '@parcel/watcher'
