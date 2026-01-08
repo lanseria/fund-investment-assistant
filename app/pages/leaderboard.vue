@@ -83,8 +83,9 @@ function formatCurrency(value: number) {
             <span v-if="!getRankIcon(user.rank)">{{ user.rank }}</span>
           </div>
           <div class="flex-grow">
-            <p class="font-semibold">
+            <p class="font-semibold flex gap-1 items-center">
               {{ user.username }}
+              <span v-if="user.isAiAgent" class="i-carbon-bot text-sm text-primary" title="AI 自动交易账户" />
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
               持有 {{ user.holdingCount }} 只基金

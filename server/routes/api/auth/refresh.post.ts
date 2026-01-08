@@ -38,7 +38,15 @@ export default defineEventHandler(async (event) => {
   if (!user)
     throw createError({ statusCode: 401, statusMessage: 'Invalid refresh token: user not found.' })
 
-  const userPayload: UserPayload = { id: user.id, username: user.username, role: user.role, isAiAgent: user.isAiAgent }
+  const userPayload: UserPayload = {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    isAiAgent: user.isAiAgent,
+    aiModel: user.aiModel,
+    aiTotalAmount: user.aiTotalAmount,
+    aiSystemPrompt: user.aiSystemPrompt,
+  }
 
   const localKey = await useStorage('redis').getItem<string>('localKey')
   if (!localKey)

@@ -27,8 +27,8 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
     SELECT
       -- [修改] 选择真实的用户 ID
       u.id,
-      -- 匿名化用户名
-      CONCAT(SUBSTRING(u.username, 1, 3), '***') as username,
+      u.username, -- [修改] 不再匿名化，显示完整用户名
+      u.is_ai_agent, -- [新增] 获取 AI 标识
       -- 总收益率 (基于成本)
       CASE 
         WHEN up.total_cost > 0 THEN ((up.total_estimate_value - up.total_cost) / up.total_cost) * 100
@@ -59,6 +59,7 @@ export async function getLeaderboardData(): Promise<LeaderboardUser[]> {
     id: Number(row.id), // [新增] 映射用户 ID
     rank: index + 1,
     username: row.username,
+    isAiAgent: Boolean(row.is_ai_agent), // [新增] 映射字段
     profitRate: Number(row.profit_rate),
     holdingCount: Number(row.holding_count),
     todayProfitRate: Number(row.today_profit_rate),

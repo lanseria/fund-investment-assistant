@@ -11,10 +11,46 @@ const { data: users, pending, error, refresh } = useAsyncData('admin-users', () 
 
 // 控制模态框显示的状态
 const isAddModalOpen = ref(false)
-const isCloneModalOpen = ref(false) // [新增] 克隆模态框
+const isCloneModalOpen = ref(false)
+const isEditModalOpen = ref(false) // [新增] 编辑模态框
 const isSubmitting = ref(false)
-const cloneSourceId = ref<number | null>(null) // [新增] 克隆源ID
-const cloneNewUsername = ref('') // [新增] 新用户名
+
+// 克隆相关
+const cloneSourceId = ref<number | null>(null)
+const cloneNewUsername = ref('')
+
+// 编辑相关
+const editingUserId = ref<number | null>(null)
+const editUsername = ref('')
+
+// [新增] 打开编辑模态框
+function openEditModal(user: any) {
+  editingUserId.value = user.id
+  editUsername.value = user.username
+  isEditModalOpen.value = true
+}
+
+// [新增] 提交编辑
+async function handleEditUser() {
+  if (!editingUserId.value || !editUsername.value)
+    return
+  isSubmitting.value = true
+  try {
+    await apiFetch(`/api/admin/users/${editingUserId.value}`, {
+      method: 'PUT',
+      body: { username: editUsername.value },
+    })
+    isEditModalOpen.value = false
+    await refresh() // 刷新列表
+    alert('用户名修改成功')
+  }
+  catch (err: any) {
+    alert(`修改失败: ${err.data?.statusMessage || '未知错误'}`)
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
 
 // 处理表单提交的函数
 async function handleAddUser(formData: any) {
@@ -34,6 +70,40 @@ async function handleAddUser(formData: any) {
   }
   finally {
     isSubmitting.value = false
+  }
+}
+
+// [新增] 切换 AI 状态
+async function toggleUserAi(user: any) {
+  const newState = !user.isAiAgent
+  // 乐观更新 UI
+  user.isAiAgent = newState
+
+  try {
+    await apiFetch(`/api/admin/users/${user.id}`, {
+      method: 'PUT',
+      body: { isAiAgent: newState },
+    })
+  }
+  catch (e: any) {
+    // 失败回滚
+    user.isAiAgent = !newState
+    alert(`更新失败: ${e.data?.statusMessage || '未知错误'}`)
+  }
+}
+
+// [新增] 删除用户
+async function deleteUser(user: any) {
+  if (!confirm(`⚠️ 危险操作：确定要删除用户 "${user.username}" 吗？\n此操作将同时删除该用户的所有持仓记录且不可恢复！`)) {
+    return
+  }
+
+  try {
+    await apiFetch(`/api/admin/users/${user.id}`, { method: 'DELETE' })
+    await refresh() // 刷新列表
+  }
+  catch (e: any) {
+    alert(`删除失败: ${e.data?.statusMessage || '未知错误'}`)
   }
 }
 
@@ -128,20 +198,32 @@ async function handleCloneUser() {
               </span>
             </td>
             <td class="p-4">
-              <span v-if="user.isAiAgent" class="text-xs text-blue-700 font-medium px-2 py-1 rounded-full bg-blue-100">
-                已启用
-              </span>
-              <span v-else class="text-xs text-gray-400">
-                关闭
-              </span>
+              <button
+                class="border-2 border-transparent rounded-full inline-flex flex-shrink-0 h-5 w-9 cursor-pointer transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                :class="user.isAiAgent ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-600'"
+                @click="toggleUserAi(user)"
+              >
+                <span
+                  class="rounded-full bg-white h-4 w-4 inline-block pointer-events-none ring-0 shadow transform transition duration-200 ease-in-out"
+                  :class="user.isAiAgent ? 'translate-x-4' : 'translate-x-0'"
+                />
+              </button>
             </td>
             <td class="p-4">
               {{ new Date(user.createdAt).toLocaleString() }}
             </td>
             <td class="p-4 text-right">
-              <button class="text-sm icon-btn px-2 py-1 border rounded flex items-center dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户及其持仓" @click="openCloneModal(user.id)">
-                <div i-carbon-copy-file mr-1 /> 克隆
-              </button>
+              <div class="flex gap-2 items-center justify-end">
+                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="编辑用户名" @click="openEditModal(user)">
+                  <div i-carbon-edit />
+                </button>
+                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户及其持仓" @click="openCloneModal(user.id)">
+                  <div i-carbon-copy-file />
+                </button>
+                <button class="text-sm icon-btn text-red-500 px-2 py-1 border border-red-200 rounded dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20" title="删除用户" @click="deleteUser(user)">
+                  <div i-carbon-trash-can />
+                </button>
+              </div>
             </td>
           </tr>
         </tbody>
@@ -179,6 +261,33 @@ async function handleCloneUser() {
           </button>
           <button type="submit" class="btn" :disabled="!cloneNewUsername || isSubmitting">
             {{ isSubmitting ? '处理中...' : '确认克隆' }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- 编辑用户模态框 -->
+    <Modal v-model="isEditModalOpen" title="修改用户名">
+      <form @submit.prevent="handleEditUser">
+        <div class="space-y-4">
+          <div>
+            <label class="text-sm font-medium mb-1 block">用户名</label>
+            <input
+              v-model="editUsername"
+              type="text"
+              class="input-base"
+              placeholder="请输入新的用户名"
+              required
+              autofocus
+            >
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button type="button" class="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-600" @click="isEditModalOpen = false">
+            取消
+          </button>
+          <button type="submit" class="btn" :disabled="!editUsername || isSubmitting">
+            {{ isSubmitting ? '保存中...' : '保存修改' }}
           </button>
         </div>
       </form>

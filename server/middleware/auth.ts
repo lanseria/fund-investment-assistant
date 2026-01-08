@@ -11,6 +11,7 @@ const PUBLIC_API_ROUTES = [
   '/api/dev/process-transactions',
   '/api/dicts/all',
   '/api/webhooks/trend-radar',
+  '/api/dev/trigger-ai',
 ]
 
 export default defineEventHandler(async (event) => {

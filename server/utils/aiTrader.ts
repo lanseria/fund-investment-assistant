@@ -101,7 +101,13 @@ async function buildAiContext(fullHoldingsData: any[]) {
 }
 
 // --- 3. 核心调用函数 ---
-export async function getAiTradeDecisions(fullHoldingsData: any[]): Promise<TradeDecision[]> {
+interface UserAiConfig {
+  aiModel?: string | null
+  aiTotalAmount?: string | null
+  aiSystemPrompt?: string | null
+}
+
+export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<TradeDecision[]> {
   const config = useRuntimeConfig()
 
   if (!config.openRouterApiKey) {
@@ -111,14 +117,18 @@ export async function getAiTradeDecisions(fullHoldingsData: any[]): Promise<Trad
   // 1. 准备上下文数据
   const contextData = await buildAiContext(fullHoldingsData)
 
-  // 2. 构建 Prompt
-  const systemPrompt = `#### 1. Role & Profile
+  // 2. 确定 Prompt 模板
+  // 如果用户有自定义 Prompt，则使用用户的；否则使用默认模板
+  let promptTemplate = userConfig.aiSystemPrompt
+
+  if (!promptTemplate || !promptTemplate.trim()) {
+    promptTemplate = `#### 1. Role & Profile
 你是一位拥有15年实战经验的**资深量化策略分析师**，擅长多因子模型、网格交易及交易行为分析。你的核心职责是充当用户的“交易执行官”。
 **核心指令**：结合 **JSON数据**（实时行情、持仓、自选、舆情、**近期交易记录**），对列表中的**每一个**标的（包括 holdings 和 watchlist）给出明确的交易决策。
 
 #### 2. Constraints & Context
-- **当前时间**: ${contextData.timestamp}
-- **资金体量**: 假设总可用资金充足，单笔买入限制在 500-2000元。
+- **当前时间**: {{timestamp}}
+- **资金体量**: 总资金 {{total_amount}} 元。
 - **决策优先级**: 
   1. 宏观风险 > 2. **交易回溯逻辑 (Recent Transaction Check)** > 3. 技术面量化信号 > 4. 舆情。
 
@@ -161,6 +171,16 @@ export async function getAiTradeDecisions(fullHoldingsData: any[]): Promise<Trad
     }
   ]
 }`
+  }
+
+  // 3. 动态替换 Prompt 变量
+  const totalAmountStr = userConfig.aiTotalAmount ? `${userConfig.aiTotalAmount}` : '300000'
+  const systemPrompt = promptTemplate
+    .replace(/\{\{timestamp\}\}/g, contextData.timestamp)
+    .replace(/\{\{total_amount\}\}/g, totalAmountStr)
+
+  // 4. 确定使用的模型
+  const targetModel = userConfig.aiModel || config.aiModel || 'xiaomi/mimo-v2-flash:free'
 
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
 
@@ -171,7 +191,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[]): Promise<Trad
     })
 
     const completion = await openai.chat.completions.create({
-      model: config.aiModel || 'xiaomi/mimo-v2-flash:free',
+      model: targetModel,
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },

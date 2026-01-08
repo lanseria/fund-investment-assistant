@@ -32,6 +32,9 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
+    aiModel: user.aiModel,
+    aiTotalAmount: user.aiTotalAmount,
+    aiSystemPrompt: user.aiSystemPrompt,
   }
 
   const [localKey, refreshPrivateKey] = await Promise.all([

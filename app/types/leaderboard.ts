@@ -9,6 +9,7 @@ export interface LeaderboardUser {
   todayProfitRate: number
   totalCost: number
   todayProfitLoss: number
+  isAiAgent: boolean // [新增] 标识是否为 AI 账户
   // 可选字段，用于存储展开后的持仓数据
   holdings?: Holding[]
 }

@@ -7,6 +7,9 @@ export interface UserPayload {
   username: string
   role: 'admin' | 'user'
   isAiAgent: boolean
+  aiModel?: string | null
+  aiTotalAmount?: string | null
+  aiSystemPrompt?: string | null
 }
 
 // 密码哈希

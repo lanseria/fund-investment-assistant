@@ -27,6 +27,12 @@ export const users = fundSchema.table('users', {
   role: userRoleEnum('role').notNull().default('user'),
   /** 是否为 AI 代理账户 (用于自动化交易) */
   isAiAgent: boolean('is_ai_agent').default(false).notNull(),
+  /** AI 模型名称 */
+  aiModel: text('ai_model').default('xiaomi/mimo-v2-flash:free'),
+  /** AI 操作的总资金体量 (用于 Prompt 上下文) */
+  aiTotalAmount: numeric('ai_total_amount', { precision: 18, scale: 2 }).default('100000'),
+  /** 自定义 System Prompt (如果为空则使用系统默认) */
+  aiSystemPrompt: text('ai_system_prompt'),
   /** 用户创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

@@ -33,8 +33,12 @@ export default defineTask({
         if (holdings.length === 0)
           continue
 
-        // 2. 调用 AI 获取决策 (传入全量数据，AI 内部会区分 holdings 和 watchlist)
-        const decisions = await getAiTradeDecisions(holdings)
+        // 2. 调用 AI 获取决策 (传入全量数据 和 用户配置)
+        const decisions = await getAiTradeDecisions(holdings, {
+          aiModel: user.aiModel,
+          aiTotalAmount: user.aiTotalAmount,
+          aiSystemPrompt: user.aiSystemPrompt,
+        })
 
         if (decisions.length === 0) {
           console.log(`  -> AI 建议全线观望 (Hold)`)
