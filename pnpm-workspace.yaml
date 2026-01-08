@@ -1,9 +1,10 @@
+packages: []
+
+catalog:
+  openai: ^6.15.0
+
 catalogMode: prefer
 
-shellEmulator: true
-
-trustPolicy: no-downgrade
-packages: []
 catalogs:
   backend:
     '@types/pg': ^8.16.0
@@ -47,7 +48,12 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
     zod: ^4.3.5
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
