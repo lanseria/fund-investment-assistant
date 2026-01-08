@@ -6,6 +6,7 @@ export interface UserPayload {
   id: number
   username: string
   role: 'admin' | 'user'
+  isAiAgent: boolean
 }
 
 // 密码哈希

@@ -13,6 +13,7 @@ export default defineEventHandler(async (event) => {
       id: true,
       username: true,
       role: true,
+      isAiAgent: true,
       createdAt: true,
     },
   })

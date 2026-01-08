@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."users" ADD COLUMN "is_ai_agent" boolean DEFAULT false NOT NULL;

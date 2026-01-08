@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, boolean, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')
@@ -25,6 +25,8 @@ export const users = fundSchema.table('users', {
   password: text('password').notNull(),
   /** 用户角色 ('admin' 或 'user') */
   role: userRoleEnum('role').notNull().default('user'),
+  /** 是否为 AI 代理账户 (用于自动化交易) */
+  isAiAgent: boolean('is_ai_agent').default(false).notNull(),
   /** 用户创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
