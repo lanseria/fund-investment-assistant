@@ -5,8 +5,11 @@ import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
 const updateUserSchema = z.object({
-  isAiAgent: z.boolean().optional(),
   username: z.string().min(3, '用户名至少3位').optional(),
+  isAiAgent: z.boolean().optional(),
+  aiModel: z.string().optional(),
+  aiTotalAmount: z.number().optional(),
+  aiSystemPrompt: z.string().optional().nullable(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -26,27 +29,29 @@ export default defineEventHandler(async (event) => {
 
   const updateData: Record<string, any> = {}
 
-  // 处理 AI 状态更新
-  if (data.isAiAgent !== undefined) {
-    updateData.isAiAgent = data.isAiAgent
-  }
-
-  // 处理用户名更新
+  // 1. 处理用户名 (需查重)
   if (data.username) {
-    // 检查用户名是否重复 (排除当前用户自己)
     const existingUser = await db.query.users.findFirst({
       where: and(
         eq(users.username, data.username),
-        ne(users.id, userId), // 确保不是自己
+        ne(users.id, userId),
       ),
     })
-
     if (existingUser) {
-      throw createError({ statusCode: 409, statusMessage: `用户名 "${data.username}" 已被其他用户占用` })
+      throw createError({ statusCode: 409, statusMessage: `用户名 "${data.username}" 已被占用` })
     }
-
     updateData.username = data.username
   }
+
+  // 2. 处理 AI 配置
+  if (data.isAiAgent !== undefined)
+    updateData.isAiAgent = data.isAiAgent
+  if (data.aiModel !== undefined)
+    updateData.aiModel = data.aiModel
+  if (data.aiTotalAmount !== undefined)
+    updateData.aiTotalAmount = String(data.aiTotalAmount)
+  if (data.aiSystemPrompt !== undefined)
+    updateData.aiSystemPrompt = data.aiSystemPrompt
 
   if (Object.keys(updateData).length === 0) {
     return { message: '无数据变更' }

@@ -43,7 +43,7 @@ onUnmounted(() => {
       />
 
       <!-- 模态框内容面板 -->
-      <div class="m-4 p-6 rounded-lg bg-white max-w-md w-full shadow-xl relative dark:bg-gray-800">
+      <div class="m-4 p-6 rounded-lg bg-white max-w-lg w-full shadow-xl relative dark:bg-gray-800">
         <!-- 头部 -->
         <div class="pb-4 border-b flex items-center justify-between dark:border-gray-700">
           <h3 class="text-xl font-bold">

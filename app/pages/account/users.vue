@@ -21,24 +21,42 @@ const cloneNewUsername = ref('')
 
 // 编辑相关
 const editingUserId = ref<number | null>(null)
-const editUsername = ref('')
+const editForm = reactive({
+  username: '',
+  isAiAgent: false,
+  aiModel: '',
+  aiTotalAmount: 100000,
+  aiSystemPrompt: '',
+})
 
 // [新增] 打开编辑模态框
 function openEditModal(user: any) {
   editingUserId.value = user.id
-  editUsername.value = user.username
+  // 填充数据
+  editForm.username = user.username
+  editForm.isAiAgent = user.isAiAgent || false
+  editForm.aiModel = user.aiModel || 'xiaomi/mimo-v2-flash:free'
+  editForm.aiTotalAmount = user.aiTotalAmount ? Number(user.aiTotalAmount) : 100000
+  editForm.aiSystemPrompt = user.aiSystemPrompt || ''
+
   isEditModalOpen.value = true
 }
 
 // [新增] 提交编辑
 async function handleEditUser() {
-  if (!editingUserId.value || !editUsername.value)
+  if (!editingUserId.value)
     return
   isSubmitting.value = true
   try {
     await apiFetch(`/api/admin/users/${editingUserId.value}`, {
       method: 'PUT',
-      body: { username: editUsername.value },
+      body: {
+        username: editForm.username,
+        isAiAgent: editForm.isAiAgent,
+        aiModel: editForm.aiModel,
+        aiTotalAmount: editForm.aiTotalAmount,
+        aiSystemPrompt: editForm.aiSystemPrompt || null,
+      },
     })
     isEditModalOpen.value = false
     await refresh() // 刷新列表
@@ -267,27 +285,36 @@ async function handleCloneUser() {
     </Modal>
 
     <!-- 编辑用户模态框 -->
-    <Modal v-model="isEditModalOpen" title="修改用户名">
+    <Modal v-model="isEditModalOpen" title="编辑用户信息">
       <form @submit.prevent="handleEditUser">
-        <div class="space-y-4">
+        <div class="pr-2 max-h-[70vh] overflow-y-auto space-y-4">
           <div>
             <label class="text-sm font-medium mb-1 block">用户名</label>
             <input
-              v-model="editUsername"
+              v-model="editForm.username"
               type="text"
               class="input-base"
               placeholder="请输入新的用户名"
               required
-              autofocus
             >
           </div>
+
+          <!-- 嵌入 AI 设置组件 (Form Mode) -->
+          <AiSettingsPanel
+            v-model:is-ai-agent="editForm.isAiAgent"
+            v-model:ai-model="editForm.aiModel"
+            v-model:ai-total-amount="editForm.aiTotalAmount"
+            v-model:ai-system-prompt="editForm.aiSystemPrompt"
+            mode="form"
+          />
         </div>
-        <div class="mt-6 flex justify-end space-x-3">
+
+        <div class="mt-6 pt-4 border-t flex justify-end space-x-3 dark:border-gray-700">
           <button type="button" class="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-600" @click="isEditModalOpen = false">
             取消
           </button>
-          <button type="submit" class="btn" :disabled="!editUsername || isSubmitting">
-            {{ isSubmitting ? '保存中...' : '保存修改' }}
+          <button type="submit" class="btn" :disabled="!editForm.username || isSubmitting">
+            {{ isSubmitting ? '保存中...' : '保存全部修改' }}
           </button>
         </div>
       </form>

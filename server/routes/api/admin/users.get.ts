@@ -14,6 +14,10 @@ export default defineEventHandler(async (event) => {
       username: true,
       role: true,
       isAiAgent: true,
+      // [新增] 返回 AI 高级配置字段
+      aiModel: true,
+      aiTotalAmount: true,
+      aiSystemPrompt: true,
       createdAt: true,
     },
   })
