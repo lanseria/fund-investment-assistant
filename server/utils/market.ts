@@ -6,20 +6,53 @@ import { fetchMarketIndexes } from './dataFetcher'
 import { emitter } from './emitter'
 
 let isPolling = false
-let marketDataCache: Record<string, MarketIndexData> = {}
 let pollingInterval: NodeJS.Timeout | null = null
+const CACHE_KEY = 'market:indexes'
+
+/**
+ * 获取缓存的市场数据 (Record<code, data>)
+ * 如果缓存不存在，尝试立即抓取一次
+ */
+export async function getCachedMarketData(): Promise<Record<string, MarketIndexData>> {
+  const storage = useStorage('redis')
+  let data = await storage.getItem<Record<string, MarketIndexData>>(CACHE_KEY)
+
+  if (!data) {
+    // 如果 Redis 中没有数据（例如刚启动），则主动抓取一次
+    console.log('[Market] Cache miss, fetching immediately...')
+    try {
+      const rawList = await fetchMarketIndexes(ALL_INDEX_CODES)
+      data = rawList.reduce((acc, index) => {
+        acc[index.code] = index
+        return acc
+      }, {} as Record<string, MarketIndexData>)
+
+      await storage.setItem(CACHE_KEY, data)
+    }
+    catch (e) {
+      console.error('[Market] Failed to fetch data on cache miss:', e)
+      return {}
+    }
+  }
+  return data || {}
+}
 
 async function pollMarketData() {
   try {
-    const data = await fetchMarketIndexes(ALL_INDEX_CODES)
-    // 更新缓存
-    marketDataCache = data.reduce((acc, index) => {
+    const rawList = await fetchMarketIndexes(ALL_INDEX_CODES)
+
+    // 转换为 Map 结构方便查找和前端使用
+    const dataMap = rawList.reduce((acc, index) => {
       acc[index.code] = index
       return acc
     }, {} as Record<string, MarketIndexData>)
 
-    // 广播事件
-    emitter.emit('market:updated', marketDataCache)
+    // 1. 存入 Redis
+    const storage = useStorage('redis')
+    await storage.setItem(CACHE_KEY, dataMap)
+
+    // 2. 广播事件 (用于 SSE 推送)
+    emitter.emit('market:updated', dataMap)
   }
   catch (e) {
     console.error('[Market Polling] Error fetching market data:', e)
@@ -32,11 +65,13 @@ export function startMarketPolling() {
     return
 
   isPolling = true
-  console.log('✅ [Market Polling] Starting market data polling service...')
+  console.log('✅ [Market Polling] Starting market data polling service (Interval: 60s)...')
+
   // 立即执行一次
   pollMarketData()
-  // 每3秒轮询一次
-  pollingInterval = setInterval(pollMarketData, 3000)
+
+  // 修改为 60秒 (60000ms) 轮询一次
+  pollingInterval = setInterval(pollMarketData, 60000)
 }
 
 // 可选：停止轮询的函数

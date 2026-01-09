@@ -16,8 +16,6 @@ export default defineEventHandler(async (event) => {
   if (!refreshPublicKey)
     throw new Error('Server not initialized: public key is missing.')
 
-  // PASETO 会自动验证 refreshToken 是否已过期
-  // [修复] 增加 try-catch 捕获签名无效或过期错误
   let payload: any
   try {
     const result = await verify(refreshPublicKey, refreshToken)
@@ -25,7 +23,6 @@ export default defineEventHandler(async (event) => {
   }
   catch (error) {
     console.error(error)
-    // 如果签名无效（例如服务器密钥轮换）或 Token 过期，清除 Cookie 并返回 401
     deleteCookie(event, 'auth-token', { path: '/' })
     deleteCookie(event, 'auth-refresh-token', { path: '/' })
     throw createError({ statusCode: 401, statusMessage: 'Invalid or expired refresh token.' })
@@ -38,7 +35,8 @@ export default defineEventHandler(async (event) => {
   if (!user)
     throw createError({ statusCode: 401, statusMessage: 'Invalid refresh token: user not found.' })
 
-  const userPayload: UserPayload = {
+  // 1. 完整数据返回给前端
+  const fullUserPayload: UserPayload = {
     id: user.id,
     username: user.username,
     role: user.role,
@@ -48,16 +46,23 @@ export default defineEventHandler(async (event) => {
     aiSystemPrompt: user.aiSystemPrompt,
   }
 
+  // 2. 精简数据存入 Token
+  const slimTokenPayload: UserPayload = {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    isAiAgent: user.isAiAgent,
+  }
+
   const localKey = await useStorage('redis').getItem<string>('localKey')
   if (!localKey)
     throw new Error('Server not initialized: localKey is missing.')
 
-  // 每次刷新，都生成一个有效期为 1 天的新的访问令牌
   const accessTokenExp = dayjs().add(1, 'day').toDate()
-  const newAccessTokenPayload = { ...userPayload, exp: accessTokenExp.toISOString() }
+  // 使用精简 Payload 加密
+  const newAccessTokenPayload = { ...slimTokenPayload, exp: accessTokenExp.toISOString() }
   const newAccessToken = await encrypt(localKey, newAccessTokenPayload)
 
-  // 设置新的 access token cookie
   setCookie(event, 'auth-token', newAccessToken, {
     httpOnly: true,
     expires: accessTokenExp,
@@ -65,6 +70,6 @@ export default defineEventHandler(async (event) => {
     sameSite: 'lax',
   })
 
-  // 返回用户信息给前端，以便前端可能需要更新
-  return { user: userPayload }
+  // 返回完整数据
+  return { user: fullUserPayload }
 })

@@ -1,3 +1,4 @@
+// server/routes/api/auth/login.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
 import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
@@ -27,7 +28,8 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const userPayload: UserPayload = {
+  // 1. 完整的用户数据 (用于返回给前端 Redia/Pinia)
+  const fullUserPayload: UserPayload = {
     id: user.id,
     username: user.username,
     role: user.role,
@@ -35,6 +37,16 @@ export default defineEventHandler(async (event) => {
     aiModel: user.aiModel,
     aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
+  }
+
+  // 2. 精简的 Token 数据 (用于存入 Cookie，避免超长)
+  // 剔除了 aiSystemPrompt 等大字段
+  const slimTokenPayload: UserPayload = {
+    id: user.id,
+    username: user.username,
+    role: user.role,
+    isAiAgent: user.isAiAgent,
+    // 其他字段保持 undefined/null，节省空间
   }
 
   const [localKey, refreshPrivateKey] = await Promise.all([
@@ -45,18 +57,19 @@ export default defineEventHandler(async (event) => {
   if (!localKey || !refreshPrivateKey)
     throw new Error('Server not initialized: keys are missing.')
 
-  // 访问令牌 (Access Token) 的有效期，保持 15 天不变，这是安全实践
+  // Access Token 有效期 15 天
   const accessTokenExp = dayjs().add(15, 'd').toDate()
-  // 刷新令牌 (Refresh Token) 的有效期，延长至 1 个月
+  // Refresh Token 有效期 1 个月
   const refreshTokenExp = dayjs().add(1, 'month').toDate()
 
-  const accessTokenPayload = { ...userPayload, exp: accessTokenExp.toISOString() }
+  // 加密时使用 slimTokenPayload
+  const accessTokenPayload = { ...slimTokenPayload, exp: accessTokenExp.toISOString() }
   const accessToken = await encrypt(localKey, accessTokenPayload)
 
   const refreshTokenPayload = { sub: String(user.id), exp: refreshTokenExp.toISOString() }
   const refreshToken = await sign(refreshPrivateKey, refreshTokenPayload)
 
-  // 使用 setCookie 直接设置 httpOnly cookie
+  // 设置 Cookie
   setCookie(event, 'auth-token', accessToken, {
     httpOnly: true,
     expires: accessTokenExp,
@@ -64,7 +77,6 @@ export default defineEventHandler(async (event) => {
     sameSite: 'lax',
   })
 
-  // 设置 refresh token cookie，有效期必须与令牌内部的有效期一致，即 1 个月
   setCookie(event, 'auth-refresh-token', refreshToken, {
     httpOnly: true,
     expires: refreshTokenExp,
@@ -72,6 +84,6 @@ export default defineEventHandler(async (event) => {
     sameSite: 'lax',
   })
 
-  // 响应体中只返回用户信息
-  return { user: userPayload }
+  // 返回给前端的是完整数据
+  return { user: fullUserPayload }
 })

@@ -33,6 +33,9 @@ function handleLogout() {
         <NuxtLink to="/news" class="hover:text-primary-hover">
           市场情报
         </NuxtLink>
+        <NuxtLink to="/daily-ops" class="hover:text-primary-hover">
+          每日操作
+        </NuxtLink>
         <NuxtLink to="/charts-overview" class="hover:text-primary-hover">
           策略视图
         </NuxtLink>
