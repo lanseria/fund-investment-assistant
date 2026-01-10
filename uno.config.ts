@@ -25,7 +25,11 @@ export default defineConfig({
     ['font-numeric', 'font-mono tabular-nums'],
   ],
   presets: [
-    presetWind4(),
+    presetWind4({
+      preflights: {
+        reset: true,
+      },
+    }),
     presetAttributify(),
     presetIcons({
       scale: 1.2,
