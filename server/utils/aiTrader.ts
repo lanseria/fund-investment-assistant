@@ -5,7 +5,7 @@ import OpenAI from 'openai'
 import { z } from 'zod'
 import { dailyNews } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
-import { getCachedMarketData } from '~~/server/utils/market' // 使用缓存的市场数据
+import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
 
 // --- 1. 定义输出结构 Schema ---
@@ -61,14 +61,20 @@ async function buildAiContext(fullHoldingsData: any[]) {
   }
 
   // C. 格式化持仓与关注列表
+  // [新增] 辅助函数：保留4位小数并向下取整
+  const floorShares = (num: number) => Math.floor(num * 10000) / 10000
+
   const simplify = (h: any) => {
-    // [新增] 计算可用份额 (总份额 - 待确认的卖出/转出份额)
+    // 计算可用份额 (总份额 - 待确认的卖出/转出份额)
     let availableShares = 0
     if (h.shares !== null) {
       const pendingFrozen = h.pendingTransactions
         ?.filter((t: any) => t.type === 'sell' || t.type === 'convert_out')
         .reduce((sum: number, t: any) => sum + (Number(t.orderShares) || 0), 0) || 0
-      availableShares = Math.max(0, Number(h.shares) - pendingFrozen)
+
+      const rawAvailable = Math.max(0, Number(h.shares) - pendingFrozen)
+      // [关键] 在这里直接向下取整，确保传给 AI 的就是安全值
+      availableShares = floorShares(rawAvailable)
     }
 
     return {
@@ -82,7 +88,7 @@ async function buildAiContext(fullHoldingsData: any[]) {
             holdingAmount: h.holdingAmount,
             profitRate: h.holdingProfitRate ? `${h.holdingProfitRate.toFixed(2)}%` : '0%',
             totalShares: h.shares, // 总份额
-            availableShares, // [关键] 传递可用份额给 AI，用于清仓决策
+            availableShares, // 传递可用份额给 AI，用于清仓决策
           }
         : {}),
       percentageChange: h.percentageChange ? `${h.percentageChange.toFixed(2)}%` : '0%',
@@ -103,7 +109,6 @@ async function buildAiContext(fullHoldingsData: any[]) {
   const myWatchlist = fullHoldingsData.filter(h => h.holdingAmount === null).map(simplify)
 
   return {
-    // timestamp: ... (移至 System Prompt)
     market_news: newsRecord?.content || '今日暂无重大新闻',
     market_indices: marketData,
     holdings: myHoldings,
@@ -133,7 +138,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   // 2. 准备上下文数据 (JSON)
   const contextData = await buildAiContext(fullHoldingsData)
 
-  // 3. [新增] 计算剩余可用资金 (资金风控核心)
+  // 3. 计算剩余可用资金 (资金风控核心)
   // 逻辑：总预算 - 当前所有持仓的市值 = 剩余可用现金
   // 注意：这里使用 holdingAmount (市值) 还是 costPrice * shares (成本) 取决于你的定义。
   // 通常“资产配置”看市值，“投入本金”看成本。为了防止回撤导致误判有钱，这里建议使用“已占用本金”或“当前市值”。
@@ -155,7 +160,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 - **当前时间**: ${currentTimestamp}
 - **资金概况**:
   - 总资金设定: ${totalBudget} 元
-  - 当前持仓市值: ${currentInvested.toFixed(2)} 元
+  - 当前持仓市值: ${currentInvested.toFixed(4)} 元
   - **剩余可用买入资金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
 - **输入数据**: 包含市场指数(market_indices)、新闻(market_news)、持仓(holdings)和自选(watchlist)的 JSON 数据。
 `
@@ -175,7 +180,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 2. **交易动作规范：**
    - **买入(buy)**：必须填写 \`amount\`（单位：元），\`shares\` 设为 0。
    - **卖出(sell)**：必须填写 \`shares\`（单位：份）。
-     - **若为清仓/全额卖出**：必须从 holdings 数据中精确提取该标的的 \`availableShares\` 数值填入 \`shares\` 字段，严禁自行估算或填入金额。此时 \`amount\` 设为 0。
+     - **若为清仓/全额卖出**：必须从 holdings 数据中提取该标的的 \`availableShares\`。**重要：**份额必须**保留4位小数并向下取整(Math.floor)**，严禁四舍五入导致超出持仓上限。此时 \`amount\` 设为 0。
    - **保持(hold)**：\`amount\` 和 \`shares\` 均设为 0。
 
 必须严格返回如下 JSON 格式，不要包含 Markdown 标记：
@@ -262,7 +267,11 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
           validActions.push(action)
         }
       }
-      else {
+      else if (action.action === 'sell') {
+        // 卖出风控：强制保留4位小数并向下取整，防止浮点数溢出
+        if (action.shares) {
+          action.shares = Math.floor(action.shares * 10000) / 10000
+        }
         // 卖出操作不受资金限制，直接放行
         validActions.push(action)
       }

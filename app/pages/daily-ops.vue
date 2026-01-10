@@ -1,3 +1,4 @@
+<!-- eslint-disable no-alert -->
 <!-- app/pages/daily-ops.vue -->
 <script setup lang="ts">
 import { appName } from '~/constants'
@@ -16,13 +17,42 @@ const viewDate = ref(dayjs()) // 当前日历视图显示的月份
 const expandedGroups = ref<Set<string>>(new Set())
 
 // --- 获取数据 ---
-const { data: transactions, pending } = await useAsyncData(
+const { data: transactions, pending, refresh } = await useAsyncData(
   `daily-ops-${selectedDate.value}`,
   () => apiFetch<any[]>('/api/transactions/daily', { params: { date: selectedDate.value } }),
   {
     watch: [selectedDate],
   },
 )
+
+// --- 批量操作逻辑 ---
+const isClearing = ref(false)
+
+// 计算当前列表中是否有待处理的交易
+const hasPendingTransactions = computed(() => {
+  return transactions.value?.some(tx => tx.status === 'pending') ?? false
+})
+
+async function handleClearPending() {
+  if (!confirm(`确定要清空 ${selectedDate.value} 所有 [待处理] 的交易记录吗？\n此操作不可恢复。`))
+    return
+
+  isClearing.value = true
+  try {
+    const res = await apiFetch<{ count: number }>('/api/transactions/daily', {
+      method: 'DELETE',
+      params: { date: selectedDate.value },
+    })
+    alert(`清理完成，共移除 ${res.count} 条待处理记录。`)
+    refresh() // 刷新列表
+  }
+  catch (e: any) {
+    alert(`操作失败: ${e.message}`)
+  }
+  finally {
+    isClearing.value = false
+  }
+}
 
 // --- 分组逻辑 ---
 const groupedTransactions = computed(() => {
@@ -193,6 +223,16 @@ function formatCurrency(val: any) {
               共 {{ transactions.length }} 笔
             </span>
           </h2>
+          <!-- [新增] 清空按钮 -->
+          <button
+            v-if="hasPendingTransactions"
+            class="text-sm text-red-600 px-3 py-1.5 border border-red-200 rounded-md bg-red-50 flex gap-2 transition-colors items-center dark:text-red-400 dark:border-red-900/50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40"
+            :disabled="isClearing"
+            @click="handleClearPending"
+          >
+            <div i-carbon-clean :class="{ 'animate-pulse': isClearing }" />
+            {{ isClearing ? '清空中...' : '清空待处理' }}
+          </button>
         </div>
 
         <!-- 加载状态 -->

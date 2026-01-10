@@ -7,14 +7,13 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = useDb()
-  // 返回不包含密码的用户列表
   return await db.query.users.findMany({
+    orderBy: (users, { asc }) => [asc(users.createdAt)],
     columns: {
       id: true,
       username: true,
       role: true,
       isAiAgent: true,
-      // [新增] 返回 AI 高级配置字段
       aiModel: true,
       aiTotalAmount: true,
       aiSystemPrompt: true,
