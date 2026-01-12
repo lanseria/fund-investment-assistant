@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
-import isBetween from 'dayjs/plugin/isBetween.js'
+import isBetween from 'dayjs/plugin/isBetween'
 import { eq } from 'drizzle-orm'
-import { fundTransactions, users } from '~~/server/database/schemas'
+import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
 import { getUserHoldingsAndSummary } from '~~/server/utils/holdings'
@@ -79,10 +79,20 @@ export default defineTask({
           continue
 
         // 3. 调用 AI 获取决策 (传入全量数据 和 用户配置)
-        const decisions = await getAiTradeDecisions(holdings, {
+        // [修改] 解构返回值，获取 decisions 和 logs
+        const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
           aiModel: user.aiModel,
           aiTotalAmount: user.aiTotalAmount,
           aiSystemPrompt: user.aiSystemPrompt,
+        })
+
+        // [新增] 保存执行日志
+        const todayStr = new Date().toISOString().split('T')[0]
+        await db.insert(aiExecutionLogs).values({
+          userId: user.id,
+          date: todayStr,
+          prompt: fullPrompt,
+          response: rawResponse,
         })
 
         if (decisions.length === 0) {
@@ -101,11 +111,11 @@ export default defineTask({
           await db.insert(fundTransactions).values({
             userId: user.id,
             fundCode: decision.fundCode,
-            type: decision.action as 'buy' | 'sell',
-            status: 'pending', // 关键：设为 pending，等待人工确认或原来的 processTransactions 任务处理
+            type: decision.action as 'buy' | 'sell', // 注意：这里可能需要扩展 TS 类型以支持 transfer，但目前 DB schema 限制了
+            status: 'pending',
             orderAmount: decision.amount ? String(decision.amount) : null,
             orderShares: decision.shares ? String(decision.shares) : null,
-            orderDate: new Date().toISOString().split('T')[0], // 默认为今天
+            orderDate: todayStr,
             note: `[AI操作] ${decision.reason}`,
           })
 

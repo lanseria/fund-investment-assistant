@@ -73,10 +73,6 @@ export default defineNuxtConfig({
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
     aiModel: 'xiaomi/mimo-v2-flash:free',
   },
-  // 对于 Nuxt 项目：
-  build: {
-    transpile: ['dayjs'], // 强制转译 dayjs，使其包含在构建产物中
-  },
 
   experimental: {
     payloadExtraction: false,

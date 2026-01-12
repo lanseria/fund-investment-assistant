@@ -221,6 +221,24 @@ export const dailyNews = fundSchema.table('daily_news', {
 })
 
 /**
+ * AI 执行日志表 (ai_execution_logs)
+ * 记录每次 AI 自动交易生成的 Prompt 和原始响应，用于调试和人工干预
+ */
+export const aiExecutionLogs = fundSchema.table('ai_execution_logs', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 用户ID */
+  userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 执行日期 (YYYY-MM-DD) */
+  date: date('date').notNull(),
+  /** 发送给 AI 的完整 Prompt (System + User) */
+  prompt: text('prompt').notNull(),
+  /** AI 返回的原始 JSON 响应 */
+  response: text('response').notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
  * 持有与基金关联
  * 基金 一对多 持有
  */

@@ -19,6 +19,7 @@ export default defineEventHandler(async (event) => {
   // 查询指定日期的所有交易，关联用户和基金信息
   const transactions = await db.select({
     id: fundTransactions.id,
+    userId: fundTransactions.userId,
     type: fundTransactions.type,
     status: fundTransactions.status,
     fundCode: fundTransactions.fundCode,

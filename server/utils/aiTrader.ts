@@ -61,7 +61,7 @@ async function buildAiContext(fullHoldingsData: any[]) {
   }
 
   // C. 格式化持仓与关注列表
-  // [新增] 辅助函数：保留4位小数并向下取整
+  // 辅助函数：保留4位小数并向下取整
   const floorShares = (num: number) => Math.floor(num * 10000) / 10000
 
   const simplify = (h: any) => {
@@ -123,14 +123,21 @@ interface UserAiConfig {
   aiSystemPrompt?: string | null
 }
 
-export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<TradeDecision[]> {
+// [修改] 返回类型增加日志信息
+interface AiTradeResult {
+  decisions: TradeDecision[]
+  fullPrompt: string
+  rawResponse: string
+}
+
+export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<AiTradeResult> {
   const config = useRuntimeConfig()
 
   if (!config.openRouterApiKey) {
     throw new Error('系统未配置 OpenRouter API Key')
   }
 
-  // 1. 强制校验：用户必须配置 System Prompt，不再提供默认值
+  // 1. 强制校验：用户必须配置 System Prompt
   if (!userConfig.aiSystemPrompt || !userConfig.aiSystemPrompt.trim()) {
     throw new Error('用户未配置 AI 策略提示词 (System Prompt)，无法执行自动分析。')
   }
@@ -139,16 +146,8 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const contextData = await buildAiContext(fullHoldingsData)
 
   // 3. 计算剩余可用资金 (资金风控核心)
-  // 逻辑：总预算 - 当前所有持仓的市值 = 剩余可用现金
-  // 注意：这里使用 holdingAmount (市值) 还是 costPrice * shares (成本) 取决于你的定义。
-  // 通常“资产配置”看市值，“投入本金”看成本。为了防止回撤导致误判有钱，这里建议使用“已占用本金”或“当前市值”。
-  // 这里采用保守策略：减去当前市值。如果亏损了，市值变小，剩余资金会变多（允许补仓）；如果盈利了，市值变大，剩余资金变少（防止过度加仓）。
-  // *更稳健的做法是：减去已投入成本*，但 holdings 数据里 holdingAmount 更现成。我们暂用 holdingAmount 求和。
-
   const totalBudget = Number(userConfig.aiTotalAmount) || 0
   const currentInvested = fullHoldingsData.reduce((sum, h) => sum + (Number(h.holdingAmount) || 0), 0)
-
-  // 剩余可用买入资金 (不能小于 0)
   const availableCash = Math.max(0, totalBudget - currentInvested)
   const availableCashStr = availableCash.toFixed(2)
 
@@ -185,18 +184,10 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   2.  **sell (卖出)**: 
       - 信号: 止盈、止损或换仓。
       - 限制: 必须持有该标的 (Holdings > 0)。
-  3.  **hold (持有/观望)**: 
-      - 信号: 趋势不明朗，或处于"冷却期"。
-  4.  **transfer_in (转入/入金)**: 
-      - 场景: 
-        - 当发现绝佳机会但 availableCash 不足时。
-        - 当整体市场处于"历史大底"需要追加子弹时。
-      - 逻辑: 这是对"Cash"账户的操作，表示外部资金注入。
-  5.  **transfer_out (转出/出金)**: 
-      - 场景: 
-        - 当 TotalProfit 达到阶段性目标（如 >20%）需要落袋为安。
-        - 当市场进入"技术性熊市"，需要大幅降低风险敞口并提取现金。
-      - 逻辑: 这是从"Cash"账户移除资金。
+  3.  **convert_in (转入/入金)**: 
+      - 场景: 绝佳机会但 cash 不足 / 宏观牛市追加本金。
+  4.  **convert_out (转出/出金)**: 
+      - 场景: 止盈落袋 / 熊市避险。
 
 #### 4. Output Format (JSON Only)
 
@@ -205,31 +196,37 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 {
   "decisions": [
     {
-      "fundCode": "AAPL",
-      "fundName": "AAPL",
-      "action": "buy",
-      "amount": 5000,
-      "shares": null,
-      "reason": "RSI超卖，回踩支撑位",
+      "fundCode": "001111",
+      "action": "convert_out",
+      "shares": 100,
+      "reason": "卖出源基金"
     },
     {
-      "fundCode": "CASH", 
-      "fundName": "CASH", 
-      "action": "transfer_in", 
-      "amount": 50000,
-      "shares": null,
-      "reason": "宏观确立牛市初期，追加本金扩大收益",
-    }
+      "fundCode": "002222",
+      "action": "convert_in",
+      "relatedIndex": 0,  // 指向上面第 0 个操作
+      "reason": "买入目标基金"
+    },
+    {
+      "fundCode": "00111",
+      "action": "buy",
+      "amount": 5000,
+      "shares": 0,
+      "reason": "RSI超卖，回踩支撑位",
+    },
   ]
 }
 `
 
-  // 组合最终的 Prompt
+  // 组合最终的 System Prompt
   const finalSystemPrompt = `${fixedContext}\n\n#### 2. Strategy Logic (User Defined)\n${userConfig.aiSystemPrompt}\n\n${fixedOutputRules}`
 
   // 5. 确定使用的模型
   const targetModel = userConfig.aiModel || config.aiModel || 'xiaomi/mimo-v2-flash:free'
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
+
+  // 组合完整的 Prompt 字符串用于记录
+  const fullPromptLog = `--- SYSTEM PROMPT ---\n${finalSystemPrompt}\n\n--- USER PROMPT ---\n${userPrompt}`
 
   try {
     const openai = new OpenAI({
@@ -243,7 +240,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
         { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.1, // 降低随机性，严格遵循格式
+      temperature: 0.1, // 降低随机性
     })
 
     const rawContent = completion.choices[0]?.message?.content || '{}'
@@ -261,7 +258,6 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     const actions = validated.decisions.filter(d => d.action !== 'hold')
 
     // [最后一道防线] 代码层面的资金硬性校验
-    // 这里不再使用 maxBudget (总额)，而是使用 availableCash (剩余额度) 进行校验
     const budgetLimit = availableCash
     let currentTotalBuy = 0
 
@@ -271,22 +267,14 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     for (const action of actions) {
       if (action.action === 'buy') {
         const amount = action.amount || 0
-        // 如果加上这一笔会超支
         if (currentTotalBuy + amount > budgetLimit) {
           console.warn(`[AI Trader] 触发资金风控拦截！`)
-          console.warn(`  -> 计划买入 ${action.fundCode} 金额 ${amount}`)
-          console.warn(`  -> 当前累计 ${currentTotalBuy} + ${amount} > 剩余预算 ${budgetLimit}`)
-
-          // 策略: 尝试缩减金额到剩余预算
           const remaining = budgetLimit - currentTotalBuy
-          if (remaining > 10) { // 如果剩余资金还够买点碎股 (>10元)
-            action.amount = Math.floor(remaining) // 向下取整
-            action.reason += ` [系统风控: 剩余预算不足，已修正金额至 ${action.amount}]`
+          if (remaining > 10) {
+            action.amount = Math.floor(remaining)
+            action.reason += ` [系统风控: 剩余预算不足，修正金额至 ${action.amount}]`
             currentTotalBuy += action.amount
             validActions.push(action)
-          }
-          else {
-            console.warn(`  -> 剩余预算不足 (<10元)，跳过此笔买入。`)
           }
         }
         else {
@@ -295,16 +283,23 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
         }
       }
       else if (action.action === 'sell') {
-        // 卖出风控：强制保留4位小数并向下取整，防止浮点数溢出
         if (action.shares) {
           action.shares = Math.floor(action.shares * 10000) / 10000
         }
-        // 卖出操作不受资金限制，直接放行
+        validActions.push(action)
+      }
+      else {
+        // transfer 等其他操作直接放行
         validActions.push(action)
       }
     }
 
-    return validActions
+    // [修改] 返回详细结果对象
+    return {
+      decisions: validActions,
+      fullPrompt: fullPromptLog,
+      rawResponse: rawContent,
+    }
   }
   catch (error: any) {
     console.error(`AI 决策分析失败 (User Configured Strategy):`, error.message)

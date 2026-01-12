@@ -27,6 +27,82 @@ const { data: transactions, pending, refresh } = await useAsyncData(
 
 // --- 批量操作逻辑 ---
 const isClearing = ref(false)
+// 状态
+const isLogLoading = ref(false)
+const isImportModalOpen = ref(false)
+const importTargetUser = ref<{ id: number, username: string } | null>(null)
+const importJsonContent = ref('')
+const isImporting = ref(false)
+
+// 复制 Prompt
+async function handleCopyPrompt(userId: number, username: string) {
+  isLogLoading.value = true
+  try {
+    const log = await apiFetch<{ prompt: string }>(`/api/admin/ai-logs`, {
+      params: { userId, date: selectedDate.value },
+    })
+
+    // 复制到剪贴板
+    const { copy } = useClipboard({ legacy: true })
+    await copy(log.prompt)
+    alert(`用户 ${username} 的 Prompt 已复制到剪贴板！`)
+  }
+  catch (e: any) {
+    alert(`获取日志失败: ${e.data?.message || '未找到日志或发生错误'}`)
+  }
+  finally {
+    isLogLoading.value = false
+  }
+}
+
+// 打开导入模态框
+function openImportModal(user: { id: number, username: string }) {
+  importTargetUser.value = { ...user, id: Number(user.id) } // 确保 id 是数字
+  importJsonContent.value = '' // 清空
+  isImportModalOpen.value = true
+}
+
+// 提交 JSON 替换
+async function handleImportJsonSubmit() {
+  if (!importTargetUser.value || !importJsonContent.value)
+    return
+
+  // 简单的 JSON 校验
+  let decisions = []
+  try {
+    const parsed = JSON.parse(importJsonContent.value)
+    // 兼容 { decisions: [...] } 格式或直接 [...] 格式
+    decisions = Array.isArray(parsed) ? parsed : (parsed.decisions || [])
+    if (!Array.isArray(decisions))
+      throw new Error('Format error')
+  }
+  catch (e) {
+    console.error(e)
+    alert('JSON 格式错误，请检查。需为包含 decisions 数组的对象或直接为数组。')
+    return
+  }
+
+  isImporting.value = true
+  try {
+    await apiFetch('/api/admin/transactions/batch-replace', {
+      method: 'POST',
+      body: {
+        userId: importTargetUser.value.id,
+        date: selectedDate.value,
+        decisions,
+      },
+    })
+    alert('批量修正成功！')
+    isImportModalOpen.value = false
+    refresh() // 刷新列表
+  }
+  catch (e: any) {
+    alert(`提交失败: ${e.data?.message || e.message}`)
+  }
+  finally {
+    isImporting.value = false
+  }
+}
 
 // 计算当前列表中是否有待处理的交易
 const hasPendingTransactions = computed(() => {
@@ -59,13 +135,17 @@ const groupedTransactions = computed(() => {
   if (!transactions.value)
     return []
 
-  const groups: Record<string, { user: { username: string, isAiAgent: boolean }, txs: any[] }> = {}
+  // [修改] 类型定义增加 id
+  const groups: Record<string, { user: { id: number, username: string, isAiAgent: boolean }, txs: any[] }> = {}
 
   for (const tx of transactions.value) {
     const username = tx.username
     if (!groups[username]) {
       groups[username] = {
-        user: { username, isAiAgent: tx.isAiAgent },
+        // [修改] 从 tx 中获取 userId (注意：后端返回的字段通常是 userId，但 transactions 接口使用了 join，需要确认)
+        // 检查 `server/routes/api/transactions/daily.get.ts`，它并没有返回 `userId`。
+        // 我们需要先去修改后端接口 daily.get.ts
+        user: { id: tx.userId || 0, username, isAiAgent: tx.isAiAgent },
         txs: [],
       }
     }
@@ -223,7 +303,7 @@ function formatCurrency(val: any) {
               共 {{ transactions.length }} 笔
             </span>
           </h2>
-          <!-- [新增] 清空按钮 -->
+          <!-- 清空按钮 -->
           <button
             v-if="hasPendingTransactions"
             class="text-sm text-red-600 px-3 py-1.5 border border-red-200 rounded-md bg-red-50 flex gap-2 transition-colors items-center dark:text-red-400 dark:border-red-900/50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/40"
@@ -264,6 +344,24 @@ function formatCurrency(val: any) {
                   <span class="text-gray-800 font-bold dark:text-gray-200">{{ group.user.username }}</span>
                   <span v-if="group.user.isAiAgent" class="i-carbon-bot text-xs text-primary" title="AI 代理账户" />
                   <span class="text-xs text-gray-500 ml-1">({{ group.txs.length }} 笔)</span>
+                </div>
+
+                <!-- 管理员操作按钮组 -->
+                <div class="ml-4 flex gap-2" @click.stop>
+                  <button
+                    class="text-xs px-2 py-1 border rounded bg-white flex dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="复制 AI Prompt"
+                    @click="handleCopyPrompt(group.txs[0].userId, group.user.username)"
+                  >
+                    <div class="i-carbon-copy" /> Prompt
+                  </button>
+                  <button
+                    class="text-xs text-blue-600 px-2 py-1 border rounded bg-white flex dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="人工修正 (Import JSON)"
+                    @click="openImportModal({ id: group.txs[0].userId, username: group.user.username })"
+                  >
+                    <div class="i-carbon-edit" /> 修正
+                  </button>
                 </div>
               </div>
 
@@ -358,5 +456,27 @@ function formatCurrency(val: any) {
         </div>
       </div>
     </div>
+    <!-- JSON 导入/修正模态框 -->
+    <Modal v-model="isImportModalOpen" :title="`人工修正 - ${importTargetUser?.username} (${selectedDate})`">
+      <div class="space-y-4">
+        <p class="text-sm text-gray-500">
+          请输入修正后的 JSON 数据。提交后，该用户当日所有 [待处理] 交易将被此处的内容替换。
+        </p>
+        <textarea
+          v-model="importJsonContent"
+          rows="10"
+          class="text-xs font-mono input-base w-full"
+          placeholder="{ &quot;decisions&quot;: [ { &quot;fundCode&quot;: &quot;...&quot;, &quot;action&quot;: &quot;buy&quot;, &quot;amount&quot;: 1000, &quot;reason&quot;: &quot;...&quot; } ] }"
+        />
+        <div class="flex gap-3 justify-end">
+          <button class="px-4 py-2 rounded bg-gray-100 dark:bg-gray-700" @click="isImportModalOpen = false">
+            取消
+          </button>
+          <button class="btn" :disabled="!importJsonContent || isImporting" @click="handleImportJsonSubmit">
+            {{ isImporting ? '处理中...' : '确认替换' }}
+          </button>
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
