@@ -12,7 +12,7 @@ import { marketGroups } from '~~/shared/market'
 const TradeDecisionSchema = z.object({
   fundCode: z.string(),
   fundName: z.string().optional(),
-  action: z.enum(['buy', 'sell', 'hold']),
+  action: z.enum(['buy', 'sell', 'convert_out', 'convert_in']),
   amount: z.number().optional().describe('买入金额，仅 action=buy 时有效'),
   shares: z.number().optional().describe('卖出份额，仅 action=sell 时有效'),
   reason: z.string().describe('详细的决策逻辑分析'),
@@ -255,7 +255,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     const validated = AiResponseSchema.parse(parsed)
 
     // 过滤掉 hold 操作
-    const actions = validated.decisions.filter(d => d.action !== 'hold')
+    const actions = validated.decisions
 
     // [最后一道防线] 代码层面的资金硬性校验
     const budgetLimit = availableCash
