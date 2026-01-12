@@ -1,11 +1,12 @@
 import { and, eq, ne } from 'drizzle-orm'
 import { z } from 'zod'
 import { users } from '~~/server/database/schemas'
-import { getUserFromEvent } from '~~/server/utils/auth'
+import { getUserFromEvent, hashPassword } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
 const updateUserSchema = z.object({
   username: z.string().min(3, '用户名至少3位').optional(),
+  password: z.string().min(6, '密码至少6位').optional(), // [新增] 允许重置密码
   isAiAgent: z.boolean().optional(),
   aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
@@ -52,6 +53,10 @@ export default defineEventHandler(async (event) => {
     updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
+  // [新增] 处理密码重置
+  if (data.password) {
+    updateData.password = hashPassword(data.password)
+  }
 
   if (Object.keys(updateData).length === 0) {
     return { message: '无数据变更' }

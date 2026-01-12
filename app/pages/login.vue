@@ -11,7 +11,18 @@ useHead({
 })
 
 const authStore = useAuthStore()
-const credentials = reactive({ username: '', password: '' })
+
+// 使用 VueUse 的 useLocalStorage 持久化状态
+const rememberMe = useLocalStorage('auth-remember', false)
+const savedUsername = useLocalStorage('auth-username', '')
+const savedPassword = useLocalStorage('auth-password', '')
+
+// 初始化时，如果开启了记住密码，则读取本地存储
+const credentials = reactive({
+  username: rememberMe.value ? savedUsername.value : '',
+  password: rememberMe.value ? savedPassword.value : '',
+})
+
 const isLoading = ref(false)
 const errorMessage = ref('') // 用于存储错误信息
 
@@ -24,6 +35,17 @@ async function handleLogin() {
   errorMessage.value = '' // 开始登录前清空错误信息
   try {
     await authStore.login(credentials)
+
+    // 登录成功后，根据是否勾选“记住我”来更新本地存储
+    if (rememberMe.value) {
+      savedUsername.value = credentials.username
+      savedPassword.value = credentials.password
+    }
+    else {
+      savedUsername.value = ''
+      savedPassword.value = ''
+    }
+
     // 成功后，全局中间件会自动处理跳转
   }
   catch (error: any) {
@@ -82,6 +104,18 @@ async function handleLogin() {
               required
             >
           </div>
+        </div>
+
+        <!-- 记住密码选项 -->
+        <div class="flex items-center justify-between">
+          <label class="text-sm text-gray-600 flex gap-2 cursor-pointer select-none items-center dark:text-gray-400">
+            <input
+              v-model="rememberMe"
+              type="checkbox"
+              class="text-primary border-gray-300 rounded h-4 w-4 focus:ring-primary"
+            >
+            记住账号密码
+          </label>
         </div>
 
         <!-- 错误信息提示 -->

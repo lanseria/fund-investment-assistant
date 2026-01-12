@@ -29,6 +29,11 @@ const editForm = reactive({
   aiSystemPrompt: '',
 })
 
+// 重置密码相关
+const isResetPwdModalOpen = ref(false)
+const resetPwdUserId = ref<number | null>(null)
+const newPassword = ref('')
+
 // [新增] 打开编辑模态框
 function openEditModal(user: any) {
   editingUserId.value = user.id
@@ -40,6 +45,39 @@ function openEditModal(user: any) {
   editForm.aiSystemPrompt = user.aiSystemPrompt || ''
 
   isEditModalOpen.value = true
+}
+
+// [新增] 打开重置密码模态框
+function openResetPwdModal(userId: number) {
+  resetPwdUserId.value = userId
+  newPassword.value = '' // 清空输入
+  isResetPwdModalOpen.value = true
+}
+
+// [新增] 提交重置密码
+async function handleResetPassword() {
+  if (!resetPwdUserId.value || !newPassword.value)
+    return
+  if (newPassword.value.length < 6) {
+    alert('密码长度至少6位')
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    await apiFetch(`/api/admin/users/${resetPwdUserId.value}`, {
+      method: 'PUT',
+      body: { password: newPassword.value },
+    })
+    isResetPwdModalOpen.value = false
+    alert('密码重置成功')
+  }
+  catch (err: any) {
+    alert(`重置失败: ${err.data?.statusMessage || '未知错误'}`)
+  }
+  finally {
+    isSubmitting.value = false
+  }
 }
 
 // [新增] 提交编辑
@@ -235,6 +273,9 @@ async function handleCloneUser() {
                 <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="编辑用户名" @click="openEditModal(user)">
                   <div i-carbon-edit />
                 </button>
+                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="重置密码" @click="openResetPwdModal(user.id)">
+                  <div i-carbon-password />
+                </button>
                 <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户及其持仓" @click="openCloneModal(user.id)">
                   <div i-carbon-copy-file />
                 </button>
@@ -279,6 +320,39 @@ async function handleCloneUser() {
           </button>
           <button type="submit" class="btn" :disabled="!cloneNewUsername || isSubmitting">
             {{ isSubmitting ? '处理中...' : '确认克隆' }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+
+    <!-- 重置密码模态框 -->
+    <Modal v-model="isResetPwdModalOpen" title="重置用户密码">
+      <form @submit.prevent="handleResetPassword">
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500">
+            请输入新的密码。重置后用户需要使用新密码重新登录。
+          </p>
+          <div>
+            <label class="text-sm font-medium mb-1 block">新密码</label>
+            <input
+              v-model="newPassword"
+              type="text"
+              class="font-mono input-base"
+              placeholder="至少6位"
+              required
+              autofocus
+            >
+            <p class="text-xs text-gray-400 mt-1">
+              建议使用随机强密码。
+            </p>
+          </div>
+        </div>
+        <div class="mt-6 flex justify-end space-x-3">
+          <button type="button" class="px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-600" @click="isResetPwdModalOpen = false">
+            取消
+          </button>
+          <button type="submit" class="btn" :disabled="!newPassword || newPassword.length < 6 || isSubmitting">
+            {{ isSubmitting ? '重置中...' : '确认重置' }}
           </button>
         </div>
       </form>

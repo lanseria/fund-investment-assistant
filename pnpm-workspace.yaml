@@ -1,7 +1,7 @@
 packages: []
 
 catalog:
-  openai: ^6.15.0
+  openai: ^6.16.0
 
 catalogMode: prefer
 
@@ -10,7 +10,7 @@ catalogs:
     '@types/pg': ^8.16.0
     drizzle-kit: ^0.31.8
     drizzle-orm: ^0.45.1
-    iconv-lite: ^0.7.1
+    iconv-lite: ^0.7.2
     pg: ^8.16.3
   build:
     '@nuxt/devtools': ^3.1.1
@@ -39,7 +39,7 @@ catalogs:
     vue: ^3.5.26
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.15
+    '@iconify-json/carbon': ^1.2.16
     '@iconify-json/twemoji': ^1.2.5
   utils:
     bignumber.js: ^9.3.1
