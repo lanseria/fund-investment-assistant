@@ -200,24 +200,28 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
 #### 4. Output Format (JSON Only)
 
-请严格输出如下 JSON 格式 (不要包含 Markdown 代码块标记):
+请严格输出如下 JSON 格式 (必须包含在 "decisions" 字段中):
 
-[
-  {
-    "symbol": "AAPL",
-    "action": "buy",
-    "amount": 5000,
-    "reason": "RSI超卖，回踩支撑位",
-    "confidence": 0.85
-  },
-  {
-    "symbol": "CASH_ACCOUNT", 
-    "action": "transfer_in", 
-    "amount": 50000,
-    "reason": "宏观确立牛市初期，追加本金扩大收益",
-    "confidence": 0.95
-  }
-]
+{
+  "decisions": [
+    {
+      "fundCode": "AAPL",
+      "fundName": "AAPL",
+      "action": "buy",
+      "amount": 5000,
+      "shares": null,
+      "reason": "RSI超卖，回踩支撑位",
+    },
+    {
+      "fundCode": "CASH", 
+      "fundName": "CASH", 
+      "action": "transfer_in", 
+      "amount": 50000,
+      "shares": null,
+      "reason": "宏观确立牛市初期，追加本金扩大收益",
+    }
+  ]
+}
 `
 
   // 组合最终的 Prompt
