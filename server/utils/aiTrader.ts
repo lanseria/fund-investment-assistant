@@ -178,24 +178,47 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
    - **若余额不足**：如果剩余资金少于 100 元，请不要执行任何买入操作。
 
 2. **交易动作规范：**
-   - **买入(buy)**：必须填写 \`amount\`（单位：元），\`shares\` 设为 0。
-   - **卖出(sell)**：必须填写 \`shares\`（单位：份）。
-     - **若为清仓/全额卖出**：必须从 holdings 数据中提取该标的的 \`availableShares\`。**重要：**份额必须**保留4位小数并向下取整(Math.floor)**，严禁四舍五入导致超出持仓上限。此时 \`amount\` 设为 0。
-   - **保持(hold)**：\`amount\` 和 \`shares\` 均设为 0。
+你现在拥有更广泛的资金权限，对于列表中的每个标的或资金账户，请选择以下动作之一：
+  1.  **buy (买入)**: 
+      - 信号: 强烈的上涨趋势或超跌反弹。
+      - 限制: 必须有足够的 availableCash。
+  2.  **sell (卖出)**: 
+      - 信号: 止盈、止损或换仓。
+      - 限制: 必须持有该标的 (Holdings > 0)。
+  3.  **hold (持有/观望)**: 
+      - 信号: 趋势不明朗，或处于"冷却期"。
+  4.  **transfer_in (转入/入金)**: 
+      - 场景: 
+        - 当发现绝佳机会但 availableCash 不足时。
+        - 当整体市场处于"历史大底"需要追加子弹时。
+      - 逻辑: 这是对"Cash"账户的操作，表示外部资金注入。
+  5.  **transfer_out (转出/出金)**: 
+      - 场景: 
+        - 当 TotalProfit 达到阶段性目标（如 >20%）需要落袋为安。
+        - 当市场进入"技术性熊市"，需要大幅降低风险敞口并提取现金。
+      - 逻辑: 这是从"Cash"账户移除资金。
 
-必须严格返回如下 JSON 格式，不要包含 Markdown 标记：
-{
-  "decisions": [
-    { 
-      "fundCode": "000001", 
-      "fundName": "某某基金",
-      "action": "buy" | "sell" | "hold", 
-      "amount": 1000, // 仅 buy 时需要，严格受限
-      "shares": 100,  // 仅 sell 时需要
-      "reason": "策略分析：..." 
-    }
-  ]
-}`
+#### 4. Output Format (JSON Only)
+
+请严格输出如下 JSON 格式 (不要包含 Markdown 代码块标记):
+
+[
+  {
+    "symbol": "AAPL",
+    "action": "buy",
+    "amount": 5000,
+    "reason": "RSI超卖，回踩支撑位",
+    "confidence": 0.85
+  },
+  {
+    "symbol": "CASH_ACCOUNT", 
+    "action": "transfer_in", 
+    "amount": 50000,
+    "reason": "宏观确立牛市初期，追加本金扩大收益",
+    "confidence": 0.95
+  }
+]
+`
 
   // 组合最终的 Prompt
   const finalSystemPrompt = `${fixedContext}\n\n#### 2. Strategy Logic (User Defined)\n${userConfig.aiSystemPrompt}\n\n${fixedOutputRules}`
