@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import { useDayjs } from '#imports'
+import BigNumber from 'bignumber.js'
 
 const props = defineProps<{
   fromCode: string
@@ -42,7 +43,10 @@ const ratios = [
 ]
 
 function setShares(ratio: number) {
-  formData.shares = Math.floor(props.currentShares * ratio * 100) / 100
+  // 逻辑：(currentShares * ratio) -> 保留4位小数 -> 向下取整
+  formData.shares = +(new BigNumber(props.currentShares)
+    .times(ratio)
+    .toFixed(4, BigNumber.ROUND_DOWN))
 }
 
 const canSubmit = computed(() => {
@@ -121,8 +125,8 @@ function handleSubmit() {
         <input
           v-model.number="formData.shares"
           type="number"
-          step="0.01"
-          min="0.01"
+          step="0.0001"
+          min="0.0001"
           :max="currentShares"
           class="input-base"
           placeholder="请输入转出份额"

@@ -100,7 +100,7 @@ function handleSubmit() {
           id="holding-shares"
           v-model.number="formData.shares"
           type="number"
-          step="0.01"
+          step="0.0001"
           placeholder="若不持仓，可留空"
           class="input-base"
         >

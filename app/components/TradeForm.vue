@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useDayjs } from '#imports'
+import BigNumber from 'bignumber.js'
 
 const props = defineProps<{
   fundCode: string
@@ -33,8 +34,10 @@ const sellRatios = [
 
 function setSellShares(ratio: number) {
   if (props.currentShares) {
-    // 保留2位小数
-    formData.shares = Math.floor(props.currentShares * ratio * 100) / 100
+    // 逻辑：(currentShares * ratio) -> 保留4位小数 -> 向下取整
+    formData.shares = +(new BigNumber(props.currentShares)
+      .times(ratio)
+      .toFixed(4, BigNumber.ROUND_DOWN))
   }
 }
 
@@ -98,8 +101,8 @@ function handleSubmit() {
           <input
             v-model.number="formData.amount"
             type="number"
-            step="0.01"
-            min="0.01"
+            step="0.0001"
+            min="0.0001"
             class="input-base pl-7"
             placeholder="请输入买入金额"
             autofocus
@@ -113,8 +116,8 @@ function handleSubmit() {
         <input
           v-model.number="formData.shares"
           type="number"
-          step="0.01"
-          min="0.01"
+          step="0.0001"
+          min="0.0001"
           :max="currentShares"
           class="input-base"
           placeholder="请输入卖出份额"

@@ -138,7 +138,7 @@ export default defineTask({
           confirmedAmount = orderShares.multipliedBy(nav)
           finalShares = finalShares.minus(confirmedShares)
 
-          if (finalShares.lt(0.01)) {
+          if (finalShares.lt(0.0001)) {
             finalShares = new BigNumber(0)
             finalCostPrice = new BigNumber(0)
           }
