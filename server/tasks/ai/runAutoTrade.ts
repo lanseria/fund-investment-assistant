@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
-import isBetween from 'dayjs/plugin/isBetween'
+import isBetween from 'dayjs/plugin/isBetween.js'
 import { eq } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
