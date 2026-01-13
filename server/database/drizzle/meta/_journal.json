@@ -134,6 +134,13 @@
       "when": 1768202109994,
       "tag": "0018_lying_power_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1768280022546,
+      "tag": "0019_sleepy_white_tiger",
+      "breakpoints": true
     }
   ]
 }

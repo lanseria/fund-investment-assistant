@@ -30,7 +30,7 @@ export const users = fundSchema.table('users', {
   /** AI 模型名称 */
   aiModel: text('ai_model').default('xiaomi/mimo-v2-flash:free'),
   /** AI 操作的总资金体量 (用于 Prompt 上下文) */
-  aiTotalAmount: numeric('ai_total_amount', { precision: 18, scale: 2 }).default('100000'),
+  aiTotalAmount: numeric('ai_total_amount', { precision: 18, scale: 4 }).default('100000'),
   /** 自定义 System Prompt (如果为空则使用系统默认) */
   aiSystemPrompt: text('ai_system_prompt'),
   /** 用户创建时间 */
@@ -174,11 +174,11 @@ export const fundTransactions = fundSchema.table('fund_transactions', {
    * 申报金额 (买入时必填)
    * 注意：卖出时通常按份额卖，但也可能有按金额卖出的情况(有些平台支持)，这里主要用于买入
    */
-  orderAmount: numeric('order_amount', { precision: 18, scale: 2 }),
+  orderAmount: numeric('order_amount', { precision: 18, scale: 4 }),
   /**
    * 申报份额 (卖出时必填)
    */
-  orderShares: numeric('order_shares', { precision: 18, scale: 2 }),
+  orderShares: numeric('order_shares', { precision: 18, scale: 4 }),
   /**
    * 订单日期
    * 通常是操作当日，如果是15点后操作则归为下一个交易日。
@@ -192,9 +192,9 @@ export const fundTransactions = fundSchema.table('fund_transactions', {
   /** 确认成交的净值 */
   confirmedNav: numeric('confirmed_nav', { precision: 10, scale: 4 }),
   /** 确认成交的份额 */
-  confirmedShares: numeric('confirmed_shares', { precision: 18, scale: 2 }),
+  confirmedShares: numeric('confirmed_shares', { precision: 18, scale: 4 }),
   /** 确认成交的金额 */
-  confirmedAmount: numeric('confirmed_amount', { precision: 18, scale: 2 }),
+  confirmedAmount: numeric('confirmed_amount', { precision: 18, scale: 4 }),
   /** 确认时间 */
   confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
   /** 创建时间 */
