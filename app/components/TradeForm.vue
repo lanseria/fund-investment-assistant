@@ -1,3 +1,4 @@
+<!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import { useDayjs } from '#imports'
 import BigNumber from 'bignumber.js'
@@ -10,6 +11,8 @@ const props = defineProps<{
   currentShares?: number
   // 卖出时需要知道当前预估市值(仅做参考)
   currentMarketValue?: number
+  // [新增] 最近一次买入日期 (用于计算7天惩罚)
+  lastBuyDate?: string | null
 }>()
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -22,6 +25,34 @@ const formData = reactive({
   date: defaultDate,
   amount: null as number | null, // 买入金额
   shares: null as number | null, // 卖出份额
+})
+
+// [新增] 检查是否由短期持有 (少于7天)
+const shortTermCheck = computed(() => {
+  if (props.type !== 'sell' || !props.lastBuyDate || !formData.date)
+    return { isShortTerm: false, days: 0 }
+
+  const sellDate = dayjs(formData.date)
+  const buyDate = dayjs(props.lastBuyDate)
+  const diff = sellDate.diff(buyDate, 'day')
+
+  return {
+    isShortTerm: diff < 7,
+    days: diff,
+  }
+})
+
+// [新增] 预估惩罚性手续费
+const estimatedFee = computed(() => {
+  if (!shortTermCheck.value.isShortTerm || !formData.shares || !props.currentShares || !props.currentMarketValue)
+    return 0
+
+  // 估算单价
+  const estimatedNav = props.currentMarketValue / props.currentShares
+  // 估算总额 = 卖出份额 * 估算单价
+  const estimatedAmount = formData.shares * estimatedNav
+  // 1.5% 手续费
+  return estimatedAmount * 0.015
 })
 
 // 快捷比例按钮 (仅卖出)
@@ -54,6 +85,12 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
+    // [新增] 如果触发惩罚，再次确认
+    if (shortTermCheck.value.isShortTerm) {
+      if (!confirm(`⚠️ 警告：检测到您持有该基金不足 7 天！\n\n卖出将产生约 ${estimatedFee.value.toFixed(2)} 元 (1.5%) 的惩罚性手续费。\n\n确定要继续吗？`))
+        return
+    }
+
     emit('submit', {
       fundCode: props.fundCode,
       type: props.type,
@@ -76,6 +113,24 @@ function handleSubmit() {
         <p v-if="type === 'sell'" class="text-xs text-gray-500 mt-1">
           可用份额: {{ currentShares }} 份
           <span v-if="currentMarketValue">(≈ ¥{{ currentMarketValue.toFixed(2) }})</span>
+        </p>
+      </div>
+
+      <!-- [新增] 7天惩罚提示 -->
+      <div
+        v-if="type === 'sell' && shortTermCheck.isShortTerm"
+        class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
+      >
+        <div class="font-bold flex gap-2 items-center">
+          <div i-carbon-warning-filled />
+          持有期警告 ({{ shortTermCheck.days }}天)
+        </div>
+        <p class="mt-1">
+          最近一次买入于 {{ lastBuyDate }}，不足7天。
+          卖出将收取 <span class="font-bold">1.5%</span> 惩罚性费率。
+        </p>
+        <p v-if="estimatedFee > 0" class="font-bold mt-1">
+          预估手续费: -¥{{ estimatedFee.toFixed(2) }}
         </p>
       </div>
 

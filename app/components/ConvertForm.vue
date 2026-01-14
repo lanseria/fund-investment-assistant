@@ -1,3 +1,4 @@
+<!-- eslint-disable no-alert -->
 <!-- app/components/ConvertForm.vue -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
@@ -10,6 +11,8 @@ const props = defineProps<{
   currentShares: number
   // 所有可选的目标基金（必须从已添加的基金中选）
   availableFunds: Holding[]
+  // [新增] 最近一次买入日期
+  lastBuyDate?: string | null
 }>()
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -33,6 +36,21 @@ const targetOptions = computed(() => {
       value: f.code,
       label: `${f.name} (${f.code})`,
     }))
+})
+
+// [新增] 检查是否由短期持有 (少于7天)
+const shortTermCheck = computed(() => {
+  if (!props.lastBuyDate || !formData.date)
+    return { isShortTerm: false, days: 0 }
+
+  const convertDate = dayjs(formData.date)
+  const buyDate = dayjs(props.lastBuyDate)
+  const diff = convertDate.diff(buyDate, 'day')
+
+  return {
+    isShortTerm: diff < 7,
+    days: diff,
+  }
 })
 
 // 快捷比例
@@ -60,6 +78,12 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
+    // [新增] 7天惩罚二次确认
+    if (shortTermCheck.value.isShortTerm) {
+      if (!confirm(`⚠️ 警告：检测到该基金持有不足 7 天！\n\n转出将扣除 1.5% 的惩罚性手续费。\n\n确定要继续转换吗？`))
+        return
+    }
+
     emit('submit', {
       fromCode: props.fromCode,
       toCode: formData.toCode,
@@ -81,6 +105,21 @@ function handleSubmit() {
         </div>
         <p class="text-xs opacity-80">
           卖出 A 基金，用所得资金自动买入 B 基金。
+        </p>
+      </div>
+
+      <!-- [新增] 7天惩罚提示 -->
+      <div
+        v-if="shortTermCheck.isShortTerm"
+        class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
+      >
+        <div class="font-bold flex gap-2 items-center">
+          <div i-carbon-warning-filled />
+          持有期警告 ({{ shortTermCheck.days }}天)
+        </div>
+        <p class="mt-1">
+          最近一次买入于 {{ lastBuyDate }}，不足7天。
+          转出将扣除 <span class="font-bold">1.5%</span> 费用，导致实际转入金额减少。
         </p>
       </div>
 

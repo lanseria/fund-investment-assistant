@@ -1,6 +1,7 @@
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
-import { and, eq } from 'drizzle-orm'
+import dayjs from 'dayjs'
+import { and, desc, eq, inArray, lt } from 'drizzle-orm' // [修改] 导入 lt, desc, inArray
 import { funds, fundTransactions, holdings, navHistory } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { addHolding, updateHolding } from '~~/server/utils/holdings'
@@ -24,7 +25,6 @@ export default defineTask({
     }
 
     // [关键] 预处理：将交易分为两组，优先处理卖出/转出
-    // 这样确保转换交易中的“卖出”先结算，从而计算出“买入”的金额
     const sellTxs = pendingTxs.filter(t => t.type === 'sell' || t.type === 'convert_out')
     const buyTxs = pendingTxs.filter(t => t.type === 'buy' || t.type === 'convert_in')
 
@@ -44,28 +44,23 @@ export default defineTask({
 
     for (const tx of sortedTxs) {
       try {
-        // [新增] 检查：如果是转换买入(convert_in)交易，需要检查金额是否已填
-        // 这里兼容旧数据的 'buy' 类型转换，以及新的 'convert_in'
+        // [前置检查] 买入/转入 等待卖出确认逻辑 (保持不变)
         if ((tx.type === 'buy' || tx.type === 'convert_in') && tx.relatedId && !tx.orderAmount) {
-          // 尝试从数据库重新查一下最新的 orderAmount (因为刚才可能被 updateRelatedBuyAmount 更新了)
           const freshTx = await db.query.fundTransactions.findFirst({
             where: eq(fundTransactions.id, tx.id),
           })
 
           if (freshTx && freshTx.orderAmount) {
-            tx.orderAmount = freshTx.orderAmount // 更新内存中的数据
+            tx.orderAmount = freshTx.orderAmount
           }
           else {
-            // 对应的卖出还没成交，或者今日无净值，跳过本次循环，等待卖出成交
-            // (如果是同一天的交易，上面的 sellTxs 循环应该已经处理了卖出并更新了 DB)
-            // 如果走到这里，说明卖出可能失败了或者净值没更新
             skippedCount++
             skippedReasons.push(`[${tx.fundCode}] 转换买入等待卖出确认 (TxID: ${tx.id})`)
             continue
           }
         }
 
-        // 2. 获取订单日期对应的历史净值
+        // 2. 获取净值 (保持不变)
         const navRecord = await db.query.navHistory.findFirst({
           where: and(
             eq(navHistory.code, tx.fundCode),
@@ -98,12 +93,12 @@ export default defineTask({
         let finalCostPrice = new BigNumber(currentHolding?.costPrice || 0)
         let confirmedShares = new BigNumber(0)
         let confirmedAmount = new BigNumber(0)
+        let note = tx.note || ''
 
         // --- 逻辑分支：买入 / 转入 ---
         if (tx.type === 'buy' || tx.type === 'convert_in') {
-          // 此时 orderAmount 应该已经被前面的 Sell/ConvertOut 逻辑填充了
+          // (保持不变)
           const orderAmount = new BigNumber(tx.orderAmount || 0)
-
           confirmedShares = orderAmount.dividedBy(nav)
           confirmedAmount = orderAmount
 
@@ -124,18 +119,52 @@ export default defineTask({
           const orderShares = new BigNumber(tx.orderShares || 0)
 
           if (!currentHolding || finalShares.lt(orderShares)) {
-            // 失败逻辑
             await db.update(fundTransactions)
               .set({ status: 'failed', note: `持仓不足 (需${orderShares}, 有${finalShares})` })
               .where(eq(fundTransactions.id, tx.id))
-
-            // 如果是关联交易，卖出失败，对应的买入也应该标记失败或取消
-            // 这里暂不处理复杂的级联失败，留给买入逻辑自己判断（没有金额就一直 pending）
             continue
           }
 
           confirmedShares = orderShares
-          confirmedAmount = orderShares.multipliedBy(nav)
+          // 初始确认金额 = 份额 * 净值
+          let rawAmount = orderShares.multipliedBy(nav)
+
+          // [新增] 7天惩罚性费率检查逻辑
+          // 查找该用户该基金最近一笔已确认的买入(或转入)记录
+          const lastBuyTx = await db.query.fundTransactions.findFirst({
+            where: and(
+              eq(fundTransactions.userId, tx.userId),
+              eq(fundTransactions.fundCode, tx.fundCode),
+              inArray(fundTransactions.type, ['buy', 'convert_in']),
+              eq(fundTransactions.status, 'confirmed'),
+              // 必须是在当前卖出单日期之前的买入
+              lt(fundTransactions.orderDate, tx.orderDate),
+            ),
+            orderBy: [desc(fundTransactions.orderDate)],
+          })
+
+          if (lastBuyTx) {
+            const sellDate = dayjs(tx.orderDate)
+            const buyDate = dayjs(lastBuyTx.orderDate)
+            const diffDays = sellDate.diff(buyDate, 'day')
+
+            // 如果持有不足7天
+            if (diffDays < 7) {
+              const feeRate = 0.015 // 1.5%
+              const fee = rawAmount.multipliedBy(feeRate)
+
+              // 扣除手续费
+              rawAmount = rawAmount.minus(fee)
+
+              const feeStr = fee.toFixed(2)
+              note = note ? `${note} | ` : ''
+              note += `持有${diffDays}天(<7)，扣除1.5%费率(¥${feeStr})`
+
+              console.log(`[Fee] 用户 ${tx.userId} 卖出 ${tx.fundCode} 触发短期惩罚: -${feeStr}`)
+            }
+          }
+
+          confirmedAmount = rawAmount
           finalShares = finalShares.minus(confirmedShares)
 
           if (finalShares.lt(0.0001)) {
@@ -143,8 +172,7 @@ export default defineTask({
             finalCostPrice = new BigNumber(0)
           }
 
-          // [核心] 卖出成功后，立即更新关联的买入交易
-          // 这里的 tx.id 就是买入交易记录中 relatedId 指向的值
+          // 更新关联的买入交易
           await updateRelatedBuyAmount(tx.id, confirmedAmount.toString())
         }
 
@@ -156,7 +184,6 @@ export default defineTask({
           })
         }
         else {
-          // 新建仓 (转换买入可能会走到这里)
           const fundInfo = await db.query.funds.findFirst({ where: eq(funds.code, tx.fundCode) })
           const fundType = fundInfo?.fundType || 'open'
           await addHolding({
@@ -176,6 +203,7 @@ export default defineTask({
             confirmedShares: confirmedShares.toString(),
             confirmedAmount: confirmedAmount.toString(),
             confirmedAt: new Date(),
+            note: note || null, // [修改] 保存更新后的备注
           })
           .where(eq(fundTransactions.id, tx.id))
 

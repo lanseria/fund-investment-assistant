@@ -161,8 +161,10 @@ const isConvertModalOpen = ref(false)
 
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
-// [新增] 计算后的可用份额 (总持仓 - 待确认卖出/转出)
+// [新增] 计算后的可用份额
 const availableShares = ref(0)
+// [新增] 最近买入日期
+const lastBuyDateForTrade = ref<string | null>(null)
 
 // 辅助函数：计算冻结份额
 function calculateAvailableShares(holding: Holding) {
@@ -178,10 +180,20 @@ function calculateAvailableShares(holding: Holding) {
   return Math.max(0, currentShares - frozenShares)
 }
 
+// [新增] 获取最近买入日期
+function getLastBuyDate(holding: Holding): string | null {
+  if (!holding.recentTransactions || holding.recentTransactions.length === 0)
+    return null
+
+  const lastBuy = holding.recentTransactions.find(t => t.type === 'buy' || t.type === 'convert_in')
+  return lastBuy ? lastBuy.date : null
+}
+
 function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
-  // [新增] 计算可用份额
   availableShares.value = calculateAvailableShares(holding)
+  // [新增] 设置最近买入日期
+  lastBuyDateForTrade.value = getLastBuyDate(holding)
 
   if (type === 'convert') {
     isConvertModalOpen.value = true
@@ -523,8 +535,22 @@ async function onSectorUpdateSuccess() {
         :type="tradeType"
         :current-shares="availableShares"
         :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
+        :last-buy-date="lastBuyDateForTrade"
         @submit="handleTradeSubmit"
         @cancel="isTradeModalOpen = false"
+      />
+    </Modal>
+
+    <!-- 转换模态框 -->
+    <Modal v-if="tradeTarget" v-model="isConvertModalOpen" title="基金转换">
+      <ConvertForm
+        :from-code="tradeTarget.code"
+        :from-name="tradeTarget.name"
+        :current-shares="availableShares"
+        :available-funds="holdings"
+        :last-buy-date="lastBuyDateForTrade"
+        @submit="handleConvertSubmit"
+        @cancel="isConvertModalOpen = false"
       />
     </Modal>
 
@@ -540,17 +566,6 @@ async function onSectorUpdateSuccess() {
         :current-sector="editingHoldingForSector.sector"
         @success="onSectorUpdateSuccess"
         @cancel="isSectorModalOpen = false"
-      />
-    </Modal>
-    <!-- 转换模态框 -->
-    <Modal v-if="tradeTarget" v-model="isConvertModalOpen" title="基金转换">
-      <ConvertForm
-        :from-code="tradeTarget.code"
-        :from-name="tradeTarget.name"
-        :current-shares="availableShares"
-        :available-funds="holdings"
-        @submit="handleConvertSubmit"
-        @cancel="isConvertModalOpen = false"
       />
     </Modal>
   </div>
