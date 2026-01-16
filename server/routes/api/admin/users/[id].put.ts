@@ -11,7 +11,7 @@ const updateUserSchema = z.object({
   aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
-  totalAssets: z.number().optional(),
+  availableCash: z.number().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -55,8 +55,8 @@ export default defineEventHandler(async (event) => {
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
   // 处理总资产更新
-  if (data.totalAssets !== undefined)
-    updateData.totalAssets = String(data.totalAssets)
+  if (data.availableCash !== undefined)
+    updateData.availableCash = String(data.availableCash)
 
   // 处理密码重置
   if (data.password) {

@@ -10,7 +10,7 @@ export interface UserPayload {
   aiModel?: string | null
   aiTotalAmount?: string | null
   aiSystemPrompt?: string | null
-  totalAssets?: string | null
+  availableCash?: string | null // [修改]
 }
 
 // 密码哈希

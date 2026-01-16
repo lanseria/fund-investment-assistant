@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
 import isBetween from 'dayjs/plugin/isBetween.js'
-import { eq } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
@@ -78,11 +78,26 @@ export default defineTask({
         if (holdings.length === 0)
           continue
 
-        // 3. 调用 AI 获取决策 (传入全量数据 和 用户配置)
-        // [修改] 解构返回值，获取 decisions 和 logs
+        // 3. 调用 AI 获取决策
+        // [修改] 计算可用资金：数据库余额 - 今日已生成的Pending买入金额 (防止多次运行重复使用资金)
+        const pendingBuyAmount = await db.select({
+          total: sql<string>`SUM(order_amount)`,
+        })
+          .from(fundTransactions)
+          .where(and(
+            eq(fundTransactions.userId, user.id),
+            eq(fundTransactions.status, 'pending'),
+            eq(fundTransactions.type, 'buy'),
+          ))
+
+        const currentCash = Number(user.availableCash || 0)
+        const frozenCash = Number(pendingBuyAmount[0]?.total || 0)
+        const realAvailableCash = Math.max(0, currentCash - frozenCash)
+
+        // 我们复用 aiTotalAmount 字段来传递给 AI，告诉它这是你的“Budget Limit”
         const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
           aiModel: user.aiModel,
-          aiTotalAmount: user.aiTotalAmount,
+          aiTotalAmount: String(realAvailableCash), // [关键] 告诉 AI 这是它能用的最大金额
           aiSystemPrompt: user.aiSystemPrompt,
         })
 

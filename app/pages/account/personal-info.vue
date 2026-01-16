@@ -18,10 +18,10 @@ const aiForm = reactive({
   aiSystemPrompt: '',
 })
 
-// 总资产编辑状态
-const isEditingAssets = ref(false)
-const localTotalAssets = ref(0)
-const isSavingAssets = ref(false)
+// [新增] 可用现金编辑状态
+const isEditingCash = ref(false)
+const localAvailableCash = ref(0)
+const isSavingCash = ref(false)
 
 // 初始化
 watch(() => authStore.user, (u) => {
@@ -30,30 +30,31 @@ watch(() => authStore.user, (u) => {
     aiForm.aiModel = u.aiModel || 'xiaomi/mimo-v2-flash:free'
     aiForm.aiTotalAmount = u.aiTotalAmount ? Number(u.aiTotalAmount) : 100000
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
-    localTotalAssets.value = u.totalAssets ? Number(u.totalAssets) : 0
+    // [修改] 读取 availableCash
+    localAvailableCash.value = u.availableCash ? Number(u.availableCash) : 0
   }
 }, { immediate: true })
 
-// 保存总资产
-async function saveAssets() {
-  isSavingAssets.value = true
+// [修改] 保存可用现金
+async function saveCash() {
+  isSavingCash.value = true
   try {
     // 复用通用的用户信息更新接口
     const res = await apiFetch<any>('/api/user/ai-status', {
       method: 'PUT',
-      body: { totalAssets: localTotalAssets.value },
+      body: { availableCash: localAvailableCash.value },
     })
     // 更新本地 store
     if (authStore.user) {
-      authStore.user.totalAssets = res.config.totalAssets
+      authStore.user.availableCash = res.config.availableCash
     }
-    isEditingAssets.value = false
+    isEditingCash.value = false
   }
   catch (e: any) {
     alert(`保存失败: ${e.message}`)
   }
   finally {
-    isSavingAssets.value = false
+    isSavingCash.value = false
   }
 }
 
@@ -135,23 +136,23 @@ function formatCurrency(value: string | number | null | undefined) {
           <span class="font-mono">{{ authStore.user.id }}</span>
         </div>
 
-        <!-- [新增] 总资产编辑行 -->
+        <!-- [修改] 可用现金编辑行 -->
         <div class="flex h-8 items-center">
-          <span class="text-gray-500 w-24">总资产:</span>
+          <span class="text-gray-500 w-24">可用现金:</span>
 
           <!-- 查看模式 -->
-          <div v-if="!isEditingAssets" class="group flex gap-3 items-center">
+          <div v-if="!isEditingCash" class="group flex gap-3 items-center">
             <span class="text-lg text-gray-800 font-bold font-numeric dark:text-gray-200">
-              {{ formatCurrency(authStore.user.totalAssets) }}
+              {{ formatCurrency(authStore.user.availableCash) }}
             </span>
             <button
               class="text-xs icon-btn text-primary opacity-0 transition-opacity group-hover:opacity-100"
-              title="修改资产"
-              @click="isEditingAssets = true"
+              title="修改现金余额"
+              @click="isEditingCash = true"
             >
               <div i-carbon-edit />
             </button>
-            <span class="text-xs text-gray-400"> (用于收益率计算基准)</span>
+            <span class="text-xs text-gray-400"> (买入扣除/卖出增加)</span>
           </div>
 
           <!-- 编辑模式 -->
@@ -159,25 +160,25 @@ function formatCurrency(value: string | number | null | undefined) {
             <div class="w-40 relative">
               <span class="text-sm text-gray-500 left-2 top-1/2 absolute -translate-y-1/2">¥</span>
               <input
-                v-model.number="localTotalAssets"
+                v-model.number="localAvailableCash"
                 type="number"
                 step="0.01"
                 class="text-sm input-base !py-1 !pl-6"
-                @keyup.enter="saveAssets"
+                @keyup.enter="saveCash"
               >
             </div>
             <button
               class="icon-btn text-green-500 p-1 border rounded dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
-              :disabled="isSavingAssets"
+              :disabled="isSavingCash"
               title="保存"
-              @click="saveAssets"
+              @click="saveCash"
             >
               <div i-carbon-checkmark />
             </button>
             <button
               class="icon-btn text-gray-400 p-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
               title="取消"
-              @click="isEditingAssets = false; localTotalAssets = Number(authStore.user?.totalAssets || 0)"
+              @click="isEditingCash = false; localAvailableCash = Number(authStore.user?.availableCash || 0)"
             >
               <div i-carbon-close />
             </button>

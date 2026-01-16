@@ -28,6 +28,6 @@ export default defineEventHandler(async (event) => {
     aiModel: user.aiModel,
     aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
-    totalAssets: user.totalAssets,
+    availableCash: user.availableCash, // [修改]
   }
 })

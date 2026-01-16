@@ -6,8 +6,24 @@ definePageMeta({
   layout: 'account',
 })
 
-const { data: users, pending, error, refresh } = useAsyncData('admin-users', () =>
-  apiFetch<any[]>('/api/admin/users'))
+// [类型定义] 为了更好的类型提示
+interface AdminUserItem {
+  id: number
+  username: string
+  role: string
+  isAiAgent: boolean
+  availableCash: string | number
+  cash: number // 后端计算返回
+  fundValue: number // 后端计算返回
+  totalAssets: number // 后端计算返回
+  createdAt: string
+  aiModel?: string
+  aiTotalAmount?: number
+  aiSystemPrompt?: string
+}
+
+const { data: users, pending, error, refresh } = useAsyncData<AdminUserItem[]>('admin-users', () =>
+  apiFetch<AdminUserItem[]>('/api/admin/users'))
 
 // 控制模态框显示的状态
 const isAddModalOpen = ref(false)
@@ -23,7 +39,7 @@ const cloneNewUsername = ref('')
 const editingUserId = ref<number | null>(null)
 const editForm = reactive({
   username: '',
-  totalAssets: 0,
+  availableCash: 0,
   isAiAgent: false,
   aiModel: '',
   aiTotalAmount: 100000,
@@ -35,29 +51,28 @@ const isResetPwdModalOpen = ref(false)
 const resetPwdUserId = ref<number | null>(null)
 const newPassword = ref('')
 
-// 打开编辑模态框
+// 辅助函数：格式化金额
+function formatCurrency(value: number | string) {
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(value))
+}
+
 function openEditModal(user: any) {
   editingUserId.value = user.id
-  // 填充数据
   editForm.username = user.username
-  // 处理总资产回显
-  editForm.totalAssets = user.totalAssets ? Number(user.totalAssets) : 0
+  editForm.availableCash = user.availableCash ? Number(user.availableCash) : 0
   editForm.isAiAgent = user.isAiAgent || false
   editForm.aiModel = user.aiModel || 'xiaomi/mimo-v2-flash:free'
   editForm.aiTotalAmount = user.aiTotalAmount ? Number(user.aiTotalAmount) : 100000
   editForm.aiSystemPrompt = user.aiSystemPrompt || ''
-
   isEditModalOpen.value = true
 }
 
-// 打开重置密码模态框
 function openResetPwdModal(userId: number) {
   resetPwdUserId.value = userId
-  newPassword.value = '' // 清空输入
+  newPassword.value = ''
   isResetPwdModalOpen.value = true
 }
 
-// 提交重置密码
 async function handleResetPassword() {
   if (!resetPwdUserId.value || !newPassword.value)
     return
@@ -65,7 +80,6 @@ async function handleResetPassword() {
     alert('密码长度至少6位')
     return
   }
-
   isSubmitting.value = true
   try {
     await apiFetch(`/api/admin/users/${resetPwdUserId.value}`, {
@@ -83,7 +97,6 @@ async function handleResetPassword() {
   }
 }
 
-// 提交编辑
 async function handleEditUser() {
   if (!editingUserId.value)
     return
@@ -93,7 +106,7 @@ async function handleEditUser() {
       method: 'PUT',
       body: {
         username: editForm.username,
-        totalAssets: editForm.totalAssets,
+        availableCash: editForm.availableCash,
         isAiAgent: editForm.isAiAgent,
         aiModel: editForm.aiModel,
         aiTotalAmount: editForm.aiTotalAmount,
@@ -101,7 +114,7 @@ async function handleEditUser() {
       },
     })
     isEditModalOpen.value = false
-    await refresh() // 刷新列表
+    await refresh()
     alert('用户信息修改成功')
   }
   catch (err: any) {
@@ -112,7 +125,6 @@ async function handleEditUser() {
   }
 }
 
-// 处理表单提交的函数
 async function handleAddUser(formData: any) {
   isSubmitting.value = true
   try {
@@ -120,8 +132,8 @@ async function handleAddUser(formData: any) {
       method: 'POST',
       body: formData,
     })
-    isAddModalOpen.value = false // 关闭模态框
-    await refresh() // 刷新用户列表
+    isAddModalOpen.value = false
+    await refresh()
     alert('用户添加成功！')
   }
   catch (err: any) {
@@ -133,12 +145,9 @@ async function handleAddUser(formData: any) {
   }
 }
 
-// 切换 AI 状态
 async function toggleUserAi(user: any) {
   const newState = !user.isAiAgent
-  // 乐观更新 UI
   user.isAiAgent = newState
-
   try {
     await apiFetch(`/api/admin/users/${user.id}`, {
       method: 'PUT',
@@ -146,35 +155,30 @@ async function toggleUserAi(user: any) {
     })
   }
   catch (e: any) {
-    // 失败回滚
     user.isAiAgent = !newState
     alert(`更新失败: ${e.data?.statusMessage || '未知错误'}`)
   }
 }
 
-// 删除用户
 async function deleteUser(user: any) {
   if (!confirm(`⚠️ 危险操作：确定要删除用户 "${user.username}" 吗？\n此操作将同时删除该用户的所有持仓记录且不可恢复！`)) {
     return
   }
-
   try {
     await apiFetch(`/api/admin/users/${user.id}`, { method: 'DELETE' })
-    await refresh() // 刷新列表
+    await refresh()
   }
   catch (e: any) {
     alert(`删除失败: ${e.data?.statusMessage || '未知错误'}`)
   }
 }
 
-// 打开克隆模态框
 function openCloneModal(userId: number) {
   cloneSourceId.value = userId
   cloneNewUsername.value = ''
   isCloneModalOpen.value = true
 }
 
-// 处理克隆提交
 async function handleCloneUser() {
   if (!cloneSourceId.value || !cloneNewUsername.value)
     return
@@ -219,45 +223,66 @@ async function handleCloneUser() {
       加载失败: {{ error.message }}
     </div>
     <div v-else class="overflow-hidden">
-      <table class="text-left w-full">
-        <!-- 表格 aheader -->
+      <table class="text-sm text-left w-full">
+        <!-- 表格 header -->
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
-            <th class="p-4">
+            <th class="font-semibold p-4 w-16">
               ID
             </th>
-            <th class="p-4">
-              用户名
+            <th class="font-semibold p-4">
+              用户名 / 角色
             </th>
-            <th class="p-4">
-              角色
+            <!-- [新增] 资产列 -->
+            <th class="font-semibold p-4 text-right">
+              总资产 (权益)
             </th>
-            <th class="p-4">
-              AI 代理
+            <th class="font-semibold p-4 text-right">
+              持仓市值
             </th>
-            <th class="p-4">
-              创建时间
+            <th class="font-semibold p-4 text-right">
+              可用现金
             </th>
-            <th class="p-4 text-right">
+            <th class="font-semibold p-4 text-center w-24">
+              AI
+            </th>
+            <th class="font-semibold p-4 text-right">
               操作
             </th>
           </tr>
         </thead>
         <!-- 表格 body -->
         <tbody>
-          <tr v-for="user in users" :key="user.id" class="border-t dark:border-gray-700">
-            <td class="p-4">
+          <tr v-for="user in users" :key="user.id" class="border-b transition-colors dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+            <td class="text-gray-500 font-mono p-4">
               {{ user.id }}
             </td>
             <td class="p-4">
-              {{ user.username }}
+              <div class="font-bold">
+                {{ user.username }}
+              </div>
+              <div class="text-xs mt-1 flex gap-2 items-center">
+                <span class="px-1.5 py-0.5 rounded" :class="user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
+                  {{ user.role }}
+                </span>
+                <span class="text-gray-400">
+                  {{ new Date(user.createdAt).toLocaleDateString() }}
+                </span>
+              </div>
             </td>
-            <td class="p-4">
-              <span class="text-xs px-2 py-1 rounded" :class="user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-gray-100 text-gray-800'">
-                {{ user.role }}
-              </span>
+
+            <!-- [新增] 资产数据展示 -->
+            <td class="font-bold font-mono p-4 text-right">
+              {{ formatCurrency(user.totalAssets) }}
             </td>
-            <td class="p-4">
+            <td class="text-blue-600 font-mono p-4 text-right dark:text-blue-400">
+              {{ formatCurrency(user.fundValue) }}
+            </td>
+            <td class="text-gray-600 font-mono p-4 text-right dark:text-gray-400">
+              {{ formatCurrency(user.cash) }}
+            </td>
+
+            <td class="p-4 text-center">
               <button
                 class="border-2 border-transparent rounded-full inline-flex flex-shrink-0 h-5 w-9 cursor-pointer transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                 :class="user.isAiAgent ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-600'"
@@ -269,18 +294,15 @@ async function handleCloneUser() {
                 />
               </button>
             </td>
-            <td class="p-4">
-              {{ new Date(user.createdAt).toLocaleString() }}
-            </td>
             <td class="p-4 text-right">
               <div class="flex gap-2 items-center justify-end">
-                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="编辑用户名" @click="openEditModal(user)">
+                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="编辑信息/资金" @click="openEditModal(user)">
                   <div i-carbon-edit />
                 </button>
                 <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="重置密码" @click="openResetPwdModal(user.id)">
                   <div i-carbon-password />
                 </button>
-                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户及其持仓" @click="openCloneModal(user.id)">
+                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户" @click="openCloneModal(user.id)">
                   <div i-carbon-copy-file />
                 </button>
                 <button class="text-sm icon-btn text-red-500 px-2 py-1 border border-red-200 rounded dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20" title="删除用户" @click="deleteUser(user)">
@@ -293,12 +315,13 @@ async function handleCloneUser() {
       </table>
     </div>
 
-    <!-- 添加用户的模态框 -->
+    <!-- Modals (Add, Clone, ResetPwd, Edit) -->
+    <!-- 保持原有模态框组件结构不变，仅展示数据逻辑变化 -->
+
     <Modal v-model="isAddModalOpen" title="添加新用户">
       <AddUserForm v-if="isAddModalOpen" @submit="handleAddUser" @cancel="isAddModalOpen = false" />
     </Modal>
 
-    <!-- 克隆用户模态框 -->
     <Modal v-model="isCloneModalOpen" title="克隆用户">
       <form @submit.prevent="handleCloneUser">
         <div class="space-y-4">
@@ -329,7 +352,6 @@ async function handleCloneUser() {
       </form>
     </Modal>
 
-    <!-- 重置密码模态框 -->
     <Modal v-model="isResetPwdModalOpen" title="重置用户密码">
       <form @submit.prevent="handleResetPassword">
         <div class="space-y-4">
@@ -346,9 +368,6 @@ async function handleCloneUser() {
               required
               autofocus
             >
-            <p class="text-xs text-gray-400 mt-1">
-              建议使用随机强密码。
-            </p>
           </div>
         </div>
         <div class="mt-6 flex justify-end space-x-3">
@@ -362,7 +381,6 @@ async function handleCloneUser() {
       </form>
     </Modal>
 
-    <!-- 编辑用户模态框 -->
     <Modal v-model="isEditModalOpen" title="编辑用户信息">
       <form @submit.prevent="handleEditUser">
         <div class="pr-2 max-h-[70vh] overflow-y-auto space-y-4">
@@ -377,13 +395,12 @@ async function handleCloneUser() {
             >
           </div>
 
-          <!-- 总资产编辑 -->
           <div>
-            <label class="text-sm font-medium mb-1 block">总资产 (Total Equity)</label>
+            <label class="text-sm font-medium mb-1 block">可用现金 (Available Cash)</label>
             <div class="relative">
               <span class="text-gray-500 left-3 top-2 absolute">¥</span>
               <input
-                v-model.number="editForm.totalAssets"
+                v-model.number="editForm.availableCash"
                 type="number"
                 step="0.01"
                 class="input-base pl-7"
@@ -391,11 +408,10 @@ async function handleCloneUser() {
               >
             </div>
             <p class="text-xs text-gray-400 mt-1">
-              用户的真实账户权益（包含持仓市值和现金余额），用于收益率计算基准。
+              用户账户中的现金余额。
             </p>
           </div>
 
-          <!-- 嵌入 AI 设置组件 (Form Mode) -->
           <AiSettingsPanel
             v-model:is-ai-agent="editForm.isAiAgent"
             v-model:ai-model="editForm.aiModel"

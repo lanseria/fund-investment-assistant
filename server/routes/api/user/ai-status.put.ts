@@ -10,7 +10,7 @@ const updateAiConfigSchema = z.object({
   aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
-  totalAssets: z.number().optional(), // [新增] 允许更新总资产
+  availableCash: z.number().optional(), // [修改]
 })
 
 export default defineEventHandler(async (event) => {
@@ -30,8 +30,8 @@ export default defineEventHandler(async (event) => {
     updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
-  if (data.totalAssets !== undefined)
-    updateData.totalAssets = String(data.totalAssets)
+  if (data.availableCash !== undefined)
+    updateData.availableCash = String(data.availableCash)
 
   await db.update(users)
     .set(updateData)
