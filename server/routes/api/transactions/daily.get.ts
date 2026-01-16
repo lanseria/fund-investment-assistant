@@ -1,5 +1,5 @@
 // server/routes/api/transactions/daily.get.ts
-import { and, desc, eq } from 'drizzle-orm'
+import { desc, eq } from 'drizzle-orm'
 import { funds, fundTransactions, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 

@@ -1,9 +1,12 @@
+catalogMode: prefer
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
 packages: []
 
 catalog:
   openai: ^6.16.0
-
-catalogMode: prefer
 
 catalogs:
   backend:
@@ -53,7 +56,3 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
