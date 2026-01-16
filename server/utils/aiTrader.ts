@@ -230,7 +230,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const finalSystemPrompt = `${fixedContext}\n\n#### 2. Strategy Logic (User Defined)\n${userConfig.aiSystemPrompt}\n\n${fixedOutputRules}`
 
   // 5. 确定使用的模型
-  const targetModel = userConfig.aiModel || config.aiModel || 'xiaomi/mimo-v2-flash:free'
+  // const targetModel = userConfig.aiModel || config.aiModel || 'xiaomi/mimo-v2-flash:free'
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
 
   // 组合完整的 Prompt 字符串用于记录
@@ -238,12 +238,12 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
   try {
     const openai = new OpenAI({
-      baseURL: 'https://openrouter.ai/api/v1',
+      baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3',
       apiKey: config.openRouterApiKey,
     })
 
     const completion = await openai.chat.completions.create({
-      model: targetModel,
+      model: 'ark-code-latest',
       messages: [
         { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: userPrompt },
