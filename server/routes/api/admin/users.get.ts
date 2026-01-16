@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
       aiModel: true,
       aiTotalAmount: true,
       aiSystemPrompt: true,
+      totalAssets: true,
       createdAt: true,
     },
   })

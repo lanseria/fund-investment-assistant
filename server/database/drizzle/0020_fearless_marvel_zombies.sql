@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."users" ADD COLUMN "total_assets" numeric(18, 4) DEFAULT '0' NOT NULL;

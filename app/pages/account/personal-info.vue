@@ -18,6 +18,11 @@ const aiForm = reactive({
   aiSystemPrompt: '',
 })
 
+// 总资产编辑状态
+const isEditingAssets = ref(false)
+const localTotalAssets = ref(0)
+const isSavingAssets = ref(false)
+
 // 初始化
 watch(() => authStore.user, (u) => {
   if (u) {
@@ -25,8 +30,32 @@ watch(() => authStore.user, (u) => {
     aiForm.aiModel = u.aiModel || 'xiaomi/mimo-v2-flash:free'
     aiForm.aiTotalAmount = u.aiTotalAmount ? Number(u.aiTotalAmount) : 100000
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
+    localTotalAssets.value = u.totalAssets ? Number(u.totalAssets) : 0
   }
 }, { immediate: true })
+
+// 保存总资产
+async function saveAssets() {
+  isSavingAssets.value = true
+  try {
+    // 复用通用的用户信息更新接口
+    const res = await apiFetch<any>('/api/user/ai-status', {
+      method: 'PUT',
+      body: { totalAssets: localTotalAssets.value },
+    })
+    // 更新本地 store
+    if (authStore.user) {
+      authStore.user.totalAssets = res.config.totalAssets
+    }
+    isEditingAssets.value = false
+  }
+  catch (e: any) {
+    alert(`保存失败: ${e.message}`)
+  }
+  finally {
+    isSavingAssets.value = false
+  }
+}
 
 // 处理开关 (Immediate Mode)
 async function handleToggle(newState: boolean) {
@@ -74,6 +103,12 @@ async function handleSaveConfig() {
     isToggling.value = false
   }
 }
+
+function formatCurrency(value: string | number | null | undefined) {
+  if (value === null || value === undefined)
+    return '¥0.00'
+  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(value))
+}
 </script>
 
 <template>
@@ -82,23 +117,75 @@ async function handleSaveConfig() {
       个人信息
     </h1>
 
-    <div v-if="authStore.user" class="space-y-3">
-      <div class="flex items-center">
-        <span class="text-gray-500 w-24">用户名:</span>
-        <span class="font-semibold">{{ authStore.user.username }}</span>
-      </div>
-      <div class="flex items-center">
-        <span class="text-gray-500 w-24">角色:</span>
-        <span class="text-xs px-2 py-1 rounded-full" :class="authStore.isAdmin ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'">
-          {{ authStore.user.role }}
-        </span>
-      </div>
-      <div class="flex items-center">
-        <span class="text-gray-500 w-24">用户 ID:</span>
-        <span class="font-mono">{{ authStore.user.id }}</span>
+    <div v-if="authStore.user" class="space-y-4">
+      <!-- 基础信息卡片 -->
+      <div class="p-4 border rounded-lg bg-white space-y-3 dark:border-gray-700 dark:bg-gray-800">
+        <div class="flex items-center">
+          <span class="text-gray-500 w-24">用户名:</span>
+          <span class="font-semibold">{{ authStore.user.username }}</span>
+        </div>
+        <div class="flex items-center">
+          <span class="text-gray-500 w-24">角色:</span>
+          <span class="text-xs px-2 py-1 rounded-full" :class="authStore.isAdmin ? 'bg-green-100 text-green-800' : 'bg-blue-100 text-blue-800'">
+            {{ authStore.user.role }}
+          </span>
+        </div>
+        <div class="flex items-center">
+          <span class="text-gray-500 w-24">用户 ID:</span>
+          <span class="font-mono">{{ authStore.user.id }}</span>
+        </div>
+
+        <!-- [新增] 总资产编辑行 -->
+        <div class="flex h-8 items-center">
+          <span class="text-gray-500 w-24">总资产:</span>
+
+          <!-- 查看模式 -->
+          <div v-if="!isEditingAssets" class="group flex gap-3 items-center">
+            <span class="text-lg text-gray-800 font-bold font-numeric dark:text-gray-200">
+              {{ formatCurrency(authStore.user.totalAssets) }}
+            </span>
+            <button
+              class="text-xs icon-btn text-primary opacity-0 transition-opacity group-hover:opacity-100"
+              title="修改资产"
+              @click="isEditingAssets = true"
+            >
+              <div i-carbon-edit />
+            </button>
+            <span class="text-xs text-gray-400"> (用于收益率计算基准)</span>
+          </div>
+
+          <!-- 编辑模式 -->
+          <div v-else class="flex gap-2 items-center">
+            <div class="w-40 relative">
+              <span class="text-sm text-gray-500 left-2 top-1/2 absolute -translate-y-1/2">¥</span>
+              <input
+                v-model.number="localTotalAssets"
+                type="number"
+                step="0.01"
+                class="text-sm input-base !py-1 !pl-6"
+                @keyup.enter="saveAssets"
+              >
+            </div>
+            <button
+              class="icon-btn text-green-500 p-1 border rounded dark:border-green-900/50 hover:bg-green-50 dark:hover:bg-green-900/20"
+              :disabled="isSavingAssets"
+              title="保存"
+              @click="saveAssets"
+            >
+              <div i-carbon-checkmark />
+            </button>
+            <button
+              class="icon-btn text-gray-400 p-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+              title="取消"
+              @click="isEditingAssets = false; localTotalAssets = Number(authStore.user?.totalAssets || 0)"
+            >
+              <div i-carbon-close />
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- 使用新组件 -->
+      <!-- AI 设置组件 -->
       <AiSettingsPanel
         v-model:is-ai-agent="aiForm.isAiAgent"
         v-model:ai-model="aiForm.aiModel"

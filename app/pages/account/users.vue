@@ -12,7 +12,7 @@ const { data: users, pending, error, refresh } = useAsyncData('admin-users', () 
 // 控制模态框显示的状态
 const isAddModalOpen = ref(false)
 const isCloneModalOpen = ref(false)
-const isEditModalOpen = ref(false) // [新增] 编辑模态框
+const isEditModalOpen = ref(false)
 const isSubmitting = ref(false)
 
 // 克隆相关
@@ -23,6 +23,7 @@ const cloneNewUsername = ref('')
 const editingUserId = ref<number | null>(null)
 const editForm = reactive({
   username: '',
+  totalAssets: 0,
   isAiAgent: false,
   aiModel: '',
   aiTotalAmount: 100000,
@@ -34,11 +35,13 @@ const isResetPwdModalOpen = ref(false)
 const resetPwdUserId = ref<number | null>(null)
 const newPassword = ref('')
 
-// [新增] 打开编辑模态框
+// 打开编辑模态框
 function openEditModal(user: any) {
   editingUserId.value = user.id
   // 填充数据
   editForm.username = user.username
+  // 处理总资产回显
+  editForm.totalAssets = user.totalAssets ? Number(user.totalAssets) : 0
   editForm.isAiAgent = user.isAiAgent || false
   editForm.aiModel = user.aiModel || 'xiaomi/mimo-v2-flash:free'
   editForm.aiTotalAmount = user.aiTotalAmount ? Number(user.aiTotalAmount) : 100000
@@ -47,14 +50,14 @@ function openEditModal(user: any) {
   isEditModalOpen.value = true
 }
 
-// [新增] 打开重置密码模态框
+// 打开重置密码模态框
 function openResetPwdModal(userId: number) {
   resetPwdUserId.value = userId
   newPassword.value = '' // 清空输入
   isResetPwdModalOpen.value = true
 }
 
-// [新增] 提交重置密码
+// 提交重置密码
 async function handleResetPassword() {
   if (!resetPwdUserId.value || !newPassword.value)
     return
@@ -80,7 +83,7 @@ async function handleResetPassword() {
   }
 }
 
-// [新增] 提交编辑
+// 提交编辑
 async function handleEditUser() {
   if (!editingUserId.value)
     return
@@ -90,6 +93,7 @@ async function handleEditUser() {
       method: 'PUT',
       body: {
         username: editForm.username,
+        totalAssets: editForm.totalAssets,
         isAiAgent: editForm.isAiAgent,
         aiModel: editForm.aiModel,
         aiTotalAmount: editForm.aiTotalAmount,
@@ -98,7 +102,7 @@ async function handleEditUser() {
     })
     isEditModalOpen.value = false
     await refresh() // 刷新列表
-    alert('用户名修改成功')
+    alert('用户信息修改成功')
   }
   catch (err: any) {
     alert(`修改失败: ${err.data?.statusMessage || '未知错误'}`)
@@ -129,7 +133,7 @@ async function handleAddUser(formData: any) {
   }
 }
 
-// [新增] 切换 AI 状态
+// 切换 AI 状态
 async function toggleUserAi(user: any) {
   const newState = !user.isAiAgent
   // 乐观更新 UI
@@ -148,7 +152,7 @@ async function toggleUserAi(user: any) {
   }
 }
 
-// [新增] 删除用户
+// 删除用户
 async function deleteUser(user: any) {
   if (!confirm(`⚠️ 危险操作：确定要删除用户 "${user.username}" 吗？\n此操作将同时删除该用户的所有持仓记录且不可恢复！`)) {
     return
@@ -163,14 +167,14 @@ async function deleteUser(user: any) {
   }
 }
 
-// [新增] 打开克隆模态框
+// 打开克隆模态框
 function openCloneModal(userId: number) {
   cloneSourceId.value = userId
   cloneNewUsername.value = ''
   isCloneModalOpen.value = true
 }
 
-// [新增] 处理克隆提交
+// 处理克隆提交
 async function handleCloneUser() {
   if (!cloneSourceId.value || !cloneNewUsername.value)
     return
@@ -371,6 +375,24 @@ async function handleCloneUser() {
               placeholder="请输入新的用户名"
               required
             >
+          </div>
+
+          <!-- 总资产编辑 -->
+          <div>
+            <label class="text-sm font-medium mb-1 block">总资产 (Total Equity)</label>
+            <div class="relative">
+              <span class="text-gray-500 left-3 top-2 absolute">¥</span>
+              <input
+                v-model.number="editForm.totalAssets"
+                type="number"
+                step="0.01"
+                class="input-base pl-7"
+                placeholder="0.00"
+              >
+            </div>
+            <p class="text-xs text-gray-400 mt-1">
+              用户的真实账户权益（包含持仓市值和现金余额），用于收益率计算基准。
+            </p>
           </div>
 
           <!-- 嵌入 AI 设置组件 (Form Mode) -->

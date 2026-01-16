@@ -141,6 +141,13 @@
       "when": 1768280022546,
       "tag": "0019_sleepy_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1768549917492,
+      "tag": "0020_fearless_marvel_zombies",
+      "breakpoints": true
     }
   ]
 }

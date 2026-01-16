@@ -33,6 +33,8 @@ export const users = fundSchema.table('users', {
   aiTotalAmount: numeric('ai_total_amount', { precision: 18, scale: 4 }).default('100000'),
   /** 自定义 System Prompt (如果为空则使用系统默认) */
   aiSystemPrompt: text('ai_system_prompt'),
+  /** 用户总资产 (包含持仓市值和现金余额，用于准确计算收益率) */
+  totalAssets: numeric('total_assets', { precision: 18, scale: 4 }).default('0').notNull(),
   /** 用户创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

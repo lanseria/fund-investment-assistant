@@ -9,7 +9,8 @@ const updateAiConfigSchema = z.object({
   isAiAgent: z.boolean().optional(),
   aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
-  aiSystemPrompt: z.string().optional().nullable(), // 允许清空自定义Prompt
+  aiSystemPrompt: z.string().optional().nullable(),
+  totalAssets: z.number().optional(), // [新增] 允许更新总资产
 })
 
 export default defineEventHandler(async (event) => {
@@ -29,11 +30,13 @@ export default defineEventHandler(async (event) => {
     updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
+  if (data.totalAssets !== undefined)
+    updateData.totalAssets = String(data.totalAssets)
 
   await db.update(users)
     .set(updateData)
     .where(eq(users.id, user.id))
 
   // 返回合并后的新配置以便前端更新 Store
-  return { message: 'AI 配置已更新', config: updateData }
+  return { message: '配置已更新', config: updateData }
 })

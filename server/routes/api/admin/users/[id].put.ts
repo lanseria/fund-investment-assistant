@@ -6,11 +6,12 @@ import { useDb } from '~~/server/utils/db'
 
 const updateUserSchema = z.object({
   username: z.string().min(3, '用户名至少3位').optional(),
-  password: z.string().min(6, '密码至少6位').optional(), // [新增] 允许重置密码
+  password: z.string().min(6, '密码至少6位').optional(),
   isAiAgent: z.boolean().optional(),
   aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
+  totalAssets: z.number().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -53,7 +54,11 @@ export default defineEventHandler(async (event) => {
     updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
-  // [新增] 处理密码重置
+  // 处理总资产更新
+  if (data.totalAssets !== undefined)
+    updateData.totalAssets = String(data.totalAssets)
+
+  // 处理密码重置
   if (data.password) {
     updateData.password = hashPassword(data.password)
   }
