@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."users" DROP COLUMN "ai_model";

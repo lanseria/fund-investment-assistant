@@ -41,7 +41,6 @@ const editForm = reactive({
   username: '',
   availableCash: 0,
   isAiAgent: false,
-  aiModel: '',
   aiTotalAmount: 100000,
   aiSystemPrompt: '',
 })
@@ -61,7 +60,6 @@ function openEditModal(user: any) {
   editForm.username = user.username
   editForm.availableCash = user.availableCash ? Number(user.availableCash) : 0
   editForm.isAiAgent = user.isAiAgent || false
-  editForm.aiModel = user.aiModel || 'xiaomi/mimo-v2-flash:free'
   editForm.aiTotalAmount = user.aiTotalAmount ? Number(user.aiTotalAmount) : 100000
   editForm.aiSystemPrompt = user.aiSystemPrompt || ''
   isEditModalOpen.value = true
@@ -108,7 +106,6 @@ async function handleEditUser() {
         username: editForm.username,
         availableCash: editForm.availableCash,
         isAiAgent: editForm.isAiAgent,
-        aiModel: editForm.aiModel,
         aiTotalAmount: editForm.aiTotalAmount,
         aiSystemPrompt: editForm.aiSystemPrompt || null,
       },
@@ -414,7 +411,6 @@ async function handleCloneUser() {
 
           <AiSettingsPanel
             v-model:is-ai-agent="editForm.isAiAgent"
-            v-model:ai-model="editForm.aiModel"
             v-model:ai-total-amount="editForm.aiTotalAmount"
             v-model:ai-system-prompt="editForm.aiSystemPrompt"
             mode="form"

@@ -95,7 +95,6 @@ export default defineTask({
 
         // 我们复用 aiTotalAmount 字段来传递给 AI，告诉它这是你的“Budget Limit”
         const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
-          aiModel: user.aiModel,
           aiTotalAmount: String(realAvailableCash), // [关键] 告诉 AI 这是它能用的最大金额
           aiSystemPrompt: user.aiSystemPrompt,
         })

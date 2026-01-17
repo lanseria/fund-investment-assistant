@@ -118,7 +118,6 @@ async function buildAiContext(fullHoldingsData: any[]) {
 
 // --- 3. 核心调用函数 ---
 interface UserAiConfig {
-  aiModel?: string | null
   aiTotalAmount?: string | null
   aiSystemPrompt?: string | null
 }
@@ -230,7 +229,8 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const finalSystemPrompt = `${fixedContext}\n\n#### 2. Strategy Logic (User Defined)\n${userConfig.aiSystemPrompt}\n\n${fixedOutputRules}`
 
   // 5. 确定使用的模型
-  // const targetModel = userConfig.aiModel || config.aiModel || 'xiaomi/mimo-v2-flash:free'
+  // 使用系统默认模型，忽略用户配置
+  const targetModel = (config.aiModel as string) || 'xiaomi/mimo-v2-flash:free'
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
 
   // 组合完整的 Prompt 字符串用于记录
@@ -243,7 +243,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     })
 
     const completion = await openai.chat.completions.create({
-      model: 'ark-code-latest',
+      model: targetModel, // 使用系统统一配置的模型
       messages: [
         { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: userPrompt },

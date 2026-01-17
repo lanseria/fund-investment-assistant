@@ -2,7 +2,6 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   isAiAgent: boolean
-  aiModel?: string | null
   aiTotalAmount?: number | string | null
   aiSystemPrompt?: string | null
   // 模式: 'immediate' (个人中心，独立保存) | 'form' (后台管理，仅表单)
@@ -15,7 +14,6 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:isAiAgent': [value: boolean]
-  'update:aiModel': [value: string]
   'update:aiTotalAmount': [value: number]
   'update:aiSystemPrompt': [value: string]
   'toggle': [value: boolean] // 仅 immediate 模式使用
@@ -23,18 +21,15 @@ const emit = defineEmits<{
 }>()
 
 // 本地状态，用于绑定 input
-const localModel = ref(props.aiModel || 'xiaomi/mimo-v2-flash:free')
 const localAmount = ref(props.aiTotalAmount ? Number(props.aiTotalAmount) : 100000)
 const localPrompt = ref(props.aiSystemPrompt || '')
 const isEditingConfig = ref(false)
 
 // 监听 props 变化同步到本地 (用于 Admin 模态框打开时回显)
-watch(() => props.aiModel, val => localModel.value = val || 'xiaomi/mimo-v2-flash:free')
 watch(() => props.aiTotalAmount, val => localAmount.value = val ? Number(val) : 100000)
 watch(() => props.aiSystemPrompt, val => localPrompt.value = val || '')
 
 // 监听本地变化同步回父组件 (v-model 支持)
-watch(localModel, val => emit('update:aiModel', val))
 watch(localAmount, val => emit('update:aiTotalAmount', val))
 watch(localPrompt, val => emit('update:aiSystemPrompt', val))
 
@@ -153,21 +148,7 @@ function handleToggle() {
 
       <!-- 展开的内容 -->
       <div v-if="isEditingConfig" class="p-4 border-t bg-white space-y-5 dark:border-gray-700 dark:bg-gray-900">
-        <!-- 1. 模型选择 -->
-        <div>
-          <label class="text-sm text-gray-700 font-medium mb-1 block dark:text-gray-300">AI 模型 (OpenRouter ID)</label>
-          <input
-            v-model="localModel"
-            type="text"
-            class="input-base"
-            placeholder="例如: xiaomi/mimo-v2-flash:free"
-          >
-          <p class="text-xs text-gray-400 mt-1">
-            必须是 OpenRouter 支持的模型 ID。
-          </p>
-        </div>
-
-        <!-- 2. 资金设定 -->
+        <!-- 1. 资金设定 -->
         <div>
           <label class="text-sm text-gray-700 font-medium mb-1 block dark:text-gray-300">模拟总资金 (元)</label>
           <div class="relative">

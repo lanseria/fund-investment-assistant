@@ -13,12 +13,11 @@ const isToggling = ref(false)
 // 表单数据 (直接绑定到组件，但独立于 authStore 以便编辑)
 const aiForm = reactive({
   isAiAgent: false,
-  aiModel: '',
   aiTotalAmount: 100000,
   aiSystemPrompt: '',
 })
 
-// [新增] 可用现金编辑状态
+// 可用现金编辑状态
 const isEditingCash = ref(false)
 const localAvailableCash = ref(0)
 const isSavingCash = ref(false)
@@ -27,7 +26,6 @@ const isSavingCash = ref(false)
 watch(() => authStore.user, (u) => {
   if (u) {
     aiForm.isAiAgent = u.isAiAgent
-    aiForm.aiModel = u.aiModel || 'xiaomi/mimo-v2-flash:free'
     aiForm.aiTotalAmount = u.aiTotalAmount ? Number(u.aiTotalAmount) : 100000
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
     // [修改] 读取 availableCash
@@ -88,7 +86,6 @@ async function handleSaveConfig() {
     const res = await apiFetch<any>('/api/user/ai-status', {
       method: 'PUT',
       body: {
-        aiModel: aiForm.aiModel,
         aiTotalAmount: aiForm.aiTotalAmount,
         aiSystemPrompt: aiForm.aiSystemPrompt || null,
       },
@@ -189,7 +186,6 @@ function formatCurrency(value: string | number | null | undefined) {
       <!-- AI 设置组件 -->
       <AiSettingsPanel
         v-model:is-ai-agent="aiForm.isAiAgent"
-        v-model:ai-model="aiForm.aiModel"
         v-model:ai-total-amount="aiForm.aiTotalAmount"
         v-model:ai-system-prompt="aiForm.aiSystemPrompt"
         mode="immediate"
