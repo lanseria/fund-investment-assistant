@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { addHolding, HoldingExistsError } from '~~/server/utils/holdings'
 
 const holdingCreateSchema = z.object({
   code: z.string().length(6),

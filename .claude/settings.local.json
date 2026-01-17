@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__mcp-toolkit-nuxt__list-pages",
+      "mcp__mcp-toolkit-nuxt__get-page"
+    ]
+  }
+}

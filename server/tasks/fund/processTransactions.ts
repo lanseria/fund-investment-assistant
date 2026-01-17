@@ -4,7 +4,6 @@ import dayjs from 'dayjs'
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas' // [修改] 导入 users
 import { useDb } from '~~/server/utils/db'
-import { addHolding, updateHolding } from '~~/server/utils/holdings'
 
 export default defineTask({
   meta: {

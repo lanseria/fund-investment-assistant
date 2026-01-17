@@ -1,9 +1,8 @@
-import { and, asc, eq, gte, lte } from 'drizzle-orm' // [修改] 添加 asc 导入
+import { and, asc, eq, gte, lte } from 'drizzle-orm' // 添加 asc 导入
 import { z } from 'zod'
-import { fundTransactions, strategySignals } from '~~/server/database/schemas' // [修改] 导入 fundTransactions
-import { getUserFromEvent } from '~~/server/utils/auth' // [新增] 导入认证工具
+import { fundTransactions, strategySignals } from '~~/server/database/schemas' // 导入 fundTransactions
+import { getUserFromEvent } from '~~/server/utils/auth' // 导入认证工具
 import { useDb } from '~~/server/utils/db'
-import { getHistoryWithMA } from '~~/server/utils/holdings'
 
 const querySchema = z.object({
   start_date: z.string().optional(),
@@ -13,7 +12,7 @@ const querySchema = z.object({
 })
 
 export default defineEventHandler(async (event) => {
-  const user = getUserFromEvent(event) // [新增] 获取当前用户
+  const user = getUserFromEvent(event) // 获取当前用户
   const code = getRouterParam(event, 'code')
   if (!code)
     throw createError({ statusCode: 400, statusMessage: 'Fund code is required.' })

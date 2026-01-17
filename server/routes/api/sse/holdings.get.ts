@@ -1,8 +1,6 @@
 /* eslint-disable no-console */
-// server/routes/api/sse/holdings.get.ts (这是移动后的新文件)
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { emitter } from '~~/server/utils/emitter'
-import { getUserHoldingsAndSummary } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event)

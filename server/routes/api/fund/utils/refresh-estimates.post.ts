@@ -1,6 +1,4 @@
 // server/routes/api/fund/utils/refresh-estimates.post.ts
-// [REFACTOR] 导入新的 syncAllFundsEstimates
-import { syncAllFundsEstimates } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async () => {
   try {

@@ -37,6 +37,7 @@ export default defineNuxtConfig({
     '@nuxt/eslint',
     'dayjs-nuxt',
     'nuxt-echarts',
+    '@nuxtjs/mcp-toolkit',
   ],
   ssr: false,
   devtools: {
@@ -115,5 +116,10 @@ export default defineNuxtConfig({
         sortConfigKeys: true,
       },
     },
+  },
+  mcp: {
+    name: 'My MCP Server',
+    route: '/mcp', // Default route for the MCP server
+    dir: 'mcp', // Base directory for MCP definitions (relative to server/)
   },
 })

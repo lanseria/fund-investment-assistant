@@ -1,8 +1,5 @@
 // server/tasks/fund/syncEstimate.ts
 
-// 导入新的 syncAllFundsEstimates 函数
-import { syncAllFundsEstimates } from '~~/server/utils/holdings'
-
 export default defineTask({
   meta: {
     name: 'fund:syncEstimate',

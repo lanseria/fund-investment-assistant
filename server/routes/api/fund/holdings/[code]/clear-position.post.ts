@@ -1,7 +1,6 @@
 // server/routes/api/fund/holdings/[code]/clear-position.post.ts
 
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { clearHoldingPosition, HoldingNotFoundError } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event)

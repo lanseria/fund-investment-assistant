@@ -1,6 +1,5 @@
 // server/routes/api/fund/utils/export.get.ts
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { exportHoldingsData } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event) // [NEW] 获取用户

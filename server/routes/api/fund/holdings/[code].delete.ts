@@ -1,6 +1,5 @@
 // server/routes/api/fund/holdings/[code].delete.ts
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { deleteHolding, HoldingNotFoundError } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event) // [NEW] 获取用户

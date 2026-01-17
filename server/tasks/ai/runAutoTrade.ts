@@ -5,7 +5,6 @@ import { and, eq, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
-import { getUserHoldingsAndSummary } from '~~/server/utils/holdings'
 
 dayjs.extend(isBetween)
 

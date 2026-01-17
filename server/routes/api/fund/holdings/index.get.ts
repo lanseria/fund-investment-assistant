@@ -1,6 +1,5 @@
 // server/routes/api/fund/holdings/index.get.ts
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { getUserHoldingsAndSummary } from '~~/server/utils/holdings' // 导入新函数
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event)

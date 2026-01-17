@@ -1,5 +1,4 @@
 // server/routes/api/leaderboard/[userId].get.ts
-import { getUserHoldingsAndSummary } from '~~/server/utils/holdings'
 
 export default defineEventHandler(async (event) => {
   const userId = getRouterParam(event, 'userId')

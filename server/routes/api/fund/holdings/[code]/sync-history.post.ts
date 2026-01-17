@@ -1,7 +1,5 @@
 // File: server/routes/api/fund/holdings/[code]/sync-history.post.ts
 
-import { HoldingNotFoundError, syncSingleFundHistory } from '~~/server/utils/holdings'
-
 export default defineEventHandler(async (event) => {
   const code = getRouterParam(event, 'code')
   if (!code)

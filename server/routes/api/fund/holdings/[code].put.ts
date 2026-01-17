@@ -1,6 +1,5 @@
 import { z } from 'zod'
 import { getUserFromEvent } from '~~/server/utils/auth'
-import { FundNotFoundError, HoldingNotFoundError, updateHolding } from '~~/server/utils/holdings'
 
 // [重大修改] 更新 Zod schema
 const holdingUpdateSchema = z.object({
@@ -29,7 +28,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 404, statusMessage: error.message })
 
     if (error instanceof z.ZodError)
-      throw createError({ statusCode: 400, statusMessage: error.errors[0]?.message || '输入数据无效。' })
+      throw createError({ statusCode: 400, statusMessage: error.message || '输入数据无效。' })
 
     console.error(`更新基金 ${code} 时出错:`, error)
     throw createError({ statusCode: 500, statusMessage: '服务器内部错误' })
