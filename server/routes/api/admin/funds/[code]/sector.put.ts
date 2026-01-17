@@ -13,11 +13,11 @@ export default defineEventHandler(async (event) => {
   // 权限校验：确保是管理员
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Admins only' })
+    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
 
   const code = getRouterParam(event, 'code')
   if (!code)
-    throw createError({ statusCode: 400, statusMessage: '需要提供基金代码' })
+    throw createError({ statusCode: 400, message: '需要提供基金代码' })
 
   const body = await readBody(event)
   const { sector } = await updateSectorSchema.parseAsync(body)
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!updatedFund)
-    throw createError({ statusCode: 404, statusMessage: '未找到指定的基金' })
+    throw createError({ statusCode: 404, message: '未找到指定的基金' })
 
   return { message: '板块更新成功' }
 })

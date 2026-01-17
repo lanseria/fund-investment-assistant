@@ -11,7 +11,7 @@ const createUserSchema = z.object({
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Admins only' })
+    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
   }
 
   const body = await readBody(event)

@@ -6,7 +6,7 @@ export default defineEventHandler(async () => {
   if (env.NODE_ENV !== 'development') {
     throw createError({
       statusCode: 403,
-      statusMessage: 'Forbidden: This endpoint is only available in development mode.',
+      message: 'Forbidden: This endpoint is only available in development mode.',
     })
   }
 
@@ -40,7 +40,7 @@ export default defineEventHandler(async () => {
     console.error('Error running init:admin task via API:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Failed to run the admin initialization task.',
+      message: 'Failed to run the admin initialization task.',
       data: {
         error: error.message,
       },

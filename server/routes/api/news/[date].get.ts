@@ -1,6 +1,5 @@
-// server/routes/api/news/[date].get.ts
-import { eq } from 'drizzle-orm'
-import { dailyNews } from '~~/server/database/schemas'
+import { desc, eq } from 'drizzle-orm'
+import { dailyNews, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -12,18 +11,22 @@ export default defineEventHandler(async (event) => {
   }
 
   const db = useDb()
+
+  // 1. 获取 Raw 报告
   const record = await db.query.dailyNews.findFirst({
     where: eq(dailyNews.date, dateStr),
   })
 
-  // 如果没有找到记录，返回空对象或特定状态，这里返回 null 内容让前端处理
-  if (!record) {
-    return {
-      date: dateStr,
-      content: null,
-      title: null,
-    }
-  }
+  // 2. 获取结构化列表
+  const items = await db.query.newsItems.findMany({
+    where: eq(newsItems.date, dateStr),
+    orderBy: [desc(newsItems.id)], // 后进先出
+  })
 
-  return record
+  return {
+    date: dateStr,
+    title: record?.title || null,
+    content: record?.content || null, // Raw Markdown
+    items: items || [], // Structured List
+  }
 })

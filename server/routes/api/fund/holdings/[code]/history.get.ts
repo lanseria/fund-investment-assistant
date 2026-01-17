@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event) // 获取当前用户
   const code = getRouterParam(event, 'code')
   if (!code)
-    throw createError({ statusCode: 400, statusMessage: 'Fund code is required.' })
+    throw createError({ statusCode: 400, message: 'Fund code is required.' })
 
   const query = getQuery(event)
   const { start_date, end_date, ma, strategy } = await querySchema.parseAsync(query)

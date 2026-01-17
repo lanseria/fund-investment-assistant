@@ -4,7 +4,10 @@
       "mcp__mcp-toolkit-nuxt__list-pages",
       "mcp__mcp-toolkit-nuxt__get-page",
       "Bash(git commit:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm lint --fix)",
+      "Bash(pnpm build:*)"
     ]
   }
 }

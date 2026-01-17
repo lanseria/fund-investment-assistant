@@ -221,6 +221,28 @@ export const dailyNews = fundSchema.table('daily_news', {
 })
 
 /**
+ * 结构化新闻明细表 (news_items)
+ * 存储经由 AI 清洗后的单条新闻数据
+ */
+export const newsItems = fundSchema.table('news_items', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 关联日期 (YYYY-MM-DD) - 与 daily_news.date 对应 */
+  date: date('date').notNull(),
+  /** 新闻标题 */
+  title: text('title').notNull(),
+  /** 新闻摘要/内容 */
+  content: text('content'),
+  /** 原文链接 (如果有) */
+  url: text('url'),
+  /** 标签/分类 (如: 宏观, 科技, 医药) */
+  tag: text('tag'),
+  /** 情感倾向 (positive, negative, neutral) */
+  sentiment: text('sentiment'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
  * AI 执行日志表 (ai_execution_logs)
  * 记录每次 AI 自动交易生成的 Prompt 和原始响应，用于调试和人工干预
  */

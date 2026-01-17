@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     console.error(`获取排行榜数据(${period})时出错:`, error)
     throw createError({
       statusCode: 500,
-      statusMessage: '获取排行榜数据失败。',
+      message: '获取排行榜数据失败。',
     })
   }
 })

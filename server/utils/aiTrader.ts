@@ -230,7 +230,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
   // 5. 确定使用的模型
   // 使用系统默认模型，忽略用户配置
-  const targetModel = (config.aiModel as string) || 'xiaomi/mimo-v2-flash:free'
+  const targetModel = 'mimo-v2-flash'
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
 
   // 组合完整的 Prompt 字符串用于记录
@@ -238,7 +238,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
   try {
     const openai = new OpenAI({
-      baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3',
+      baseURL: 'https://api.xiaomimimo.com/v1',
       apiKey: config.openRouterApiKey,
     })
 
@@ -248,7 +248,11 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
         { role: 'system', content: finalSystemPrompt },
         { role: 'user', content: userPrompt },
       ],
-      temperature: 0.1, // 降低随机性
+      temperature: 0.3, // 降低随机性
+      // 开启 JSON Mode
+      response_format: {
+        type: 'json_object',
+      },
     })
 
     const rawContent = completion.choices[0]?.message?.content || '{}'

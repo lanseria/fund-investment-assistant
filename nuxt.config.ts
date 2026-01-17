@@ -72,7 +72,6 @@ export default defineNuxtConfig({
       password: '',
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
-    aiModel: 'xiaomi/mimo-v2-flash:free',
   },
 
   experimental: {

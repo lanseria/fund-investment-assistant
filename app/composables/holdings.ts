@@ -294,7 +294,7 @@ export const useHoldingStore = defineStore('holding', () => {
     }
     catch (error: any) {
       console.error(`为基金 ${code} 执行策略分析失败:`, error)
-      const detail = error.data?.statusMessage || '发生未知错误'
+      const detail = error.data?.message || '发生未知错误'
       alert(`执行失败: ${detail}`)
       throw error
     }
@@ -314,7 +314,7 @@ export const useHoldingStore = defineStore('holding', () => {
     }
     catch (error: any) {
       console.error(`同步基金 ${code} 历史数据失败:`, error)
-      const detail = error.data?.statusMessage || '发生未知错误'
+      const detail = error.data?.message || '发生未知错误'
       alert(`同步失败: ${detail}`)
       throw error
     }

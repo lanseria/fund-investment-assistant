@@ -1,8 +1,8 @@
 /* eslint-disable no-console */
-// server/routes/api/webhooks/trend-radar.post.ts
 import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
-import { dailyNews } from '~~/server/database/schemas'
+import { dailyNews, newsItems } from '~~/server/database/schemas'
+import { processNewsWithAi } from '~~/server/utils/aiNews'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -55,9 +55,36 @@ export default defineEventHandler(async (event) => {
       console.log(`[Webhook] 已创建今日 (${todayStr}) 新记录。`)
     }
 
+    // --- 4. 触发 AI 清洗流程 (异步处理，不阻塞 webhook 返回，或视需求 await) ---
+    // 为了确保数据一致性，这里选择 await。如果 webhook 超时，可改为 event.waitUntil (Nitro特定) 或完全异步。
+    try {
+      console.log(`[Webhook] 开始 AI 清洗，文本长度: ${incomingText.length}...`)
+      const structuredItems = await processNewsWithAi(incomingText)
+
+      if (structuredItems.length > 0) {
+        const rowsToInsert = structuredItems.map(item => ({
+          date: todayStr,
+          title: item.title,
+          content: item.content,
+          url: item.url,
+          tag: item.tag,
+          sentiment: item.sentiment,
+        }))
+
+        await db.insert(newsItems).values(rowsToInsert)
+        console.log(`[Webhook] AI 清洗完成，存入 ${rowsToInsert.length} 条结构化新闻。`)
+      }
+      else {
+        console.log(`[Webhook] AI 未提取到有效新闻。`)
+      }
+    }
+    catch (aiError) {
+      console.error(`[Webhook] AI 处理过程出错 (不影响 Raw 数据保存):`, aiError)
+    }
+
     return {
       status: 'success',
-      message: 'Data saved successfully',
+      message: 'Data saved and processed successfully',
       date: todayStr,
     }
   }
@@ -65,7 +92,7 @@ export default defineEventHandler(async (event) => {
     console.error('[Webhook] 处理 TrendRadar 数据并保存数据库时出错:', error)
     throw createError({
       statusCode: 500,
-      statusMessage: 'Internal Server Error processing webhook',
+      message: 'Internal Server Error processing webhook',
     })
   }
 })

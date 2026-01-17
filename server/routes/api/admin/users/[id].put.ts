@@ -8,7 +8,6 @@ const updateUserSchema = z.object({
   username: z.string().min(3, '用户名至少3位').optional(),
   password: z.string().min(6, '密码至少6位').optional(),
   isAiAgent: z.boolean().optional(),
-  aiModel: z.string().optional(),
   aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
   availableCash: z.number().optional(),
@@ -17,12 +16,12 @@ const updateUserSchema = z.object({
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Admins only' })
+    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
   }
 
   const idParam = getRouterParam(event, 'id')
   if (!idParam)
-    throw createError({ statusCode: 400, statusMessage: 'User ID required' })
+    throw createError({ statusCode: 400, message: 'User ID required' })
   const userId = Number(idParam)
 
   const body = await readBody(event)
@@ -40,7 +39,7 @@ export default defineEventHandler(async (event) => {
       ),
     })
     if (existingUser) {
-      throw createError({ statusCode: 409, statusMessage: `用户名 "${data.username}" 已被占用` })
+      throw createError({ statusCode: 409, message: `用户名 "${data.username}" 已被占用` })
     }
     updateData.username = data.username
   }
@@ -48,8 +47,6 @@ export default defineEventHandler(async (event) => {
   // 2. 处理 AI 配置
   if (data.isAiAgent !== undefined)
     updateData.isAiAgent = data.isAiAgent
-  if (data.aiModel !== undefined)
-    updateData.aiModel = data.aiModel
   if (data.aiTotalAmount !== undefined)
     updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)

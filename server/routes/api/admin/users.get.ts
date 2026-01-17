@@ -4,7 +4,7 @@ import { useDb } from '~~/server/utils/db'
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Admins only' })
+    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
   }
 
   const db = useDb()
@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
       username: true,
       role: true,
       isAiAgent: true,
-      aiModel: true,
       aiTotalAmount: true,
       aiSystemPrompt: true,
       availableCash: true, // 获取可用现金

@@ -11,7 +11,7 @@ export default defineEventHandler(async (event): Promise<RsiChartData> => {
   if (!strategyApiBaseUrl) {
     throw createError({
       statusCode: 500,
-      statusMessage: '策略分析服务地址未配置 (NUXT_STRATEGY_API_URL)。',
+      message: '策略分析服务地址未配置 (NUXT_STRATEGY_API_URL)。',
     })
   }
 
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event): Promise<RsiChartData> => {
     // 保持现有的错误透传逻辑
     throw createError({
       statusCode: error.response?.status || 500,
-      statusMessage: error.data?.detail || '获取RSI图表数据时发生错误。',
+      message: error.data?.detail || '获取RSI图表数据时发生错误。',
     })
   }
 })

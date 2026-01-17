@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   // 1. 读取 multipart form data
   const formData = await readMultipartFormData(event)
   if (!formData)
-    throw createError({ statusCode: 400, statusMessage: '需要 Multipart form data。' })
+    throw createError({ statusCode: 400, message: '需要 Multipart form data。' })
 
   // 2. [重要修改] 将 formData 数组转换为 Zod 可以验证的对象
   // Nitro 的 readMultipartFormData 返回一个数组，我们需要将其转换为 {key: value} 形式
@@ -45,15 +45,15 @@ export default defineEventHandler(async (event) => {
     // 处理 Zod 验证错误
     if (error instanceof z.ZodError) {
       // 返回第一个验证错误信息，对前端更友好
-      throw createError({ statusCode: 400, statusMessage: error.message || '输入数据无效。' })
+      throw createError({ statusCode: 400, message: error.message || '输入数据无效。' })
     }
     // 处理 JSON 解析错误
     if (error instanceof SyntaxError) {
-      throw createError({ statusCode: 400, statusMessage: '无效的 JSON 文件，请检查文件内容。' })
+      throw createError({ statusCode: 400, message: '无效的 JSON 文件，请检查文件内容。' })
     }
 
     // 处理其他未知错误
     console.error('导入时发生未知错误:', error)
-    throw createError({ statusCode: 500, statusMessage: '服务器内部错误。' })
+    throw createError({ statusCode: 500, message: '服务器内部错误。' })
   }
 })

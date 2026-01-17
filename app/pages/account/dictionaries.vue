@@ -72,7 +72,7 @@ async function handleTypeSubmit() {
     if (!isEditing)
       selectedType.value = newOrUpdatedType.type
   }
-  catch (e: any) { alert(`操作失败: ${e.data?.statusMessage}`) }
+  catch (e: any) { alert(`操作失败: ${e.data?.message}`) }
 }
 
 async function handleDataSubmit() {
@@ -86,7 +86,7 @@ async function handleDataSubmit() {
     isDataModalOpen.value = false
     await refreshData()
   }
-  catch (e: any) { alert(`操作失败: ${e.data?.statusMessage}`) }
+  catch (e: any) { alert(`操作失败: ${e.data?.message}`) }
 }
 
 async function deleteType(type: string) {
@@ -96,7 +96,7 @@ async function deleteType(type: string) {
       selectedType.value = null // 清空选择
       await refreshTypes()
     }
-    catch (e: any) { alert(`删除失败: ${e.data?.statusMessage}`) }
+    catch (e: any) { alert(`删除失败: ${e.data?.message}`) }
   }
 }
 
@@ -106,7 +106,7 @@ async function deleteData(id: number) {
       await apiFetch(`/api/admin/dict-data/${id}`, { method: 'DELETE' })
       await refreshData()
     }
-    catch (e: any) { alert(`删除失败: ${e.data?.statusMessage}`) }
+    catch (e: any) { alert(`删除失败: ${e.data?.message}`) }
   }
 }
 </script>

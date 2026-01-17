@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!user) {
-    throw createError({ statusCode: 404, statusMessage: 'User not found.' })
+    throw createError({ statusCode: 404, message: 'User not found.' })
   }
 
   // 3. 返回包含 aiSystemPrompt 的完整对象
@@ -25,7 +25,6 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
-    aiModel: user.aiModel,
     aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
     availableCash: user.availableCash, // [修改]

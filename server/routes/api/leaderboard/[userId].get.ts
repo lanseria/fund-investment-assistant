@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   if (!userId) {
     throw createError({
       statusCode: 400,
-      statusMessage: '需要提供用户 ID。',
+      message: '需要提供用户 ID。',
     })
   }
 
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     console.error(`获取用户 ${userId} 的持仓详情时出错:`, error)
     throw createError({
       statusCode: 500,
-      statusMessage: '获取持仓详情失败。',
+      message: '获取持仓详情失败。',
     })
   }
 })

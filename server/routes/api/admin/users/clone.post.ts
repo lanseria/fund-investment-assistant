@@ -12,7 +12,7 @@ const cloneUserSchema = z.object({
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden: Admins only' })
+    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
   }
 
   const body = await readBody(event)
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (existingUser) {
-    throw createError({ statusCode: 409, statusMessage: `用户名 ${newUsername} 已存在` })
+    throw createError({ statusCode: 409, message: `用户名 ${newUsername} 已存在` })
   }
 
   // 2. 获取源用户（确认存在）
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!sourceUser) {
-    throw createError({ statusCode: 404, statusMessage: '源用户不存在' })
+    throw createError({ statusCode: 404, message: '源用户不存在' })
   }
 
   // 3. 事务处理：创建新用户并复制持仓

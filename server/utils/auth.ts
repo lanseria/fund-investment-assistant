@@ -7,7 +7,6 @@ export interface UserPayload {
   username: string
   role: 'admin' | 'user'
   isAiAgent: boolean
-  aiModel?: string | null
   aiTotalAmount?: string | null
   aiSystemPrompt?: string | null
   availableCash?: string | null // [修改]
@@ -24,7 +23,7 @@ export function getUserFromEvent(event: H3Event): UserPayload {
   if (!user) {
     throw createError({
       statusCode: 401,
-      statusMessage: 'User not found in context. Authentication required.',
+      message: 'User not found in context. Authentication required.',
     })
   }
   return user

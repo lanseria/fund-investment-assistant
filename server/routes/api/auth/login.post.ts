@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
   if (!user || user.password !== hashPassword(password)) {
     throw createError({
       statusCode: 401,
-      statusMessage: '用户名或密码错误。',
+      message: '用户名或密码错误。',
     })
   }
 
@@ -34,7 +34,6 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
-    aiModel: user.aiModel,
     aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
   }
