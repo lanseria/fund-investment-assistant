@@ -1,9 +1,9 @@
 // server/utils/aiTrader.ts
 import dayjs from 'dayjs'
-import { eq } from 'drizzle-orm'
+import { desc, eq, gte } from 'drizzle-orm'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { dailyNews } from '~~/server/database/schemas'
+import { dailyNews, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
@@ -28,11 +28,29 @@ export type TradeDecision = z.infer<typeof TradeDecisionSchema>
 async function buildAiContext(fullHoldingsData: any[]) {
   const db = useDb()
 
-  // A. 获取今日新闻 (舆情)
-  const todayStr = dayjs().format('YYYY-MM-DD')
-  const newsRecord = await db.query.dailyNews.findFirst({
-    where: eq(dailyNews.date, todayStr),
+  // A. 获取近一个月的新闻事件 (舆情时间线)
+  // 获取最近 30 天的数据，限制 60 条，按时间倒序排列
+  const oneMonthAgo = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
+
+  const recentNewsItems = await db.query.newsItems.findMany({
+    where: gte(newsItems.date, oneMonthAgo),
+    orderBy: [desc(newsItems.date), desc(newsItems.id)],
+    limit: 60, // 限制数量以防 Context 超限
+    columns: {
+      date: true,
+      title: true,
+      content: true,
+      tag: true,
+    },
   })
+
+  // 格式化新闻数据，保留关键字段
+  const formattedNewsTimeline = recentNewsItems.map(item => ({
+    date: item.date,
+    tag: item.tag || 'General',
+    title: item.title,
+    summary: item.content,
+  }))
 
   // B. 获取实时市场指数 (宏观) - 使用 Redis 缓存
   const marketData: Record<string, any[]> = {}
@@ -109,7 +127,7 @@ async function buildAiContext(fullHoldingsData: any[]) {
   const myWatchlist = fullHoldingsData.filter(h => h.holdingAmount === null).map(simplify)
 
   return {
-    market_news: newsRecord?.content || '今日暂无重大新闻',
+    market_events: formattedNewsTimeline, // [修改] 使用结构化时间线替代单一文本
     market_indices: marketData,
     holdings: myHoldings,
     watchlist: myWatchlist,
@@ -160,7 +178,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   - 总资金设定: ${totalBudget} 元
   - 当前持仓市值: ${currentInvested.toFixed(4)} 元
   - **剩余可用买入资金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
-- **输入数据**: 包含市场指数(market_indices)、新闻(market_news)、持仓(holdings)和自选(watchlist)的 JSON 数据。
+- **输入数据**: 包含市场指数(market_indices)、**近30天新闻事件时间线(market_events)**、持仓(holdings)和自选(watchlist)的 JSON 数据。
 `
 
   const fixedOutputRules = `

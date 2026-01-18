@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."news_items" DROP COLUMN "sentiment";

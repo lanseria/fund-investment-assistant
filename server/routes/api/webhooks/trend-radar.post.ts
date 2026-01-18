@@ -68,7 +68,6 @@ export default defineEventHandler(async (event) => {
           content: item.content,
           url: item.url,
           tag: item.tag,
-          sentiment: item.sentiment,
         }))
 
         await db.insert(newsItems).values(rowsToInsert)

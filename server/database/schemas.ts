@@ -236,8 +236,6 @@ export const newsItems = fundSchema.table('news_items', {
   url: text('url'),
   /** 标签/分类 (如: 宏观, 科技, 医药) */
   tag: text('tag'),
-  /** 情感倾向 (positive, negative, neutral) */
-  sentiment: text('sentiment'),
   /** 创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

@@ -8,7 +8,6 @@ const NewsItemSchema = z.object({
   content: z.string().describe('新闻核心内容摘要，去除废话'),
   url: z.string().nullable().describe('原文链接，如果没有则为 null'),
   tag: z.string().describe('新闻分类标签，例如：宏观、科技、A股、美股、政策、半导体等'),
-  sentiment: z.enum(['positive', 'negative', 'neutral']).describe('对市场的影响倾向'),
   reason: z.string().optional().describe('（可选）为什么这条新闻重要，AI的筛选理由'), // 新增字段，方便调试
 })
 
@@ -82,7 +81,6 @@ export async function processNewsWithAi(rawText: string): Promise<StructuredNews
       "content": "一句话摘要核心影响",
       "url": "http...或null",
       "tag": "宏观/A股/美股/板块名",
-      "sentiment": "positive/negative/neutral",
       "reason": "筛选理由：为什么这对基金重要"
     }
   ]

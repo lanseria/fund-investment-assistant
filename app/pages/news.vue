@@ -271,17 +271,6 @@ async function handleAnalyze() {
                     </a>
                     <span v-else>{{ item.title }}</span>
                   </h3>
-                  <!-- 情感标签 -->
-                  <div
-                    class="text-[10px] tracking-wider px-1.5 py-0.5 border rounded flex-shrink-0 uppercase"
-                    :class="{
-                      'bg-red-50 text-red-600 border-red-100 dark:bg-red-900/20 dark:text-red-400': item.sentiment === 'positive',
-                      'bg-green-50 text-green-600 border-green-100 dark:bg-green-900/20 dark:text-green-400': item.sentiment === 'negative',
-                      'bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-700 dark:text-gray-400': item.sentiment === 'neutral',
-                    }"
-                  >
-                    {{ item.sentiment === 'positive' ? '利好' : (item.sentiment === 'negative' ? '利空' : '中性') }}
-                  </div>
                 </div>
 
                 <p class="text-sm text-gray-600 leading-relaxed mt-2 dark:text-gray-400">

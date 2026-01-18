@@ -169,6 +169,13 @@
       "when": 1768640241526,
       "tag": "0023_sturdy_wong",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1768736896055,
+      "tag": "0024_wealthy_mercury",
+      "breakpoints": true
     }
   ]
 }

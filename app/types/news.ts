@@ -5,7 +5,6 @@ export interface NewsItem {
   content?: string | null
   url?: string | null
   tag?: string | null
-  sentiment?: 'positive' | 'negative' | 'neutral' | null
   createdAt: string
 }
 
