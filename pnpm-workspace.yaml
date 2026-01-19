@@ -40,7 +40,7 @@ catalogs:
     echarts: ^6.0.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
-    vue: ^3.5.26
+    vue: ^3.5.27
     vue-echarts: ^8.0.1
   icons:
     '@iconify-json/carbon': ^1.2.18

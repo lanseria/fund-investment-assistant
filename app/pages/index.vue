@@ -1,10 +1,8 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
-import type { Holding, SortableKey } from '~/types/holding'
+import type { Holding } from '~/types/holding'
+import DashboardHeader from '~/components/dashboard/Header.vue'
 import { appName } from '~/constants'
-
-const router = useRouter()
-const route = useRoute()
 
 useHead({
   title: `持仓列表 - ${appName}`,
@@ -13,7 +11,7 @@ useHead({
 const holdingStore = useHoldingStore()
 const { holdings, summary, sseStatus, isRefreshing } = storeToRefs(holdingStore)
 
-// useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
+// 数据获取
 const { data: portfolioData, pending: isDataLoading, refresh } = await useAsyncData(
   'holdings',
   () => holdingStore.fetchHoldings(),
@@ -27,125 +25,17 @@ watch(portfolioData, (newData) => {
   }
 }, { immediate: true })
 
-// --- 排序与分组逻辑 ---
-const isGroupedBySector = ref(route.query.group === 'true')
-// 仅看持仓的状态初始化
-const isHeldOnly = ref(route.query.filter === 'held')
-const sortKey = ref<SortableKey | null>((route.query.sort as SortableKey) || (isGroupedBySector.value ? null : 'holdingAmount'))
-const sortOrder = ref<'asc' | 'desc'>((route.query.order as 'asc' | 'desc') || 'desc')
-
-const { getLabel } = useDictStore()
-const SECTOR_UNCATEGORIZED_KEY = 'unclassified'
-const SECTOR_UNCATEGORIZED_LABEL = '未分类板块'
-// 辅助函数：构建当前的查询参数对象
-function getQueryParams() {
-  const query: Record<string, string> = {}
-  if (isHeldOnly.value)
-    query.filter = 'held'
-  return query
-}
-
-function handleSetSort(key: SortableKey) {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  }
-  else {
-    sortKey.value = key
-    sortOrder.value = 'desc'
-  }
-  // 排序时自动取消分组
-  isGroupedBySector.value = false
-  // 更新路由，移除 group 参数
-  router.replace({ query: { ...getQueryParams(), sort: sortKey.value, order: sortOrder.value } })
-}
-
-function toggleGrouping() {
-  const newValue = !isGroupedBySector.value
-  isGroupedBySector.value = newValue
-
-  if (newValue) {
-    // 启用分组时，清除排序状态并更新路由
-    sortKey.value = null
-    router.replace({ query: { ...getQueryParams(), group: 'true' } })
-  }
-  else {
-    // 关闭分组时，恢复默认排序并更新路由
-    sortKey.value = 'holdingAmount'
-    sortOrder.value = 'desc'
-    router.replace({ query: { ...getQueryParams(), sort: sortKey.value, order: sortOrder.value } })
-  }
-}
-
-// 切换仅显示持仓的函数
-function toggleHeldFilter() {
-  isHeldOnly.value = !isHeldOnly.value
-
-  // 保持当前的分组或排序状态
-  const query = { ...route.query }
-
-  if (isHeldOnly.value)
-    query.filter = 'held'
-  else
-    delete query.filter
-
-  router.replace({ query })
-}
-
-// 计算最终要显示的数据
-const displayData = computed(() => {
-  let sourceHoldings = holdings.value || []
-  // 1. 先执行筛选逻辑
-  if (isHeldOnly.value) {
-    sourceHoldings = sourceHoldings.filter(h => h.holdingAmount !== null)
-  }
-
-  // 1. 分组逻辑
-  if (isGroupedBySector.value) {
-    const groups = sourceHoldings.reduce((acc, holding) => {
-      const key = holding.sector || SECTOR_UNCATEGORIZED_KEY
-      if (!acc[key]) {
-        acc[key] = {
-          sectorKey: key,
-          sectorLabel: key === SECTOR_UNCATEGORIZED_KEY ? SECTOR_UNCATEGORIZED_LABEL : (getLabel('sectors', key) || key),
-          holdings: [],
-          holdingCount: 0,
-          groupTotalAmount: 0,
-          groupTotalProfitLoss: 0,
-        }
-      }
-      acc[key]!.holdings.push(holding)
-      return acc
-    }, {} as Record<string, any>)
-
-    const groupedArray = Object.values(groups).map((group) => {
-      group.holdingCount = group.holdings.length
-      group.holdings.forEach((h: Holding) => {
-        if (h.holdingAmount !== null)
-          group.groupTotalAmount += h.holdingAmount
-        if (h.todayEstimateAmount !== null && h.holdingAmount !== null)
-          group.groupTotalProfitLoss += (h.todayEstimateAmount - h.holdingAmount)
-      })
-      return group
-    })
-
-    return groupedArray.sort((a, b) => b.groupTotalAmount - a.groupTotalAmount)
-  }
-
-  // 2. 扁平化排序逻辑
-  if (!sortKey.value)
-    return sourceHoldings
-
-  return [...sourceHoldings].sort((a, b) => {
-    const key = sortKey.value!
-    const valA = a[key] ?? -Infinity
-    const valB = b[key] ?? -Infinity
-
-    if (sortOrder.value === 'asc')
-      return Number(valA) - Number(valB)
-    else
-      return Number(valB) - Number(valA)
-  })
-})
+// --- 抽离的排序与分组逻辑 ---
+const {
+  isGroupedBySector,
+  isHeldOnly,
+  sortKey,
+  sortOrder,
+  displayData,
+  handleSetSort,
+  toggleGrouping,
+  toggleHeldFilter,
+} = useDashboardData(holdings)
 
 // --- 模态框状态管理 ---
 const isModalOpen = ref(false)
@@ -154,35 +44,26 @@ const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添�
 
 // 交易模态框状态
 const isTradeModalOpen = ref(false)
-// 转换模态框状态
 const isConvertModalOpen = ref(false)
-
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
-// [新增] 计算后的可用份额
 const availableShares = ref(0)
-// [新增] 最近买入日期
 const lastBuyDateForTrade = ref<string | null>(null)
 
-// 辅助函数：计算冻结份额
+// 辅助函数
 function calculateAvailableShares(holding: Holding) {
   const currentShares = holding.shares || 0
   if (!holding.pendingTransactions)
     return currentShares
-
-  // 累加所有待确认的 卖出 和 转出 份额
   const frozenShares = holding.pendingTransactions
     .filter(t => t.type === 'sell' || t.type === 'convert_out')
     .reduce((sum, t) => sum + (Number(t.orderShares) || 0), 0)
-
   return Math.max(0, currentShares - frozenShares)
 }
 
-// [新增] 获取最近买入日期
 function getLastBuyDate(holding: Holding): string | null {
   if (!holding.recentTransactions || holding.recentTransactions.length === 0)
     return null
-
   const lastBuy = holding.recentTransactions.find(t => t.type === 'buy' || t.type === 'convert_in')
   return lastBuy ? lastBuy.date : null
 }
@@ -190,7 +71,6 @@ function getLastBuyDate(holding: Holding): string | null {
 function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
   availableShares.value = calculateAvailableShares(holding)
-  // [新增] 设置最近买入日期
   lastBuyDateForTrade.value = getLastBuyDate(holding)
 
   if (type === 'convert') {
@@ -227,15 +107,12 @@ async function handleTradeSubmit(payload: any) {
   }
 }
 
-// 处理撤销交易
 async function handleDeleteTransaction(tx: any) {
   const typeText = tx.type === 'buy' ? '买入' : '卖出'
   const amountText = tx.type === 'buy' ? `金额 ${tx.orderAmount}元` : `份额 ${tx.orderShares}份`
-
   if (confirm(`确认撤销这笔交易申请吗？\n\n${typeText} - ${amountText}\n申请日期: ${tx.orderDate}`)) {
     try {
       await holdingStore.deleteTransaction(tx.id)
-      // 成功后 holdingStore 会自动刷新数据
     }
     catch (e) {
       console.error(e)
@@ -243,7 +120,6 @@ async function handleDeleteTransaction(tx: any) {
   }
 }
 
-// 板块编辑模态框的状态
 const isSectorModalOpen = ref(false)
 const editingHoldingForSector = ref<Holding | null>(null)
 
@@ -261,13 +137,11 @@ function closeModal() {
   isModalOpen.value = false
 }
 
-// 打开板块编辑模态框的函数
 function openSectorModal(holding: Holding) {
   editingHoldingForSector.value = holding
   isSectorModalOpen.value = true
 }
 
-// --- 表单和操作处理 ---
 async function handleSubmit(formData: any) {
   try {
     if (editingHolding.value)
@@ -307,22 +181,17 @@ async function handleClearPosition(holding: Holding) {
 }
 
 const isProcessingTransactions = ref(false)
-
 async function handleProcessTransactions() {
   if (isProcessingTransactions.value)
     return
   isProcessingTransactions.value = true
   try {
-    // 调用处理交易的 API
     const res: any = await apiFetch('/api/dev/process-transactions', { method: 'POST' })
     const { processed, skipped, skippedReasons } = res.result || {}
-
     let msg = `交易处理完成！\n成功: ${processed ?? 0}, 跳过: ${skipped ?? 0}`
-    if (skippedReasons && skippedReasons.length > 0) {
+    if (skippedReasons && skippedReasons.length > 0)
       msg += `\n\n跳过原因:\n${skippedReasons.join('\n')}`
-    }
     alert(msg)
-    // 刷新页面数据
     await refresh()
   }
   catch (e: any) {
@@ -335,21 +204,14 @@ async function handleProcessTransactions() {
 }
 
 const isImportModalOpen = ref(false)
-
 async function handleExport() {
   await holdingStore.exportHoldings()
 }
 
-// 复制持仓信息到剪贴板
-const { copy } = useClipboard({
-  legacy: true,
-})
-
+const { copy } = useClipboard({ legacy: true })
 async function handleCopyInfo() {
   try {
-    // 调用后端新接口获取标准化的 AI 上下文数据
     const contextData = await apiFetch('/api/user/context-data')
-
     await copy(JSON.stringify(contextData, null, 2))
     alert('持仓及市场信息（AI标准格式）已复制到剪贴板！')
   }
@@ -368,66 +230,30 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
 
 async function onSectorUpdateSuccess() {
   isSectorModalOpen.value = false
-  // 重新从服务器获取最新的持仓数据，以确保数据同步
   await holdingStore.fetchHoldings()
 }
 </script>
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <!-- MarketOverview 组件内部会自己引入 useMarketStore，所以这里不需要做什么 -->
     <MarketOverview />
 
-    <header class="mb-8 flex flex-col gap-4 items-start justify-between sm:flex-row sm:items-center">
-      <div>
-        <h1 class="text-2xl font-bold sm:text-3xl">
-          我的持仓
-        </h1>
-        <p class="text-gray-500 mt-1 dark:text-gray-400">
-          概览您的基金投资组合
-        </p>
-      </div>
-      <div class="flex gap-2 items-center sm:gap-4">
-        <button class="icon-btn" title="同步实时估值" :disabled="isRefreshing" @click="holdingStore.refreshAllEstimates()">
-          <div i-carbon-update-now :class="{ 'animate-spin': isRefreshing }" />
-        </button>
-        <button class="icon-btn" title="刷新列表数据" :disabled="isDataLoading" @click="() => refresh()">
-          <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
-        </button>
-        <button class="icon-btn" title="手动处理待确认交易" :disabled="isProcessingTransactions" @click="handleProcessTransactions">
-          <div i-carbon-calculator-check :class="{ 'animate-pulse': isProcessingTransactions }" />
-        </button>
-        <button
-          class="icon-btn"
-          :class="{ 'text-primary': isHeldOnly }"
-          :title="isHeldOnly ? '显示全部' : '仅显示持仓'"
-          @click="toggleHeldFilter"
-        >
-          <div i-carbon-wallet />
-        </button>
-        <button
-          class="icon-btn"
-          :class="{ 'text-primary': isGroupedBySector }"
-          title="按板块分组"
-          @click="toggleGrouping"
-        >
-          <div i-carbon-table-split />
-        </button>
-        <button class="icon-btn" title="导入数据" @click="isImportModalOpen = true">
-          <div i-carbon-upload />
-        </button>
-        <button class="icon-btn" title="导出数据" @click="handleExport">
-          <div i-carbon-download />
-        </button>
-        <button class="icon-btn" title="复制持仓信息" @click="handleCopyInfo">
-          <div i-carbon-copy />
-        </button>
-        <button class="btn flex items-center" @click="openAddModal">
-          <div i-carbon-add mr-1 />
-          添加基金
-        </button>
-      </div>
-    </header>
+    <DashboardHeader
+      :is-refreshing="isRefreshing"
+      :is-data-loading="!!isDataLoading"
+      :is-processing-transactions="isProcessingTransactions"
+      :is-held-only="isHeldOnly"
+      :is-grouped-by-sector="isGroupedBySector"
+      @refresh-estimates="holdingStore.refreshAllEstimates()"
+      @refresh-data="refresh"
+      @process-transactions="handleProcessTransactions"
+      @toggle-held="toggleHeldFilter"
+      @toggle-group="toggleGrouping"
+      @import="isImportModalOpen = true"
+      @export="handleExport"
+      @copy-info="handleCopyInfo"
+      @add-fund="openAddModal"
+    />
 
     <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
 
@@ -457,6 +283,7 @@ async function onSectorUpdateSuccess() {
       @delete-transaction="handleDeleteTransaction"
     />
 
+    <!-- Modals -->
     <Modal v-model="isModalOpen" :title="modalTitle">
       <AddEditHoldingForm
         :initial-data="editingHolding"
@@ -478,7 +305,6 @@ async function onSectorUpdateSuccess() {
       />
     </Modal>
 
-    <!-- 转换模态框 -->
     <Modal v-if="tradeTarget" v-model="isConvertModalOpen" title="基金转换">
       <ConvertForm
         :from-code="tradeTarget.code"
@@ -495,7 +321,6 @@ async function onSectorUpdateSuccess() {
       <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
     </Modal>
 
-    <!-- 添加板块编辑模态框到模板中 -->
     <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
       <SectorEditModal
         :fund-code="editingHoldingForSector.code"
