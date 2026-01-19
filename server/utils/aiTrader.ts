@@ -25,7 +25,7 @@ const AiResponseSchema = z.object({
 export type TradeDecision = z.infer<typeof TradeDecisionSchema>
 
 // --- 2. 辅助函数：构建上下文数据 ---
-async function buildAiContext(fullHoldingsData: any[]) {
+export async function buildAiContext(fullHoldingsData: any[]) {
   const db = useDb()
 
   // A. 获取近一个月的新闻事件 (舆情时间线)

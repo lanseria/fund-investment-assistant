@@ -1,7 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
-import { marketGroups } from '~~/shared/market'
 import { appName } from '~/constants'
 
 const router = useRouter()
@@ -12,7 +11,6 @@ useHead({
 })
 
 const holdingStore = useHoldingStore()
-const marketStore = useMarketStore()
 const { holdings, summary, sseStatus, isRefreshing } = storeToRefs(holdingStore)
 
 // useAsyncData 依然很有用，它能处理 pending 状态并防止在客户端重新请求
@@ -348,77 +346,16 @@ const { copy } = useClipboard({
 })
 
 async function handleCopyInfo() {
-  const allHoldings = holdingStore.holdings
-  const myHoldings = allHoldings.filter(h => h.holdingAmount !== null)
-  const myWatchlist = allHoldings.filter(h => h.holdingAmount === null)
-
-  const simplifyHolding = (h: Holding) => ({
-    code: h.code,
-    name: h.name,
-    sector: h.sector ? getLabel('sectors', h.sector) : '未分类',
-    ...(h.holdingAmount !== null
-      ? {
-          shares: h.shares,
-          costPrice: h.costPrice,
-          holdingAmount: h.holdingAmount,
-          profitAmount: h.holdingProfitAmount,
-          profitRate: h.holdingProfitRate,
-        }
-      : {}),
-    percentageChange: h.percentageChange,
-    todayEstimateNav: h.todayEstimateNav,
-    bias20: h.bias20,
-    signals: h.signals,
-    // 增加待确认和最近交易信息
-    pendingTransactions: h.pendingTransactions?.map(t => ({
-      type: t.type,
-      date: t.orderDate,
-      amount: t.orderAmount,
-      shares: t.orderShares,
-    })),
-    recentTransactions: h.recentTransactions?.map(t => ({
-      type: t.type,
-      date: t.date,
-      nav: t.nav,
-      amount: t.amount,
-      shares: t.shares,
-    })),
-  })
-
-  const marketData: Record<string, any[]> = {}
-
-  for (const [_, groupInfo] of Object.entries(marketGroups)) {
-    const indicesList = []
-    for (const code of groupInfo.codes) {
-      const indexData = marketStore.indices[code]
-      if (indexData) {
-        indicesList.push({
-          name: indexData.name,
-          value: indexData.value,
-          changeRate: indexData.changeRate,
-        })
-      }
-    }
-    if (indicesList.length > 0) {
-      marketData[groupInfo.label] = indicesList
-    }
-  }
-
-  const clipboardData = {
-    timestamp: new Date().toLocaleString(),
-    summary: holdingStore.summary,
-    holdings: myHoldings.map(simplifyHolding),
-    watchlist: myWatchlist.map(simplifyHolding),
-    market: marketData,
-  }
-
   try {
-    await copy(JSON.stringify(clipboardData, null, 2))
-    alert('持仓及市场信息已复制到剪贴板！')
+    // 调用后端新接口获取标准化的 AI 上下文数据
+    const contextData = await apiFetch('/api/user/context-data')
+
+    await copy(JSON.stringify(contextData, null, 2))
+    alert('持仓及市场信息（AI标准格式）已复制到剪贴板！')
   }
   catch (e) {
     console.error('复制失败', e)
-    alert('复制失败，请重试')
+    alert('获取数据或复制失败，请重试')
   }
 }
 
