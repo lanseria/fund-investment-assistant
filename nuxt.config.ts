@@ -38,6 +38,7 @@ export default defineNuxtConfig({
     'dayjs-nuxt',
     'nuxt-echarts',
     '@nuxtjs/mcp-toolkit',
+    'nuxt-security',
   ],
   ssr: false,
   devtools: {
@@ -72,6 +73,20 @@ export default defineNuxtConfig({
       password: '',
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
+  },
+
+  routeRules: {
+    // [重要] Webhook 接口必须豁免 CSRF 检查，因为它们来自外部服务器
+    '/api/webhooks/**': {
+      security: {
+        csrf: false,
+      },
+    },
+    '/api/dev/**': {
+      security: {
+        csrf: false,
+      },
+    },
   },
 
   experimental: {
@@ -120,5 +135,20 @@ export default defineNuxtConfig({
     name: 'My MCP Server',
     route: '/mcp', // Default route for the MCP server
     dir: 'mcp', // Base directory for MCP definitions (relative to server/)
+  },
+
+  // Nuxt Security 配置
+  security: {
+    csrf: true, // 开启 CSRF 保护
+    headers: {
+      // 允许 ECharts 和 UnoCSS 的内联样式/脚本
+      contentSecurityPolicy: {
+        'script-src': ['\'self\'', '\'unsafe-inline\'', '\'unsafe-eval\''], // ECharts 渲染可能需要 unsafe-eval
+        'style-src': ['\'self\'', '\'unsafe-inline\''],
+        'img-src': ['\'self\'', 'data:', 'https:'], // 允许加载外部图片
+        'connect-src': ['\'self\'', 'https:', 'ws:', 'wss:'], // 允许 SSE 和外部 API
+      },
+      crossOriginEmbedderPolicy: 'unsafe-none',
+    },
   },
 })

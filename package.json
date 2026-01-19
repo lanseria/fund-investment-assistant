@@ -17,10 +17,6 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
-  "dependencies": {
-    "@nuxtjs/mcp-toolkit": "catalog:backend",
-    "argon2": "catalog:backend"
-  },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@iconify-json/carbon": "catalog:icons",
@@ -28,12 +24,14 @@
     "@nuxt/devtools": "catalog:build",
     "@nuxt/eslint": "catalog:build",
     "@nuxtjs/color-mode": "catalog:build",
+    "@nuxtjs/mcp-toolkit": "catalog:backend",
     "@pinia/nuxt": "catalog:build",
     "@types/pg": "catalog:backend",
     "@unocss/eslint-config": "catalog:build",
     "@unocss/nuxt": "catalog:build",
     "@vueuse/core": "catalog:frontend",
     "@vueuse/nuxt": "catalog:build",
+    "argon2": "catalog:backend",
     "bignumber.js": "catalog:utils",
     "dayjs-nuxt": "catalog:utils",
     "drizzle-kit": "catalog:backend",
@@ -46,6 +44,7 @@
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
+    "nuxt-security": "catalog:frontend",
     "openai": "catalog:",
     "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
