@@ -1,11 +1,12 @@
-// server/routes/api/auth/login.post.ts
+/* eslint-disable no-console */
 import type { UserPayload } from '~~/server/utils/auth'
 import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
 import { users } from '~~/server/database/schemas'
-import { hashPassword } from '~~/server/utils/auth'
+// [修改] 导入新的工具函数
+import { hashPassword, needsRehash, verifyPassword } from '~~/server/utils/auth'
 
 const loginSchema = z.object({
   username: z.string(),
@@ -21,11 +22,24 @@ export default defineEventHandler(async (event) => {
     where: eq(users.username, username),
   })
 
-  if (!user || user.password !== hashPassword(password)) {
+  // [修改] 使用 verifyPassword 进行验证
+  const isValid = user && await verifyPassword(user.password, password)
+
+  if (!isValid || !user) {
     throw createError({
       statusCode: 401,
       message: '用户名或密码错误。',
     })
+  }
+
+  // [新增] 安全升级：如果是旧版哈希，自动更新为 Argon2
+  if (needsRehash(user.password)) {
+    console.log(`[Auth] Migrating password for user ${user.username} to Argon2...`)
+    const newHash = await hashPassword(password)
+    // 异步更新数据库，不阻塞登录流程
+    db.update(users).set({ password: newHash }).where(eq(users.id, user.id)).then(() => {
+      console.log(`[Auth] Password migration successful for ${user.username}`)
+    }).catch(e => console.error(`[Auth] Password migration failed:`, e))
   }
 
   // 1. 完整的用户数据 (用于返回给前端 Redia/Pinia)

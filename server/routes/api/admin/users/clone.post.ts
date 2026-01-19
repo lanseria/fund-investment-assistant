@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
     // 3.1 创建新用户，默认密码 123456
     const [newUser] = await tx.insert(users).values({
       username: newUsername,
-      password: hashPassword('123456'),
+      password: await hashPassword('123456'),
       role: 'user',
       isAiAgent: false, // 默认复制出来的不自动开启 AI，防止意外操作
     }).returning()

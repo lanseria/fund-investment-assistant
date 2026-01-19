@@ -26,7 +26,7 @@ export default defineTask({
 
     await db.insert(users).values({
       username: adminUsername,
-      password: hashPassword(adminPassword),
+      password: await hashPassword(adminPassword),
       role: 'admin',
     })
 

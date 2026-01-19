@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   await db.insert(users).values({
     username,
-    password: hashPassword(password),
+    password: await hashPassword(password),
     role,
   })
 

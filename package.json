@@ -18,7 +18,8 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@nuxtjs/mcp-toolkit": "catalog:backend"
+    "@nuxtjs/mcp-toolkit": "catalog:backend",
+    "argon2": "catalog:backend"
   },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",

@@ -1,5 +1,6 @@
 import type { H3Event } from 'h3'
 import { createHash } from 'node:crypto'
+import argon2 from 'argon2'
 
 // 定义 User 在 token 中的 payload 类型
 export interface UserPayload {
@@ -9,12 +10,33 @@ export interface UserPayload {
   isAiAgent: boolean
   aiTotalAmount?: string | null
   aiSystemPrompt?: string | null
-  availableCash?: string | null // [修改]
+  availableCash?: string | null
 }
 
-// 密码哈希
-export function hashPassword(password: string) {
-  return createHash('sha512').update(password).digest('base64')
+// 密码哈希 (Argon2)
+export async function hashPassword(password: string) {
+  return await argon2.hash(password)
+}
+
+// 验证密码 (兼容 SHA-512 旧数据)
+export async function verifyPassword(hashed: string, plain: string) {
+  // Argon2 哈希通常以 $argon2 开头
+  if (hashed.startsWith('$argon2')) {
+    try {
+      return await argon2.verify(hashed, plain)
+    }
+    catch {
+      return false
+    }
+  }
+  // 旧版 SHA-512 验证
+  const legacyHash = createHash('sha512').update(plain).digest('base64')
+  return hashed === legacyHash
+}
+
+// 检查是否需要重新哈希 (用于迁移)
+export function needsRehash(hashed: string) {
+  return !hashed.startsWith('$argon2')
 }
 
 // 从事件上下文中安全地获取用户信息

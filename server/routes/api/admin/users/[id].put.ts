@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
 
   // 处理密码重置
   if (data.password) {
-    updateData.password = hashPassword(data.password)
+    updateData.password = await hashPassword(data.password)
   }
 
   if (Object.keys(updateData).length === 0) {

@@ -12,6 +12,7 @@ catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.6.2
     '@types/pg': ^8.16.0
+    argon2: ^0.44.0
     drizzle-kit: ^0.31.8
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
