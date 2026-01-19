@@ -17,6 +17,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
+  "dependencies": {
+    "@nuxtjs/mcp-toolkit": "catalog:backend"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@iconify-json/carbon": "catalog:icons",
@@ -62,8 +65,5 @@
     "unplugin": "catalog:build",
     "vite": "catalog:build",
     "vue-echarts": "catalog:frontend"
-  },
-  "dependencies": {
-    "@nuxtjs/mcp-toolkit": "catalog:backend"
   }
 }
