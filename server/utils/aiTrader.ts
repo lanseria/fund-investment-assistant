@@ -147,22 +147,20 @@ interface AiTradeResult {
   rawResponse: string
 }
 
-export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<AiTradeResult> {
-  const config = useRuntimeConfig()
-
-  if (!config.openRouterApiKey) {
-    throw new Error('系统未配置 OpenRouter API Key')
-  }
-
+/**
+ * [新增] 仅生成 Prompt 内容，不执行 AI 调用
+ * 用于前端“复制 Prompt”功能
+ */
+export async function generateAiPrompt(fullHoldingsData: any[], userConfig: UserAiConfig) {
   // 1. 强制校验：用户必须配置 System Prompt
   if (!userConfig.aiSystemPrompt || !userConfig.aiSystemPrompt.trim()) {
-    throw new Error('用户未配置 AI 策略提示词 (System Prompt)，无法执行自动分析。')
+    throw new Error('用户未配置 AI 策略提示词 (System Prompt)。')
   }
 
   // 2. 准备上下文数据 (JSON)
   const contextData = await buildAiContext(fullHoldingsData)
 
-  // 3. 计算持仓市值并获取可用资金 (资金风控核心)
+  // 3. 计算持仓市值并获取可用资金
   const availableCash = userConfig.availableCash
   const currentInvested = fullHoldingsData.reduce((sum, h) => sum + (Number(h.holdingAmount) || 0), 0)
   const totalAssets = availableCash + currentInvested
@@ -243,16 +241,28 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 }
 `
 
-  // 组合最终的 System Prompt
   const finalSystemPrompt = `${fixedContext}\n\n#### 2. Strategy Logic (User Defined)\n${userConfig.aiSystemPrompt}\n\n${fixedOutputRules}`
-
-  // 5. 确定使用的模型
-  // 使用系统默认模型，忽略用户配置
-  const targetModel = 'ark-code-latest'
   const userPrompt = `Input Data JSON:\n${JSON.stringify(contextData)}`
 
-  // 组合完整的 Prompt 字符串用于记录
-  const fullPromptLog = `--- SYSTEM PROMPT ---\n${finalSystemPrompt}\n\n--- USER PROMPT ---\n${userPrompt}`
+  return {
+    systemPrompt: finalSystemPrompt,
+    userPrompt,
+    fullPromptLog: `--- SYSTEM PROMPT ---\n${finalSystemPrompt}\n\n--- USER PROMPT ---\n${userPrompt}`,
+  }
+}
+
+export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<AiTradeResult> {
+  const config = useRuntimeConfig()
+
+  if (!config.openRouterApiKey) {
+    throw new Error('系统未配置 OpenRouter API Key')
+  }
+
+  // [修改] 调用抽离的逻辑生成 Prompt
+  const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
+
+  // 5. 确定使用的模型
+  const targetModel = 'ark-code-latest'
 
   try {
     const openai = new OpenAI({
@@ -263,7 +273,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     const completion = await openai.chat.completions.create({
       model: targetModel, // 使用系统统一配置的模型
       messages: [
-        { role: 'system', content: finalSystemPrompt },
+        { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt },
       ],
       temperature: 0.3, // 降低随机性
@@ -284,7 +294,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     const actions = validated.decisions
 
     // [最后一道防线] 代码层面的资金硬性校验
-    const budgetLimit = availableCash
+    const budgetLimit = userConfig.availableCash
     let currentTotalBuy = 0
 
     // 过滤后的有效交易列表

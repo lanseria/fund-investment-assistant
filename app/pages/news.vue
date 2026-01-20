@@ -1,11 +1,11 @@
 <!-- eslint-disable no-alert -->
 <!-- app/pages/news.vue -->
 <script setup lang="ts">
-// --- 获取数据 ---
 import type { NewsData } from '~/types/news'
 import { useClipboard } from '@vueuse/core'
+import CalendarWidget from '~/components/CalendarWidget.vue'
 
-import { appName } from '~/constants' // [新增] 分析加载状态
+import { appName } from '~/constants' // 分析加载状态
 
 useHead({
   title: `市场情报 - ${appName}`,
@@ -16,7 +16,6 @@ const { copy, copied } = useClipboard({ legacy: true })
 
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期（用于查询数据）
-const viewDate = ref(dayjs()) // 当前日历视图显示的月份
 const activeTab = ref<'items' | 'raw'>('items') // 默认显示结构化列表
 const isAnalyzing = ref(false)
 
@@ -27,53 +26,6 @@ const { data: newsData, pending, refresh } = await useAsyncData<NewsData>(
     watch: [selectedDate], // 监听选中日期变化，自动重新请求
   },
 )
-
-// --- 日历逻辑 ---
-const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-
-// 计算当前视图月份的所有日期格子
-const calendarDays = computed(() => {
-  const year = viewDate.value.year()
-  const month = viewDate.value.month() // 0-11
-
-  const firstDayOfMonth = dayjs(new Date(year, month, 1))
-  const daysInMonth = firstDayOfMonth.daysInMonth()
-
-  // 获取当月第一天是星期几 (0是周日)
-  const startDayOfWeek = firstDayOfMonth.day()
-
-  const days = []
-
-  // 填充上个月的空白占位
-  for (let i = 0; i < startDayOfWeek; i++) {
-    days.push({ day: null, dateStr: '' })
-  }
-
-  // 填充当月日期
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = dayjs(new Date(year, month, i)).format('YYYY-MM-DD')
-    days.push({
-      day: i,
-      dateStr,
-      isToday: dateStr === dayjs().format('YYYY-MM-DD'),
-      isSelected: dateStr === selectedDate.value,
-    })
-  }
-
-  return days
-})
-
-// 切换月份
-function changeMonth(delta: number) {
-  viewDate.value = viewDate.value.add(delta, 'month')
-}
-
-// 选择日期
-function selectDate(dateStr: string) {
-  if (!dateStr)
-    return
-  selectedDate.value = dateStr
-}
 
 // 复制文本
 function handleCopy() {
@@ -122,66 +74,8 @@ async function handleAnalyze() {
     </header>
 
     <div class="flex flex-col gap-8 items-start md:flex-row">
-      <!-- 左侧：原生 CSS 日历 -->
-      <div class="p-4 card w-full select-none md:flex-shrink-0 md:w-auto">
-        <!-- 日历头部：年月切换 -->
-        <div class="mb-4 flex items-center justify-between">
-          <button class="icon-btn p-1" @click="changeMonth(-1)">
-            <div i-carbon-chevron-left />
-          </button>
-          <span class="text-lg font-bold">
-            {{ viewDate.format('YYYY年 MM月') }}
-          </span>
-          <button class="icon-btn p-1" @click="changeMonth(1)">
-            <div i-carbon-chevron-right />
-          </button>
-        </div>
-
-        <!-- 星期头 -->
-        <div class="mb-2 gap-1 grid grid-cols-7">
-          <div
-            v-for="wd in weekDays"
-            :key="wd"
-            class="text-xs text-gray-400 font-medium text-center flex h-8 items-center justify-center"
-          >
-            {{ wd }}
-          </div>
-        </div>
-
-        <!-- 日期格子 -->
-        <div class="gap-1 grid grid-cols-7">
-          <template v-for="(item, index) in calendarDays" :key="index">
-            <!-- 空白占位 -->
-            <div v-if="!item.day" class="h-10 w-10" />
-
-            <!-- 有效日期 -->
-            <button
-              v-else
-              class="text-sm rounded-full flex h-10 w-10 transition-all items-center justify-center relative"
-              :class="[
-                item.isSelected
-                  ? 'bg-primary text-white shadow-md font-bold'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200',
-                item.isToday && !item.isSelected ? 'border border-primary text-primary font-bold' : '',
-              ]"
-              @click="selectDate(item.dateStr)"
-            >
-              {{ item.day }}
-              <!-- 如果是今天且未被选中，显示一个小圆点指示 -->
-              <span v-if="item.isToday && !item.isSelected" class="rounded-full bg-primary h-1 w-1 bottom-1 absolute" />
-            </button>
-          </template>
-        </div>
-
-        <div class="mt-4 text-center">
-          <button
-            class="text-xs text-primary hover:underline"
-            @click="selectDate(dayjs().format('YYYY-MM-DD')); viewDate = dayjs()"
-          >
-            回到今天
-          </button>
-        </div>
-      </div>
+      <!-- 左侧：日历 [修改] 使用组件 -->
+      <CalendarWidget v-model="selectedDate" />
 
       <!-- 右侧：新闻内容展示 -->
       <div class="card flex flex-grow flex-col h-[800px] w-full">
@@ -201,14 +95,14 @@ async function handleAnalyze() {
             <div class="p-1 rounded-lg bg-gray-100 flex dark:bg-gray-700">
               <button
                 class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-                :class="activeTab === 'items' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                :class="activeTab === 'items' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-teal-700 dark:text-gray-400'"
                 @click="activeTab = 'items'"
               >
                 AI 精选
               </button>
               <button
                 class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
-                :class="activeTab === 'raw' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+                :class="activeTab === 'raw' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-teal-700 dark:text-gray-400'"
                 @click="activeTab = 'raw'"
               >
                 原始报告

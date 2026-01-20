@@ -1,6 +1,8 @@
-<!-- eslint-disable no-alert -->
 <!-- app/pages/daily-ops.vue -->
+<!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import { useClipboard } from '@vueuse/core'
+import CalendarWidget from '~/components/CalendarWidget.vue' // [新增]
 import { appName } from '~/constants'
 
 useHead({
@@ -8,16 +10,17 @@ useHead({
 })
 
 const dayjs = useDayjs()
+const authStore = useAuthStore() // 获取当前用户信息用于权限控制
 
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期
-const viewDate = ref(dayjs()) // 当前日历视图显示的月份
 
 // 展开/折叠的用户组集合
 const expandedGroups = ref<Set<string>>(new Set())
 
 // --- 获取数据 ---
-const { data: transactions, pending, refresh } = await useAsyncData(
+// 后端现在返回结构化的 { user, txs } 数组
+const { data: groupedTransactions, pending, refresh } = await useAsyncData(
   `daily-ops-${selectedDate.value}`,
   () => apiFetch<any[]>('/api/transactions/daily', { params: { date: selectedDate.value } }),
   {
@@ -34,21 +37,21 @@ const importTargetUser = ref<{ id: number, username: string } | null>(null)
 const importJsonContent = ref('')
 const isImporting = ref(false)
 
-// 复制 Prompt
+// [修改] 动态获取 Prompt，不再依赖日志表
 async function handleCopyPrompt(userId: number, username: string) {
   isLogLoading.value = true
   try {
-    const log = await apiFetch<{ prompt: string }>(`/api/admin/ai-logs`, {
-      params: { userId, date: selectedDate.value },
+    const res = await apiFetch<{ prompt: string }>('/api/ai/prompt-preview', {
+      params: { userId },
     })
 
     // 复制到剪贴板
     const { copy } = useClipboard({ legacy: true })
-    await copy(log.prompt)
-    alert(`用户 ${username} 的 Prompt 已复制到剪贴板！`)
+    await copy(res.prompt)
+    alert(`用户 ${username} 的 Prompt (实时生成) 已复制到剪贴板！`)
   }
   catch (e: any) {
-    alert(`获取日志失败: ${e.data?.message || '未找到日志或发生错误'}`)
+    alert(`获取 Prompt 失败: ${e.data?.message || '未知错误'}`)
   }
   finally {
     isLogLoading.value = false
@@ -106,7 +109,9 @@ async function handleImportJsonSubmit() {
 
 // 计算当前列表中是否有待处理的交易
 const hasPendingTransactions = computed(() => {
-  return transactions.value?.some(tx => tx.status === 'pending') ?? false
+  return groupedTransactions.value?.some(group =>
+    group.txs.some((tx: any) => tx.status === 'pending'),
+  ) ?? false
 })
 
 async function handleClearPending() {
@@ -130,36 +135,17 @@ async function handleClearPending() {
   }
 }
 
-// --- 分组逻辑 ---
-const groupedTransactions = computed(() => {
-  if (!transactions.value)
-    return []
-
-  // [修改] 类型定义增加 id
-  const groups: Record<string, { user: { id: number, username: string, isAiAgent: boolean }, txs: any[] }> = {}
-
-  for (const tx of transactions.value) {
-    const username = tx.username
-    if (!groups[username]) {
-      groups[username] = {
-        // [修改] 从 tx 中获取 userId (注意：后端返回的字段通常是 userId，但 transactions 接口使用了 join，需要确认)
-        // 检查 `server/routes/api/transactions/daily.get.ts`，它并没有返回 `userId`。
-        // 我们需要先去修改后端接口 daily.get.ts
-        user: { id: tx.userId || 0, username, isAiAgent: tx.isAiAgent },
-        txs: [],
-      }
-    }
-    groups[username]!.txs.push(tx)
-  }
-
-  // 按用户名排序
-  return Object.values(groups).sort((a, b) => a.user.username.localeCompare(b.user.username))
-})
-
 // 当数据更新时，默认展开所有有数据的组
 watch(groupedTransactions, (groups) => {
+  if (!groups)
+    return
   const newSet = new Set<string>()
-  groups.forEach(g => newSet.add(g.user.username))
+  groups.forEach((g) => {
+    // 默认只展开有交易的用户，避免列表过长
+    if (g.txs.length > 0) {
+      newSet.add(g.user.username)
+    }
+  })
   expandedGroups.value = newSet
 }, { immediate: true })
 
@@ -168,42 +154,6 @@ function toggleGroup(username: string) {
     expandedGroups.value.delete(username)
   else
     expandedGroups.value.add(username)
-}
-
-// --- 日历逻辑 (复用自 news.vue) ---
-const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-
-const calendarDays = computed(() => {
-  const year = viewDate.value.year()
-  const month = viewDate.value.month()
-  const firstDayOfMonth = dayjs(new Date(year, month, 1))
-  const daysInMonth = firstDayOfMonth.daysInMonth()
-  const startDayOfWeek = firstDayOfMonth.day()
-
-  const days = []
-  for (let i = 0; i < startDayOfWeek; i++) {
-    days.push({ day: null, dateStr: '' })
-  }
-  for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = dayjs(new Date(year, month, i)).format('YYYY-MM-DD')
-    days.push({
-      day: i,
-      dateStr,
-      isToday: dateStr === dayjs().format('YYYY-MM-DD'),
-      isSelected: dateStr === selectedDate.value,
-    })
-  }
-  return days
-})
-
-function changeMonth(delta: number) {
-  viewDate.value = viewDate.value.add(delta, 'month')
-}
-
-function selectDate(dateStr: string) {
-  if (!dateStr)
-    return
-  selectedDate.value = dateStr
 }
 
 // --- 辅助显示函数 ---
@@ -246,52 +196,8 @@ function formatCurrency(val: any) {
     </header>
 
     <div class="flex flex-col gap-8 items-start md:flex-row">
-      <!-- 左侧：日历 -->
-      <div class="p-4 card w-full select-none md:flex-shrink-0 md:w-auto">
-        <div class="mb-4 flex items-center justify-between">
-          <button class="icon-btn p-1" @click="changeMonth(-1)">
-            <div i-carbon-chevron-left />
-          </button>
-          <span class="text-lg font-bold">
-            {{ viewDate.format('YYYY年 MM月') }}
-          </span>
-          <button class="icon-btn p-1" @click="changeMonth(1)">
-            <div i-carbon-chevron-right />
-          </button>
-        </div>
-
-        <div class="mb-2 gap-1 grid grid-cols-7">
-          <div v-for="wd in weekDays" :key="wd" class="text-xs text-gray-400 font-medium text-center flex h-8 items-center justify-center">
-            {{ wd }}
-          </div>
-        </div>
-
-        <div class="gap-1 grid grid-cols-7">
-          <template v-for="(item, index) in calendarDays" :key="index">
-            <div v-if="!item.day" class="h-10 w-10" />
-            <button
-              v-else
-              class="text-sm rounded-full flex h-10 w-10 transition-all items-center justify-center relative"
-              :class="[
-                item.isSelected
-                  ? 'bg-primary text-white shadow-md font-bold'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200',
-                item.isToday && !item.isSelected ? 'border border-primary text-primary font-bold' : '',
-              ]"
-              @click="selectDate(item.dateStr)"
-            >
-              {{ item.day }}
-              <span v-if="item.isToday && !item.isSelected" class="rounded-full bg-primary h-1 w-1 bottom-1 absolute" />
-            </button>
-          </template>
-        </div>
-
-        <div class="mt-4 text-center">
-          <button class="text-xs text-primary hover:underline" @click="selectDate(dayjs().format('YYYY-MM-DD')); viewDate = dayjs()">
-            回到今天
-          </button>
-        </div>
-      </div>
+      <!-- 左侧：日历 [修改] 使用组件 -->
+      <CalendarWidget v-model="selectedDate" />
 
       <!-- 右侧：操作列表 -->
       <div class="flex-grow w-full space-y-4">
@@ -299,9 +205,6 @@ function formatCurrency(val: any) {
         <div class="flex items-center justify-between">
           <h2 class="text-xl font-bold flex gap-2 items-center">
             {{ selectedDate }} 操作记录
-            <span v-if="transactions" class="text-sm text-gray-500 font-normal px-2 py-0.5 rounded-full bg-gray-100 dark:text-gray-400 dark:bg-gray-800">
-              共 {{ transactions.length }} 笔
-            </span>
           </h2>
           <!-- 清空按钮 -->
           <button
@@ -320,13 +223,7 @@ function formatCurrency(val: any) {
           <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
         </div>
 
-        <!-- 空状态 -->
-        <div v-else-if="!transactions || transactions.length === 0" class="text-gray-400 py-16 text-center card">
-          <div i-carbon-roadmap class="text-5xl mx-auto mb-3 opacity-50" />
-          <p>该日期暂无任何操作记录</p>
-        </div>
-
-        <!-- 按用户分组列表 (Collapsible) -->
+        <!-- 列表 -->
         <div v-else class="space-y-4">
           <div v-for="group in groupedTransactions" :key="group.user.username" class="border rounded-lg bg-white shadow-sm overflow-hidden dark:border-gray-700 dark:bg-gray-800">
             <!-- 组头部：点击展开/折叠 -->
@@ -336,29 +233,39 @@ function formatCurrency(val: any) {
             >
               <div class="flex gap-3 items-center">
                 <!-- 头像 -->
-                <div class="text-sm text-primary font-bold border rounded-full bg-white flex h-8 w-8 shadow-sm items-center justify-center dark:text-gray-200 dark:border-gray-500 dark:bg-gray-600">
+                <div
+                  class="text-sm font-bold border rounded-full flex h-8 w-8 shadow-sm items-center justify-center dark:border-gray-500"
+                  :class="group.txs.length > 0 ? 'bg-white text-primary dark:bg-gray-600 dark:text-gray-200' : 'bg-gray-200 text-gray-400 dark:bg-gray-700'"
+                >
                   {{ group.user.username.charAt(0).toUpperCase() }}
                 </div>
                 <!-- 用户名 -->
                 <div class="flex gap-2 items-center">
-                  <span class="text-gray-800 font-bold dark:text-gray-200">{{ group.user.username }}</span>
+                  <span class="text-gray-800 font-bold dark:text-gray-200" :class="{ 'text-gray-400': group.txs.length === 0 }">
+                    {{ group.user.username }}
+                  </span>
                   <span v-if="group.user.isAiAgent" class="i-carbon-bot text-xs text-primary" title="AI 代理账户" />
-                  <span class="text-xs text-gray-500 ml-1">({{ group.txs.length }} 笔)</span>
+                  <span v-if="group.txs.length > 0" class="text-xs text-gray-500 ml-1">({{ group.txs.length }} 笔)</span>
+                  <span v-else class="text-xs text-gray-400 ml-1 italic">(无操作)</span>
                 </div>
 
-                <!-- 管理员操作按钮组 -->
+                <!-- 按钮组 -->
                 <div class="ml-4 flex gap-2" @click.stop>
+                  <!-- 复制 Prompt: 所有用户可见 -->
                   <button
                     class="text-xs px-2 py-1 border rounded bg-white flex dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
-                    title="复制 AI Prompt"
-                    @click="handleCopyPrompt(group.txs[0].userId, group.user.username)"
+                    title="生成并复制当前上下文的 Prompt"
+                    @click="handleCopyPrompt(group.user.id, group.user.username)"
                   >
                     <div class="i-carbon-copy" /> Prompt
                   </button>
+
+                  <!-- 修正: 仅 Admin 或 自己 可见 -->
                   <button
+                    v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
                     class="text-xs text-blue-600 px-2 py-1 border rounded bg-white flex dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
                     title="人工修正 (Import JSON)"
-                    @click="openImportModal({ id: group.txs[0].userId, username: group.user.username })"
+                    @click="openImportModal({ id: group.user.id, username: group.user.username })"
                   >
                     <div class="i-carbon-edit" /> 修正
                   </button>
@@ -374,6 +281,11 @@ function formatCurrency(val: any) {
 
             <!-- 交易列表：单行布局 -->
             <div v-show="expandedGroups.has(group.user.username)" class="border-t divide-y dark:border-gray-700 dark:divide-gray-700">
+              <!-- 空状态 -->
+              <div v-if="group.txs.length === 0" class="text-sm text-gray-400 p-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
+                该用户当日无任何交易操作
+              </div>
+
               <div
                 v-for="tx in group.txs"
                 :key="tx.id"
@@ -446,11 +358,6 @@ function formatCurrency(val: any) {
                   <span v-else class="text-gray-300">-</span>
                 </div>
               </div>
-            </div>
-
-            <!-- 如果组展开且无数据（理论上不会发生，因为只显示有数据的组） -->
-            <div v-if="expandedGroups.has(group.user.username) && group.txs.length === 0" class="text-sm text-gray-400 p-4 text-center">
-              无操作记录
             </div>
           </div>
         </div>
