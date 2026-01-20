@@ -38,7 +38,6 @@ export default defineNuxtConfig({
     'dayjs-nuxt',
     'nuxt-echarts',
     '@nuxtjs/mcp-toolkit',
-    'nuxt-security',
   ],
   ssr: false,
   devtools: {
@@ -137,19 +136,4 @@ export default defineNuxtConfig({
     dir: 'mcp', // Base directory for MCP definitions (relative to server/)
   },
 
-  // Nuxt Security 配置
-  security: {
-    csrf: true, // 开启 CSRF 保护
-    headers: {
-      // 允许 ECharts 和 UnoCSS 的内联样式/脚本
-      contentSecurityPolicy: {
-        'script-src': ['\'self\'', '\'unsafe-inline\'', '\'unsafe-eval\''], // ECharts 渲染可能需要 unsafe-eval
-        'style-src': ['\'self\'', '\'unsafe-inline\''],
-        'img-src': ['\'self\'', 'data:', 'https:'], // 允许加载外部图片
-        'connect-src': ['\'self\'', 'https:', 'ws:', 'wss:', 'http:'], // 显式允许 http 连接
-        'upgrade-insecure-requests': false, // [关键修改] 禁止浏览器自动升级到 HTTPS
-      },
-      crossOriginEmbedderPolicy: 'unsafe-none',
-    },
-  },
 })

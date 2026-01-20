@@ -44,7 +44,6 @@
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
-    "nuxt-security": "catalog:frontend",
     "openai": "catalog:",
     "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
