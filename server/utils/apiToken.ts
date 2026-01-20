@@ -1,4 +1,4 @@
-/* eslint-disable no-console */
+import type { H3Event } from 'h3' // [新增] 显式导入 H3Event 类型
 import { createHash, randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { users } from '~~/server/database/schemas'
@@ -38,7 +38,6 @@ export async function getMcpUser(event: H3Event): Promise<number | null> {
 
   // 简单的格式检查
   if (!token.startsWith('fia_sk_')) {
-    console.log('[MCP Debug] Token format invalid') // Debug
     return null
   }
 
@@ -50,9 +49,6 @@ export async function getMcpUser(event: H3Event): Promise<number | null> {
     where: eq(users.apiToken, hashed),
     columns: { id: true },
   })
-
-  if (!user)
-    console.log('[MCP Debug] No user found for this token') // Debug
 
   return user ? user.id : null
 }
