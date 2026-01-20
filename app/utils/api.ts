@@ -1,16 +1,6 @@
 let refreshTokenPromise: Promise<any> | null = null
 
 export const apiFetch = $fetch.create({
-  onRequest({ options }) {
-    // 自动注入 CSRF 令牌
-    if (import.meta.client) {
-      const { csrf } = useCsrf()
-      options.headers = new Headers(options.headers)
-      if (csrf) {
-        options.headers.set('csrf-token', csrf)
-      }
-    }
-  },
   async onResponseError({ request, response }) {
     if (response.status === 401 && !String(request).includes('/api/auth/refresh')) {
       const authStore = useAuthStore()
