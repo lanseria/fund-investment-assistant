@@ -1,9 +1,9 @@
 // server/utils/aiTrader.ts
 import dayjs from 'dayjs'
-import { desc, eq, gte } from 'drizzle-orm'
+import { desc, gte } from 'drizzle-orm'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { dailyNews, newsItems } from '~~/server/database/schemas'
+import { newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
@@ -136,7 +136,7 @@ export async function buildAiContext(fullHoldingsData: any[]) {
 
 // --- 3. 核心调用函数 ---
 interface UserAiConfig {
-  aiTotalAmount?: string | null
+  availableCash: number
   aiSystemPrompt?: string | null
 }
 
@@ -162,10 +162,10 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   // 2. 准备上下文数据 (JSON)
   const contextData = await buildAiContext(fullHoldingsData)
 
-  // 3. 计算剩余可用资金 (资金风控核心)
-  const totalBudget = Number(userConfig.aiTotalAmount) || 0
+  // 3. 计算持仓市值并获取可用资金 (资金风控核心)
+  const availableCash = userConfig.availableCash
   const currentInvested = fullHoldingsData.reduce((sum, h) => sum + (Number(h.holdingAmount) || 0), 0)
-  const availableCash = Math.max(0, totalBudget - currentInvested)
+  const totalAssets = availableCash + currentInvested
   const availableCashStr = availableCash.toFixed(2)
 
   // 4. 构建 System Prompt
@@ -175,9 +175,9 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 #### 1. Context Information
 - **当前时间**: ${currentTimestamp}
 - **资金概况**:
-  - 总资金设定: ${totalBudget} 元
+  - 总资产: ${totalAssets.toFixed(4)} 元
   - 当前持仓市值: ${currentInvested.toFixed(4)} 元
-  - **剩余可用买入资金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
+  - **可用现金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
 - **输入数据**: 包含市场指数(market_indices)、**近30天新闻事件时间线(market_events)**、持仓(holdings)和自选(watchlist)的 JSON 数据。
 `
 

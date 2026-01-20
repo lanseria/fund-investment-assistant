@@ -2,7 +2,6 @@
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   isAiAgent: boolean
-  aiTotalAmount?: number | string | null
   aiSystemPrompt?: string | null
   // 模式: 'immediate' (个人中心，独立保存) | 'form' (后台管理，仅表单)
   mode?: 'immediate' | 'form'
@@ -14,23 +13,19 @@ const props = withDefaults(defineProps<{
 
 const emit = defineEmits<{
   'update:isAiAgent': [value: boolean]
-  'update:aiTotalAmount': [value: number]
   'update:aiSystemPrompt': [value: string]
   'toggle': [value: boolean] // 仅 immediate 模式使用
   'save-config': [] // 仅 immediate 模式使用
 }>()
 
 // 本地状态，用于绑定 input
-const localAmount = ref(props.aiTotalAmount ? Number(props.aiTotalAmount) : 100000)
 const localPrompt = ref(props.aiSystemPrompt || '')
 const isEditingConfig = ref(false)
 
 // 监听 props 变化同步到本地 (用于 Admin 模态框打开时回显)
-watch(() => props.aiTotalAmount, val => localAmount.value = val ? Number(val) : 100000)
 watch(() => props.aiSystemPrompt, val => localPrompt.value = val || '')
 
 // 监听本地变化同步回父组件 (v-model 支持)
-watch(localAmount, val => emit('update:aiTotalAmount', val))
 watch(localPrompt, val => emit('update:aiSystemPrompt', val))
 
 // 默认模板逻辑
@@ -148,24 +143,7 @@ function handleToggle() {
 
       <!-- 展开的内容 -->
       <div v-if="isEditingConfig" class="p-4 border-t bg-white space-y-5 dark:border-gray-700 dark:bg-gray-900">
-        <!-- 1. 资金设定 -->
-        <div>
-          <label class="text-sm text-gray-700 font-medium mb-1 block dark:text-gray-300">模拟总资金 (元)</label>
-          <div class="relative">
-            <span class="text-gray-500 left-3 top-2 absolute">¥</span>
-            <input
-              v-model.number="localAmount"
-              type="number"
-              class="input-base pl-7"
-              placeholder="例如 100000"
-            >
-          </div>
-          <p class="text-xs text-gray-400 mt-1">
-            此金额将动态替换 Prompt 中的 <code v-pre class="px-1 rounded bg-gray-100 dark:bg-gray-800">{{ total_amount }}</code> 占位符。
-          </p>
-        </div>
-
-        <!-- 3. System Prompt -->
+        <!-- 1. System Prompt -->
         <div>
           <div class="mb-1 flex items-center justify-between">
             <label class="text-sm text-gray-700 font-medium block dark:text-gray-300">System Prompt (系统提示词)</label>

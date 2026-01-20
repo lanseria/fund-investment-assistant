@@ -7,9 +7,8 @@ import { useDb } from '~~/server/utils/db'
 // 允许更新部分或全部字段
 const updateAiConfigSchema = z.object({
   isAiAgent: z.boolean().optional(),
-  aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
-  availableCash: z.number().optional(), // [修改]
+  availableCash: z.number().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -23,8 +22,6 @@ export default defineEventHandler(async (event) => {
   const updateData: Record<string, any> = {}
   if (data.isAiAgent !== undefined)
     updateData.isAiAgent = data.isAiAgent
-  if (data.aiTotalAmount !== undefined)
-    updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
   if (data.availableCash !== undefined)

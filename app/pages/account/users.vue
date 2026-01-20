@@ -17,7 +17,6 @@ interface AdminUserItem {
   fundValue: number // 后端计算返回
   totalAssets: number // 后端计算返回
   createdAt: string
-  aiTotalAmount?: number
   aiSystemPrompt?: string
 }
 
@@ -40,7 +39,6 @@ const editForm = reactive({
   username: '',
   availableCash: 0,
   isAiAgent: false,
-  aiTotalAmount: 100000,
   aiSystemPrompt: '',
 })
 
@@ -59,7 +57,6 @@ function openEditModal(user: any) {
   editForm.username = user.username
   editForm.availableCash = user.availableCash ? Number(user.availableCash) : 0
   editForm.isAiAgent = user.isAiAgent || false
-  editForm.aiTotalAmount = user.aiTotalAmount ? Number(user.aiTotalAmount) : 100000
   editForm.aiSystemPrompt = user.aiSystemPrompt || ''
   isEditModalOpen.value = true
 }
@@ -105,7 +102,6 @@ async function handleEditUser() {
         username: editForm.username,
         availableCash: editForm.availableCash,
         isAiAgent: editForm.isAiAgent,
-        aiTotalAmount: editForm.aiTotalAmount,
         aiSystemPrompt: editForm.aiSystemPrompt || null,
       },
     })
@@ -410,7 +406,6 @@ async function handleCloneUser() {
 
           <AiSettingsPanel
             v-model:is-ai-agent="editForm.isAiAgent"
-            v-model:ai-total-amount="editForm.aiTotalAmount"
             v-model:ai-system-prompt="editForm.aiSystemPrompt"
             mode="form"
           />

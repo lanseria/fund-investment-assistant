@@ -78,7 +78,7 @@ export default defineTask({
           continue
 
         // 3. 调用 AI 获取决策
-        // [修改] 计算可用资金：数据库余额 - 今日已生成的Pending买入金额 (防止多次运行重复使用资金)
+        // 计算可用资金：数据库余额 - 今日已生成的Pending买入金额 (防止多次运行重复使用资金)
         const pendingBuyAmount = await db.select({
           total: sql<string>`SUM(order_amount)`,
         })
@@ -93,9 +93,8 @@ export default defineTask({
         const frozenCash = Number(pendingBuyAmount[0]?.total || 0)
         const realAvailableCash = Math.max(0, currentCash - frozenCash)
 
-        // 我们复用 aiTotalAmount 字段来传递给 AI，告诉它这是你的“Budget Limit”
         const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
-          aiTotalAmount: String(realAvailableCash), // [关键] 告诉 AI 这是它能用的最大金额
+          availableCash: realAvailableCash, // 告诉 AI 这是它能用的最大金额
           aiSystemPrompt: user.aiSystemPrompt,
         })
 

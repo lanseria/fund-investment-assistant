@@ -25,8 +25,7 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
-    aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
-    availableCash: user.availableCash, // [修改]
+    availableCash: user.availableCash,
   }
 })

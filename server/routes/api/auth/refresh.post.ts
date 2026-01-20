@@ -41,8 +41,8 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
-    aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
+    availableCash: user.availableCash,
   }
 
   // 2. 精简数据存入 Token

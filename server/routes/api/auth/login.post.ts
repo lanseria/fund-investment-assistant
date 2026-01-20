@@ -48,8 +48,8 @@ export default defineEventHandler(async (event) => {
     username: user.username,
     role: user.role,
     isAiAgent: user.isAiAgent,
-    aiTotalAmount: user.aiTotalAmount,
     aiSystemPrompt: user.aiSystemPrompt,
+    availableCash: user.availableCash,
   }
 
   // 2. 精简的 Token 数据 (用于存入 Cookie，避免超长)

@@ -8,7 +8,6 @@ const updateUserSchema = z.object({
   username: z.string().min(3, '用户名至少3位').optional(),
   password: z.string().min(6, '密码至少6位').optional(),
   isAiAgent: z.boolean().optional(),
-  aiTotalAmount: z.number().optional(),
   aiSystemPrompt: z.string().optional().nullable(),
   availableCash: z.number().optional(),
 })
@@ -47,11 +46,8 @@ export default defineEventHandler(async (event) => {
   // 2. 处理 AI 配置
   if (data.isAiAgent !== undefined)
     updateData.isAiAgent = data.isAiAgent
-  if (data.aiTotalAmount !== undefined)
-    updateData.aiTotalAmount = String(data.aiTotalAmount)
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
-  // 处理总资产更新
   if (data.availableCash !== undefined)
     updateData.availableCash = String(data.availableCash)
 

@@ -17,7 +17,6 @@ export default defineEventHandler(async (event) => {
       username: true,
       role: true,
       isAiAgent: true,
-      aiTotalAmount: true,
       aiSystemPrompt: true,
       availableCash: true, // 获取可用现金
       createdAt: true,

@@ -13,7 +13,6 @@ const isToggling = ref(false)
 // 表单数据 (直接绑定到组件，但独立于 authStore 以便编辑)
 const aiForm = reactive({
   isAiAgent: false,
-  aiTotalAmount: 100000,
   aiSystemPrompt: '',
 })
 
@@ -26,25 +25,21 @@ const isSavingCash = ref(false)
 watch(() => authStore.user, (u) => {
   if (u) {
     aiForm.isAiAgent = u.isAiAgent
-    aiForm.aiTotalAmount = u.aiTotalAmount ? Number(u.aiTotalAmount) : 100000
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
-    // [修改] 读取 availableCash
     localAvailableCash.value = u.availableCash ? Number(u.availableCash) : 0
   }
 }, { immediate: true })
 
-// [修改] 保存可用现金
+// 保存可用现金
 async function saveCash() {
   isSavingCash.value = true
   try {
-    // 复用通用的用户信息更新接口
-    const res = await apiFetch<any>('/api/user/ai-status', {
+    await apiFetch('/api/user/ai-status', {
       method: 'PUT',
       body: { availableCash: localAvailableCash.value },
     })
-    // 更新本地 store
     if (authStore.user) {
-      authStore.user.availableCash = res.config.availableCash
+      authStore.user.availableCash = String(localAvailableCash.value)
     }
     isEditingCash.value = false
   }
@@ -83,15 +78,12 @@ async function handleToggle(newState: boolean) {
 async function handleSaveConfig() {
   isToggling.value = true
   try {
-    const res = await apiFetch<any>('/api/user/ai-status', {
+    await apiFetch('/api/user/ai-status', {
       method: 'PUT',
       body: {
-        aiTotalAmount: aiForm.aiTotalAmount,
         aiSystemPrompt: aiForm.aiSystemPrompt || null,
       },
     })
-    if (authStore.user)
-      Object.assign(authStore.user, res.config)
     alert('AI 配置已保存成功！')
   }
   catch (e: any) {
@@ -186,7 +178,6 @@ function formatCurrency(value: string | number | null | undefined) {
       <!-- AI 设置组件 -->
       <AiSettingsPanel
         v-model:is-ai-agent="aiForm.isAiAgent"
-        v-model:ai-total-amount="aiForm.aiTotalAmount"
         v-model:ai-system-prompt="aiForm.aiSystemPrompt"
         mode="immediate"
         :loading="isToggling"
