@@ -31,6 +31,8 @@ export const users = fundSchema.table('users', {
   aiSystemPrompt: text('ai_system_prompt'),
   /** [修改] 账户可用现金余额 (用于买入扣款和卖出回款) */
   availableCash: numeric('available_cash', { precision: 18, scale: 4 }).default('0').notNull(),
+  /** API Token (SHA-256 哈希存储，用于 MCP Bearer 认证) */
+  apiToken: text('api_token').unique(),
   /** 用户创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })

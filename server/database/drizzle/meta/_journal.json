@@ -183,6 +183,13 @@
       "when": 1768894695552,
       "tag": "0025_sparkling_ted_forrester",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1768920980271,
+      "tag": "0026_unknown_joystick",
+      "breakpoints": true
     }
   ]
 }

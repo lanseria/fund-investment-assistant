@@ -74,20 +74,6 @@ export default defineNuxtConfig({
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
   },
 
-  routeRules: {
-    // [重要] Webhook 接口必须豁免 CSRF 检查，因为它们来自外部服务器
-    '/api/webhooks/**': {
-      security: {
-        csrf: false,
-      },
-    },
-    '/api/dev/**': {
-      security: {
-        csrf: false,
-      },
-    },
-  },
-
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
@@ -107,6 +93,7 @@ export default defineNuxtConfig({
     experimental: {
       database: true,
       tasks: true,
+      asyncContext: true,
     },
   },
   echarts: {

@@ -184,6 +184,9 @@ function formatCurrency(value: string | number | null | undefined) {
         @toggle="handleToggle"
         @save-config="handleSaveConfig"
       />
+
+      <!-- API Token 面板 -->
+      <ApiTokenPanel />
     </div>
   </div>
 </template>
