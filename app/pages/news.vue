@@ -78,7 +78,7 @@ async function handleAnalyze() {
 </script>
 
 <template>
-  <div class="mx-auto p-4 max-w-5xl lg:p-8 sm:p-6">
+  <div class="mx-auto p-4 max-w-6xl lg:p-8 sm:p-6">
     <header class="mb-8">
       <h1 class="text-2xl font-bold sm:text-3xl">
         市场情报
@@ -215,8 +215,8 @@ async function handleAnalyze() {
 
           <!-- 2. AI 分析视图 [新增] -->
           <div v-else-if="activeTab === 'analysis'" class="p-6 bg-purple-50/30 h-full overflow-y-auto dark:bg-purple-900/10">
-            <div v-if="newsData?.aiAnalysis" class="max-w-none prose dark:prose-invert">
-              <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap dark:text-gray-200">
+            <div v-if="newsData?.aiAnalysis" class="max-w-100 prose dark:prose-invert">
+              <div class="text-base text-gray-800 leading-relaxed font-sans w-full whitespace-pre-wrap break-words dark:text-gray-200">
                 {{ newsData.aiAnalysis }}
               </div>
             </div>
@@ -231,8 +231,8 @@ async function handleAnalyze() {
 
           <!-- 3. 原始报告视图 -->
           <div v-else class="p-6 h-full overflow-y-auto">
-            <div v-if="newsData?.content" class="max-w-none prose dark:prose-invert">
-              <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap dark:text-gray-200">
+            <div v-if="newsData?.content" class="max-w-100 prose dark:prose-invert">
+              <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap break-words dark:text-gray-200">
                 {{ newsData.content }}
               </div>
             </div>
