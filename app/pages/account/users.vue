@@ -16,6 +16,8 @@ interface AdminUserItem {
   cash: number // 后端计算返回
   fundValue: number // 后端计算返回
   totalAssets: number // 后端计算返回
+  holdingCount: number // [新增]
+  watchingCount: number // [新增]
   createdAt: string
   aiSystemPrompt?: string
 }
@@ -28,6 +30,53 @@ const isAddModalOpen = ref(false)
 const isCloneModalOpen = ref(false)
 const isEditModalOpen = ref(false)
 const isSubmitting = ref(false)
+
+// --- [新增] 合并持仓相关状态 ---
+const isMergeModalOpen = ref(false)
+const mergeSourceUser = ref<AdminUserItem | null>(null) // 来源用户 (当前点击的那行)
+const mergeTargetUserId = ref<number | null>(null) // 目标用户 ID
+
+// [新增] 打开合并模态框
+function openMergeModal(user: AdminUserItem) {
+  mergeSourceUser.value = user
+  mergeTargetUserId.value = null // 重置目标选择
+  isMergeModalOpen.value = true
+}
+
+// [新增] 提交合并请求
+async function handleMergeHoldings() {
+  if (!mergeSourceUser.value || !mergeTargetUserId.value)
+    return
+
+  const targetUser = users.value?.find(u => u.id === mergeTargetUserId.value)
+  if (!targetUser)
+    return
+
+  if (!confirm(`确认将 [${mergeSourceUser.value.username}] 的所有基金关注列表合并到 [${targetUser.username}] 吗？\n\n注意：如果 [${targetUser.username}] 已持有某基金，将保留其原数据，不会被覆盖。`)) {
+    return
+  }
+
+  isSubmitting.value = true
+  try {
+    const res = await apiFetch<{ message: string, addedCount: number }>('/api/admin/users/merge-holdings', {
+      method: 'POST',
+      body: {
+        sourceUserId: mergeSourceUser.value.id,
+        targetUserId: mergeTargetUserId.value,
+      },
+    })
+
+    alert(`合并成功！共为目标用户新增了 ${res.addedCount} 个基金关注。`)
+    isMergeModalOpen.value = false
+    await refresh() // 刷新列表以更新统计数据
+  }
+  catch (err: any) {
+    alert(`合并失败: ${err.data?.message || err.message}`)
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
 
 // 克隆相关
 const cloneSourceId = ref<number | null>(null)
@@ -137,21 +186,6 @@ async function handleAddUser(formData: any) {
   }
 }
 
-async function toggleUserAi(user: any) {
-  const newState = !user.isAiAgent
-  user.isAiAgent = newState
-  try {
-    await apiFetch(`/api/admin/users/${user.id}`, {
-      method: 'PUT',
-      body: { isAiAgent: newState },
-    })
-  }
-  catch (e: any) {
-    user.isAiAgent = !newState
-    alert(`更新失败: ${e.data?.message || '未知错误'}`)
-  }
-}
-
 async function deleteUser(user: any) {
   if (!confirm(`⚠️ 危险操作：确定要删除用户 "${user.username}" 吗？\n此操作将同时删除该用户的所有持仓记录且不可恢复！`)) {
     return
@@ -214,91 +248,142 @@ async function handleCloneUser() {
     <div v-else-if="error" class="text-red-500">
       加载失败: {{ error.message }}
     </div>
-    <div v-else class="overflow-hidden">
-      <table class="text-sm text-left w-full">
-        <!-- 表格 header -->
-        <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
+    <div v-else class="border border-gray-200 rounded-lg overflow-hidden dark:border-gray-700">
+      <table class="text-left w-full">
+        <!-- 表头：简化背景，使用 uppercase 和 spacing 增加质感 -->
+        <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
           <tr>
-            <th class="font-semibold p-4 w-16">
-              ID
+            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 w-64 uppercase">
+              用户 (User)
             </th>
-            <th class="font-semibold p-4">
-              用户名 / 角色
+            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-center uppercase">
+              投资组合 (Portfolio)
             </th>
-            <!-- [新增] 资产列 -->
-            <th class="font-semibold p-4 text-right">
-              总资产 (权益)
+            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-right uppercase">
+              财务概览 (Financials)
             </th>
-            <th class="font-semibold p-4 text-right">
-              持仓市值
+            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-center uppercase">
+              AI 代理
             </th>
-            <th class="font-semibold p-4 text-right">
-              可用现金
-            </th>
-            <th class="font-semibold p-4 text-center w-24">
-              AI
-            </th>
-            <th class="font-semibold p-4 text-right">
+            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-right uppercase">
               操作
             </th>
           </tr>
         </thead>
-        <!-- 表格 body -->
-        <tbody>
-          <tr v-for="user in users" :key="user.id" class="border-b transition-colors dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800/50">
-            <td class="text-gray-500 font-mono p-4">
-              {{ user.id }}
-            </td>
-            <td class="p-4">
-              <div class="font-bold">
-                {{ user.username }}
-              </div>
-              <div class="text-xs mt-1 flex gap-2 items-center">
-                <span class="px-1.5 py-0.5 rounded" :class="user.role === 'admin' ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800'">
-                  {{ user.role }}
-                </span>
-                <span class="text-gray-400">
-                  {{ new Date(user.createdAt).toLocaleDateString() }}
-                </span>
+
+        <tbody class="bg-white divide-gray-100 divide-y dark:bg-gray-900 dark:divide-gray-800">
+          <tr v-for="user in users" :key="user.id" class="transition-colors duration-150 hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
+            <!-- 1. 用户信息：头像 + 名字 + 角色 -->
+            <td class="px-6 py-4 align-top">
+              <div class="flex gap-3 items-start">
+                <!-- 头像 -->
+                <div
+                  class="text-sm font-bold rounded-full flex h-10 w-10 shadow-sm items-center justify-center"
+                  :class="user.role === 'admin' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'"
+                >
+                  {{ user.username.charAt(0).toUpperCase() }}
+                </div>
+                <!-- 详情 -->
+                <div>
+                  <div class="text-gray-900 font-medium dark:text-gray-100">
+                    {{ user.username }}
+                  </div>
+                  <div class="text-xs text-gray-400 mt-0.5 flex gap-1 items-center">
+                    <span class="font-mono">ID:{{ user.id }}</span>
+                    <span>·</span>
+                    <span class="capitalize">{{ user.role }}</span>
+                  </div>
+                </div>
               </div>
             </td>
 
-            <!-- [新增] 资产数据展示 -->
-            <td class="font-bold font-mono p-4 text-right">
-              {{ formatCurrency(user.totalAssets) }}
-            </td>
-            <td class="text-blue-600 font-mono p-4 text-right dark:text-blue-400">
-              {{ formatCurrency(user.fundValue) }}
-            </td>
-            <td class="text-gray-600 font-mono p-4 text-right dark:text-gray-400">
-              {{ formatCurrency(user.cash) }}
+            <!-- 2. 投资组合：持仓与关注 -->
+            <td class="px-6 py-4 text-center align-middle">
+              <div class="inline-flex flex-col gap-1.5 items-start">
+                <div class="text-xs text-blue-700 font-medium px-2.5 py-0.5 border border-blue-100 rounded-full bg-blue-50 flex gap-1.5 items-center dark:text-blue-300 dark:border-blue-800/50 dark:bg-blue-900/20">
+                  <div class="rounded-full bg-blue-500 h-1.5 w-1.5" />
+                  持仓: {{ user.holdingCount }}
+                </div>
+                <div class="text-xs text-gray-600 font-medium px-2.5 py-0.5 border border-gray-200 rounded-full bg-gray-100 flex gap-1.5 items-center dark:text-gray-400 dark:border-gray-700 dark:bg-gray-800">
+                  <div class="rounded-full bg-gray-400 h-1.5 w-1.5" />
+                  关注: {{ user.watchingCount }}
+                </div>
+              </div>
             </td>
 
-            <td class="p-4 text-center">
-              <button
-                class="border-2 border-transparent rounded-full inline-flex flex-shrink-0 h-5 w-9 cursor-pointer transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-                :class="user.isAiAgent ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-600'"
-                @click="toggleUserAi(user)"
+            <!-- 3. 财务概览：主次分明 -->
+            <td class="px-6 py-4 text-right align-middle">
+              <div class="flex flex-col gap-0.5">
+                <span class="text-sm text-gray-900 font-bold font-numeric dark:text-gray-100">
+                  {{ formatCurrency(user.totalAssets) }}
+                </span>
+                <div class="text-[10px] text-gray-400 font-mono flex flex-col gap-0.5 items-end">
+                  <span title="基金市值">F: {{ formatCurrency(user.fundValue) }}</span>
+                  <span title="可用现金">C: {{ formatCurrency(user.cash) }}</span>
+                </div>
+              </div>
+            </td>
+
+            <!-- 4. AI 状态 Badge -->
+            <td class="px-6 py-4 text-center align-middle">
+              <div
+                class="text-xs font-medium px-3 py-1 border rounded-full inline-flex gap-1.5 transition-colors items-center"
+                :class="user.isAiAgent
+                  ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800'
+                  : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700'"
               >
-                <span
-                  class="rounded-full bg-white h-4 w-4 inline-block pointer-events-none ring-0 shadow transform transition duration-200 ease-in-out"
-                  :class="user.isAiAgent ? 'translate-x-4' : 'translate-x-0'"
-                />
-              </button>
+                <div :class="user.isAiAgent ? 'i-carbon-bot text-teal-600 dark:text-teal-400' : 'i-carbon-user text-gray-400'" />
+                {{ user.isAiAgent ? 'Active' : 'Off' }}
+              </div>
             </td>
-            <td class="p-4 text-right">
-              <div class="flex gap-2 items-center justify-end">
-                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="编辑信息/资金" @click="openEditModal(user)">
-                  <div i-carbon-edit />
+
+            <!-- 5. 操作按钮 -->
+            <td class="px-6 py-4 text-right align-middle">
+              <div class="flex gap-1 justify-end">
+                <!-- 原有按钮: 编辑 -->
+                <button
+                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20"
+                  title="编辑用户/资金/AI配置"
+                  @click="openEditModal(user)"
+                >
+                  <div i-carbon-edit class="text-lg" />
                 </button>
-                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="重置密码" @click="openResetPwdModal(user.id)">
-                  <div i-carbon-password />
+
+                <!-- 原有按钮: 重置密码 -->
+                <button
+                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20"
+                  title="重置密码"
+                  @click="openResetPwdModal(user.id)"
+                >
+                  <div i-carbon-password class="text-lg" />
                 </button>
-                <button class="text-sm icon-btn px-2 py-1 border rounded dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700" title="克隆此用户" @click="openCloneModal(user.id)">
-                  <div i-carbon-copy-file />
+
+                <!-- [新增] 按钮: 合并持仓 -->
+                <!-- 图标：migrate/flow-stream/arrows-horizontal -->
+                <button
+                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:text-teal-400 dark:hover:bg-teal-900/20"
+                  title="合并持仓到..."
+                  @click="openMergeModal(user)"
+                >
+                  <div i-carbon-continuous-integration class="text-lg" />
                 </button>
-                <button class="text-sm icon-btn text-red-500 px-2 py-1 border border-red-200 rounded dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-900/20" title="删除用户" @click="deleteUser(user)">
-                  <div i-carbon-trash-can />
+
+                <!-- 原有按钮: 克隆 (新建) -->
+                <button
+                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:text-purple-400 dark:hover:bg-purple-900/20"
+                  title="克隆为新用户"
+                  @click="openCloneModal(user.id)"
+                >
+                  <div i-carbon-copy-file class="text-lg" />
+                </button>
+
+                <!-- 原有按钮: 删除 -->
+                <button
+                  class="text-gray-400 p-1.5 rounded-md transition-colors hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20"
+                  title="删除用户"
+                  @click="deleteUser(user)"
+                >
+                  <div i-carbon-trash-can class="text-lg" />
                 </button>
               </div>
             </td>
@@ -417,6 +502,66 @@ async function handleCloneUser() {
           </button>
           <button type="submit" class="btn" :disabled="!editForm.username || isSubmitting">
             {{ isSubmitting ? '保存中...' : '保存全部修改' }}
+          </button>
+        </div>
+      </form>
+    </Modal>
+    <!-- [新增] 合并持仓模态框 -->
+    <Modal v-model="isMergeModalOpen" title="合并持仓关注">
+      <form @submit.prevent="handleMergeHoldings">
+        <div class="space-y-4">
+          <div class="text-sm text-blue-800 p-3 rounded bg-blue-50 dark:text-blue-300 dark:bg-blue-900/20">
+            <p>
+              <span class="font-bold">源用户:</span> {{ mergeSourceUser?.username }}
+            </p>
+            <p class="mt-1 opacity-80">
+              操作逻辑：将该用户的所有基金（持仓+关注）复制给目标用户。
+              <br>• 取并集 (Union)
+              <br>• 如果目标用户已存在某基金，则<span class="font-bold">保留目标用户原数据</span>（不覆盖）。
+            </p>
+          </div>
+
+          <div>
+            <label class="text-sm font-medium mb-1 block">选择目标用户 (合并到...)</label>
+            <div class="relative">
+              <select
+                v-model="mergeTargetUserId"
+                class="input-base appearance-none"
+                required
+              >
+                <option :value="null" disabled>
+                  请选择用户
+                </option>
+                <!-- 过滤掉源用户自己 -->
+                <option
+                  v-for="u in users?.filter(x => x.id !== mergeSourceUser?.id)"
+                  :key="u.id"
+                  :value="u.id"
+                >
+                  {{ u.username }} (ID: {{ u.id }})
+                </option>
+              </select>
+              <div class="text-gray-500 px-3 flex pointer-events-none items-center inset-y-0 right-0 absolute">
+                <div i-carbon-chevron-down />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-6 flex justify-end space-x-3">
+          <button
+            type="button"
+            class="text-sm font-medium px-4 py-2 rounded-md bg-gray-100 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500"
+            @click="isMergeModalOpen = false"
+          >
+            取消
+          </button>
+          <button
+            type="submit"
+            class="btn text-white bg-teal-600 hover:bg-teal-700"
+            :disabled="!mergeTargetUserId || isSubmitting"
+          >
+            {{ isSubmitting ? '合并中...' : '确认合并' }}
           </button>
         </div>
       </form>
