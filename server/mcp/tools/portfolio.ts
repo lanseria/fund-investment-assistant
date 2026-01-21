@@ -2,7 +2,7 @@ import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
 
 export default defineMcpTool({
   name: 'get_portfolio',
-  description: '获取用户的当前基金持仓摘要、总资产和详细列表。',
+  description: '获取用户的当前基金持仓摘要、总资产和详细列表。列表包含基金代码、名称、板块、持有金额、收益率及策略信号建议。',
   // 不需要任何参数，直接从 Context 获取用户
   inputSchema: {},
   handler: async () => {
@@ -28,6 +28,7 @@ export default defineMcpTool({
       const simplifiedHoldings = holdings.map(h => ({
         code: h.code,
         name: h.name,
+        sector: h.sector || '未分类', // <--- 关键修改：暴露板块信息
         amount: h.holdingAmount,
         profitRate: h.holdingProfitRate,
         todayChange: h.percentageChange,
