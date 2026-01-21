@@ -118,7 +118,7 @@ export default defineNuxtConfig({
     },
   },
   mcp: {
-    name: 'My MCP Server',
+    name: 'Fund Investment Assistant MCP Server',
     route: '/mcp', // Default route for the MCP server
     dir: 'mcp', // Base directory for MCP definitions (relative to server/)
   },
