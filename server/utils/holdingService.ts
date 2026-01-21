@@ -2,8 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { funds, holdings } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { HoldingExistsError, HoldingNotFoundError } from '~~/server/utils/errors'
-// Nuxt 自动导入机制会从 fundService 导入这些函数
-import { findOrCreateFund, syncSingleFundEstimate } from '~~/server/utils/fundService'
+import { findOrCreateFund, syncSingleFundEstimate, syncSingleFundHistory } from '~~/server/utils/fundService'
 
 interface HoldingCreateData {
   code: string
@@ -30,6 +29,13 @@ export async function addHolding(data: HoldingCreateData) {
 
   // 调用 fundService 中的方法
   await findOrCreateFund(data.code, data.fundType)
+
+  try {
+    await syncSingleFundHistory(data.code)
+  }
+  catch (e) {
+    console.error(`[AutoSync] 添加基金时自动同步历史数据失败 (${data.code}):`, e)
+  }
 
   const newHoldingData = {
     userId: data.userId,
