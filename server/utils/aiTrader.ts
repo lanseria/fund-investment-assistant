@@ -3,7 +3,7 @@ import dayjs from 'dayjs'
 import { desc, gte } from 'drizzle-orm'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { newsItems } from '~~/server/database/schemas'
+import { aiDailyAnalysis, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
@@ -28,14 +28,19 @@ export type TradeDecision = z.infer<typeof TradeDecisionSchema>
 export async function buildAiContext(fullHoldingsData: any[]) {
   const db = useDb()
 
+  // [新增] 获取最新的 AI 热点分析 (TrendRadar)
+  // 获取日期最近的一条记录作为宏观参考
+  const latestAnalysisRecord = await db.query.aiDailyAnalysis.findFirst({
+    orderBy: [desc(aiDailyAnalysis.date)],
+  })
+
   // A. 获取近一个月的新闻事件 (舆情时间线)
-  // 获取最近 30 天的数据，限制 60 条，按时间倒序排列
   const oneMonthAgo = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
 
   const recentNewsItems = await db.query.newsItems.findMany({
     where: gte(newsItems.date, oneMonthAgo),
     orderBy: [desc(newsItems.date), desc(newsItems.id)],
-    limit: 60, // 限制数量以防 Context 超限
+    limit: 60,
     columns: {
       date: true,
       title: true,
@@ -44,7 +49,6 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     },
   })
 
-  // 格式化新闻数据，保留关键字段
   const formattedNewsTimeline = recentNewsItems.map(item => ({
     date: item.date,
     tag: item.tag || 'General',
@@ -52,11 +56,10 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     summary: item.content,
   }))
 
-  // B. 获取实时市场指数 (宏观) - 使用 Redis 缓存
+  // B. 获取实时市场指数 (宏观)
   const marketData: Record<string, any[]> = {}
   try {
     const indicesMap = await getCachedMarketData()
-    // 按板块分组
     for (const [_, groupInfo] of Object.entries(marketGroups)) {
       const groupList = []
       for (const code of groupInfo.codes) {
@@ -79,11 +82,9 @@ export async function buildAiContext(fullHoldingsData: any[]) {
   }
 
   // C. 格式化持仓与关注列表
-  // 辅助函数：保留4位小数并向下取整
   const floorShares = (num: number) => Math.floor(num * 10000) / 10000
 
   const simplify = (h: any) => {
-    // 计算可用份额 (总份额 - 待确认的卖出/转出份额)
     let availableShares = 0
     if (h.shares !== null) {
       const pendingFrozen = h.pendingTransactions
@@ -91,7 +92,6 @@ export async function buildAiContext(fullHoldingsData: any[]) {
         .reduce((sum: number, t: any) => sum + (Number(t.orderShares) || 0), 0) || 0
 
       const rawAvailable = Math.max(0, Number(h.shares) - pendingFrozen)
-      // [关键] 在这里直接向下取整，确保传给 AI 的就是安全值
       availableShares = floorShares(rawAvailable)
     }
 
@@ -99,20 +99,18 @@ export async function buildAiContext(fullHoldingsData: any[]) {
       code: h.code,
       name: h.name,
       sector: h.sector || '未分类',
-      // 持仓特有字段
       ...(h.holdingAmount !== null
         ? {
             costPrice: h.costPrice,
             holdingAmount: h.holdingAmount,
             profitRate: h.holdingProfitRate ? `${h.holdingProfitRate.toFixed(2)}%` : '0%',
-            totalShares: h.shares, // 总份额
-            availableShares, // 传递可用份额给 AI，用于清仓决策
+            totalShares: h.shares,
+            availableShares,
           }
         : {}),
       percentageChange: h.percentageChange ? `${h.percentageChange.toFixed(2)}%` : '0%',
-      signals: h.signals, // 包含 RSI, MACD 等信号
+      signals: h.signals,
       bias20: h.bias20,
-      // 交易回溯
       recentTransactions: h.recentTransactions?.slice(0, 3).map((t: any) => ({
         type: t.type,
         date: t.date,
@@ -127,7 +125,13 @@ export async function buildAiContext(fullHoldingsData: any[]) {
   const myWatchlist = fullHoldingsData.filter(h => h.holdingAmount === null).map(simplify)
 
   return {
-    market_events: formattedNewsTimeline, // [修改] 使用结构化时间线替代单一文本
+    daily_analysis: latestAnalysisRecord
+      ? {
+          date: latestAnalysisRecord.date,
+          content: latestAnalysisRecord.content,
+        }
+      : null,
+    market_events: formattedNewsTimeline,
     market_indices: marketData,
     holdings: myHoldings,
     watchlist: myWatchlist,
@@ -152,21 +156,17 @@ interface AiTradeResult {
  * 用于前端“复制 Prompt”功能
  */
 export async function generateAiPrompt(fullHoldingsData: any[], userConfig: UserAiConfig) {
-  // 1. 强制校验：用户必须配置 System Prompt
   if (!userConfig.aiSystemPrompt || !userConfig.aiSystemPrompt.trim()) {
     throw new Error('用户未配置 AI 策略提示词 (System Prompt)。')
   }
 
-  // 2. 准备上下文数据 (JSON)
   const contextData = await buildAiContext(fullHoldingsData)
 
-  // 3. 计算持仓市值并获取可用资金
   const availableCash = userConfig.availableCash
   const currentInvested = fullHoldingsData.reduce((sum, h) => sum + (Number(h.holdingAmount) || 0), 0)
   const totalAssets = availableCash + currentInvested
   const availableCashStr = availableCash.toFixed(2)
 
-  // 4. 构建 System Prompt
   const currentTimestamp = new Date().toLocaleString()
 
   const fixedContext = `
@@ -176,7 +176,12 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   - 总资产: ${totalAssets.toFixed(4)} 元
   - 当前持仓市值: ${currentInvested.toFixed(4)} 元
   - **可用现金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
-- **输入数据**: 包含市场指数(market_indices)、**近30天新闻事件时间线(market_events)**、持仓(holdings)和自选(watchlist)的 JSON 数据。
+- **输入数据**: 
+  1. **daily_analysis (重点)**: 每日宏观热点深度分析，包含核心主线和微观领域动态。请以此定调今日整体策略（进攻/防御）。
+  2. market_indices: 实时市场指数。
+  3. market_events: 近30天新闻事件时间线。
+  4. holdings: 当前持仓。
+  5. watchlist: 关注列表。
 `
 
   const fixedOutputRules = `
