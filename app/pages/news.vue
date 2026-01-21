@@ -16,7 +16,8 @@ const { copy, copied } = useClipboard({ legacy: true })
 
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期（用于查询数据）
-const activeTab = ref<'items' | 'raw'>('items') // 默认显示结构化列表
+// [修改] 增加 'analysis' 状态
+const activeTab = ref<'items' | 'analysis' | 'raw'>('analysis')
 const isAnalyzing = ref(false)
 
 const { data: newsData, pending, refresh } = await useAsyncData<NewsData>(
@@ -27,14 +28,29 @@ const { data: newsData, pending, refresh } = await useAsyncData<NewsData>(
   },
 )
 
+// 智能切换默认 Tab：如果有结构化数据，显示结构化；否则如果有 AI 分析，显示分析；否则显示原始
+watch(newsData, (val) => {
+  if (val) {
+    if (val.items && val.items.length > 0)
+      activeTab.value = 'items'
+    else if (val.aiAnalysis)
+      activeTab.value = 'analysis'
+    else
+      activeTab.value = 'raw'
+  }
+})
+
 // 复制文本
 function handleCopy() {
-  if (newsData.value?.content) {
+  if (activeTab.value === 'raw' && newsData.value?.content) {
     copy(newsData.value.content)
+  }
+  else if (activeTab.value === 'analysis' && newsData.value?.aiAnalysis) {
+    copy(newsData.value.aiAnalysis)
   }
 }
 
-// [新增] 手动触发 AI 分析
+// 手动触发 AI 分析 (保持不变)
 async function handleAnalyze() {
   if (!newsData.value?.content)
     return
@@ -49,9 +65,8 @@ async function handleAnalyze() {
       body: { date: selectedDate.value },
     })
     alert(res.message)
-    // 刷新数据并切换到精选 Tab
+    // 刷新数据
     await refresh()
-    activeTab.value = 'items'
   }
   catch (e: any) {
     alert(`分析失败: ${e.data?.message || e.message}`)
@@ -74,7 +89,7 @@ async function handleAnalyze() {
     </header>
 
     <div class="flex flex-col gap-8 items-start md:flex-row">
-      <!-- 左侧：日历 [修改] 使用组件 -->
+      <!-- 左侧：日历 -->
       <CalendarWidget v-model="selectedDate" />
 
       <!-- 右侧：新闻内容展示 -->
@@ -102,6 +117,13 @@ async function handleAnalyze() {
               </button>
               <button
                 class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
+                :class="activeTab === 'analysis' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-teal-700 dark:text-gray-400'"
+                @click="activeTab = 'analysis'"
+              >
+                AI 分析
+              </button>
+              <button
+                class="text-xs font-medium px-3 py-1.5 rounded-md transition-colors"
                 :class="activeTab === 'raw' ? 'bg-white text-primary shadow-sm dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-teal-700 dark:text-gray-400'"
                 @click="activeTab = 'raw'"
               >
@@ -113,14 +135,14 @@ async function handleAnalyze() {
 
             <button
               class="text-sm icon-btn px-3 py-1.5 border rounded-md flex gap-1 items-center dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700"
-              :disabled="!newsData?.content"
-              title="复制原始报告文本"
+              :disabled="activeTab === 'items'"
+              title="复制当前文本 (Raw/Analysis)"
               @click="handleCopy"
             >
               <div :class="copied ? 'i-carbon-checkmark text-green-500' : 'i-carbon-copy'" />
             </button>
 
-            <!-- [新增] AI 分析按钮 (仅在 Raw Tab 显示) -->
+            <!-- AI 分析按钮 (仅在 Raw Tab 显示) -->
             <button
               v-if="activeTab === 'raw'"
               class="text-sm text-primary px-3 py-1.5 border border-primary/30 rounded-md bg-primary/5 flex gap-1 items-center hover:bg-primary/10 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -145,9 +167,9 @@ async function handleAnalyze() {
           </div>
 
           <!-- 无数据状态 -->
-          <div v-if="!pending && !newsData?.content && (!newsData?.items || newsData.items.length === 0)" class="text-gray-400 flex flex-col h-full items-center justify-center">
+          <div v-if="!pending && !newsData?.content && (!newsData?.items || newsData.items.length === 0) && !newsData?.aiAnalysis" class="text-gray-400 flex flex-col h-full items-center justify-center">
             <div i-carbon-document-unknown class="text-5xl mb-4 opacity-50" />
-            <p>该日期暂无新闻数据</p>
+            <p>该日期暂无数据</p>
           </div>
 
           <!-- 1. AI 结构化列表视图 -->
@@ -181,10 +203,9 @@ async function handleAnalyze() {
                 </div>
               </div>
             </div>
-            <!-- 如果有 Raw 内容但 AI 列表为空 (比如未触发清洗或清洗失败) -->
             <div v-else class="py-10 text-center">
               <p class="text-gray-500 mb-2">
-                暂无结构化数据
+                暂无 AI 精选数据
               </p>
               <button class="text-sm text-primary hover:underline" @click="activeTab = 'raw'">
                 查看原始报告
@@ -192,7 +213,23 @@ async function handleAnalyze() {
             </div>
           </div>
 
-          <!-- 2. 原始报告视图 -->
+          <!-- 2. AI 分析视图 [新增] -->
+          <div v-else-if="activeTab === 'analysis'" class="p-6 bg-purple-50/30 h-full overflow-y-auto dark:bg-purple-900/10">
+            <div v-if="newsData?.aiAnalysis" class="max-w-none prose dark:prose-invert">
+              <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap dark:text-gray-200">
+                {{ newsData.aiAnalysis }}
+              </div>
+            </div>
+            <div v-else class="text-gray-500 py-10 text-center">
+              <div i-carbon-bot class="text-4xl mx-auto mb-2 opacity-30" />
+              <p>暂无 AI 热点分析数据</p>
+              <p class="text-xs mt-1 opacity-70">
+                (通常包含在原始报告末尾，如未自动提取，请查看原始报告)
+              </p>
+            </div>
+          </div>
+
+          <!-- 3. 原始报告视图 -->
           <div v-else class="p-6 h-full overflow-y-auto">
             <div v-if="newsData?.content" class="max-w-none prose dark:prose-invert">
               <div class="text-base text-gray-800 leading-relaxed font-sans whitespace-pre-wrap dark:text-gray-200">

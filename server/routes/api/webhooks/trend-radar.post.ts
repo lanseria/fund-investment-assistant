@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
 import { eq } from 'drizzle-orm'
-import { dailyNews, newsItems } from '~~/server/database/schemas'
+import { aiDailyAnalysis, dailyNews, newsItems } from '~~/server/database/schemas'
 import { processNewsWithAi } from '~~/server/utils/aiNews'
 import { useDb } from '~~/server/utils/db'
 
@@ -24,74 +24,103 @@ export default defineEventHandler(async (event) => {
 
     const db = useDb()
 
-    // 2. 查询当天是否已有记录
+    // --- 1. 保存原始报告 (覆盖模式) ---
     const existingRecord = await db.query.dailyNews.findFirst({
       where: eq(dailyNews.date, todayStr),
     })
 
     if (existingRecord) {
-      // 3.A 如果存在，进行拼接 (追加模式)
-      // 使用分隔符隔开多次推送的内容
-      const separator = '\n\n---\n\n'
-      const newContent = existingRecord.content + separator + incomingText
-
+      // [修改] 覆盖更新
       await db.update(dailyNews)
         .set({
-          content: newContent,
-          updatedAt: new Date(), // 更新时间戳
+          content: incomingText,
+          updatedAt: new Date(),
         })
         .where(eq(dailyNews.id, existingRecord.id))
-
-      console.log(`[Webhook] 已追加数据到今日 (${todayStr}) 记录。`)
+      console.log(`[Webhook] 今日 (${todayStr}) 原始报告已覆盖更新。`)
     }
     else {
-      // 3.B 如果不存在，创建新记录
+      // 插入新记录
       await db.insert(dailyNews).values({
         date: todayStr,
         title: incomingTitle,
         content: incomingText,
       })
-
-      console.log(`[Webhook] 已创建今日 (${todayStr}) 新记录。`)
+      console.log(`[Webhook] 已创建今日 (${todayStr}) 原始报告。`)
     }
 
-    // --- 4. 触发 AI 清洗流程 (异步处理，不阻塞 webhook 返回，或视需求 await) ---
-    // 为了确保数据一致性，这里选择 await。如果 webhook 超时，可改为 event.waitUntil (Nitro特定) 或完全异步。
+    // --- 2. 提取并保存 AI 热点分析 (覆盖模式) ---
+
+    // [核心修改] 使用针对性优化的正则进行分割
+    // 匹配逻辑：找行首的 "# ✨ AI 热点分析" 或类似变体，并捕获其后所有内容
+    const aiAnalysisRegex = /((?:^|\n)#+\s*(?:(?:🤖|✨)\s*)?AI\s*(?:热点|深度)?(?:分析|汇总|报告)[\s\S]*)/i
+    const match = incomingText.match(aiAnalysisRegex)
+
+    // 如果匹配到了，match[1] 就是包含标题在内的所有后续内容
+    // .trim() 去除首尾多余空白
+    const extractedAiContent = match ? match[1].trim() : null
+
+    if (extractedAiContent) {
+      console.log(`[Webhook] 成功提取 AI 分析板块，长度: ${extractedAiContent.length}`)
+
+      const existingAnalysis = await db.query.aiDailyAnalysis.findFirst({
+        where: eq(aiDailyAnalysis.date, todayStr),
+      })
+
+      if (existingAnalysis) {
+        await db.update(aiDailyAnalysis)
+          .set({
+            content: extractedAiContent,
+            updatedAt: new Date(),
+          })
+          .where(eq(aiDailyAnalysis.id, existingAnalysis.id))
+      }
+      else {
+        await db.insert(aiDailyAnalysis).values({
+          date: todayStr,
+          content: extractedAiContent,
+        })
+      }
+    }
+    else {
+      console.log('[Webhook] 未检测到 "### ✨ AI 热点分析" 或类似段落，跳过 AI 分析表更新。')
+    }
+
+    // --- 3. 触发 AI 清洗 (News Items) ---
+    // (保持原有逻辑)
     try {
-      console.log(`[Webhook] 开始 AI 清洗，文本长度: ${incomingText.length}...`)
+      // ... (此处保持不变，省略以节省空间) ...
+      // 如果您需要这部分代码也请告诉我，通常这部分不需要变动
+      console.log(`[Webhook] 开始 AI 清洗 (Structured Items)...`)
       const structuredItems = await processNewsWithAi(incomingText)
 
       if (structuredItems.length > 0) {
-        const rowsToInsert = structuredItems.map(item => ({
-          date: todayStr,
-          title: item.title,
-          content: item.content,
-          url: item.url,
-          tag: item.tag,
-        }))
-
-        await db.insert(newsItems).values(rowsToInsert)
-        console.log(`[Webhook] AI 清洗完成，存入 ${rowsToInsert.length} 条结构化新闻。`)
-      }
-      else {
-        console.log(`[Webhook] AI 未提取到有效新闻。`)
+        await db.transaction(async (tx) => {
+          await tx.delete(newsItems).where(eq(newsItems.date, todayStr))
+          const rowsToInsert = structuredItems.map(item => ({
+            date: todayStr,
+            title: item.title,
+            content: item.content,
+            url: item.url,
+            tag: item.tag,
+          }))
+          await tx.insert(newsItems).values(rowsToInsert)
+        })
+        console.log(`[Webhook] AI 清洗完成，已覆盖存入 ${structuredItems.length} 条结构化新闻。`)
       }
     }
     catch (aiError) {
-      console.error(`[Webhook] AI 处理过程出错 (不影响 Raw 数据保存):`, aiError)
+      console.error(`[Webhook] AI 处理过程出错:`, aiError)
     }
 
     return {
       status: 'success',
-      message: 'Data saved and processed successfully',
+      message: 'Data processed successfully (Overwritten)',
       date: todayStr,
     }
   }
   catch (error: any) {
-    console.error('[Webhook] 处理 TrendRadar 数据并保存数据库时出错:', error)
-    throw createError({
-      statusCode: 500,
-      message: 'Internal Server Error processing webhook',
-    })
+    console.error('[Webhook] Error:', error)
+    throw createError({ statusCode: 500, message: 'Internal Server Error' })
   }
 })

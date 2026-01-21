@@ -1,5 +1,5 @@
 import { desc, eq } from 'drizzle-orm'
-import { dailyNews, newsItems } from '~~/server/database/schemas'
+import { aiDailyAnalysis, dailyNews, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -13,20 +13,26 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
 
   // 1. 获取 Raw 报告
-  const record = await db.query.dailyNews.findFirst({
+  const rawRecord = await db.query.dailyNews.findFirst({
     where: eq(dailyNews.date, dateStr),
   })
 
-  // 2. 获取结构化列表
+  // 2. [新增] 获取 AI 分析
+  const aiRecord = await db.query.aiDailyAnalysis.findFirst({
+    where: eq(aiDailyAnalysis.date, dateStr),
+  })
+
+  // 3. 获取结构化列表
   const items = await db.query.newsItems.findMany({
     where: eq(newsItems.date, dateStr),
-    orderBy: [desc(newsItems.id)], // 后进先出
+    orderBy: [desc(newsItems.id)],
   })
 
   return {
     date: dateStr,
-    title: record?.title || null,
-    content: record?.content || null, // Raw Markdown
+    title: rawRecord?.title || null,
+    content: rawRecord?.content || null, // Raw Markdown
+    aiAnalysis: aiRecord?.content || null, // [新增] Extracted AI Analysis
     items: items || [], // Structured List
   }
 })

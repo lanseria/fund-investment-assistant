@@ -190,6 +190,13 @@
       "when": 1768920980271,
       "tag": "0026_unknown_joystick",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1768975912542,
+      "tag": "0027_magical_mandrill",
+      "breakpoints": true
     }
   ]
 }

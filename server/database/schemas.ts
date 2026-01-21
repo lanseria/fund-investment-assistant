@@ -240,6 +240,19 @@ export const newsItems = fundSchema.table('news_items', {
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
 
+// 每日 AI 热点分析表 (从 Webhook 文本中提取或独立生成)
+export const aiDailyAnalysis = fundSchema.table('ai_daily_analysis', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 关联日期 (YYYY-MM-DD) */
+  date: date('date').notNull().unique(),
+  /** 分析内容 (Markdown 格式) */
+  content: text('content').notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  /** 更新时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
 /**
  * AI 执行日志表 (ai_execution_logs)
  * 记录每次 AI 自动交易生成的 Prompt 和原始响应，用于调试和人工干预
