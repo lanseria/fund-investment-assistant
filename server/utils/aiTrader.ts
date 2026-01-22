@@ -217,6 +217,10 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
       - 场景: 止盈落袋 / 熊市避险。
       - ⚠️ **注意**: 此操作本质是卖出，同样受 **7天 1.5% 费率** 限制。请优先选择持仓时间 >7 天的标的进行转出。
 
+3. **数据精度要求 (Precision Constraint)：**
+   - **amount (金额)** 和 **shares (份额)** 字段必须 **严格保留 4 位小数**。
+   - 即使是整数，也必须输出为 \`100.0000\` 的形式。
+
 #### 4. Output Format (JSON Only)
 
 请严格输出如下 JSON 格式 (必须包含在 "decisions" 字段中):
@@ -226,7 +230,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
     {
       "fundCode": "001111",
       "action": "convert_out",
-      "shares": 100,
+      "shares": 100.0000,
       "reason": "卖出源基金"
     },
     {
@@ -238,10 +242,10 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
     {
       "fundCode": "00111",
       "action": "buy",
-      "amount": 5000,
-      "shares": 0,
-      "reason": "RSI超卖，回踩支撑位",
-    },
+      "amount": 5000.0000,
+      "shares": 0.0000,
+      "reason": "RSI超卖，回踩支撑位"
+    }
   ]
 }
 `
