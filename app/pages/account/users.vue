@@ -52,7 +52,7 @@ async function handleMergeHoldings() {
   if (!targetUser)
     return
 
-  if (!confirm(`确认将 [${mergeSourceUser.value.username}] 的所有基金关注列表合并到 [${targetUser.username}] 吗？\n\n注意：如果 [${targetUser.username}] 已持有某基金，将保留其原数据，不会被覆盖。`)) {
+  if (!confirm(`确认将 [${mergeSourceUser.value.username}] 的所有基金列表合并到 [${targetUser.username}] 吗？\n\n新添加的基金将默认为“仅关注”状态（不复制持仓份额）。\n如果目标用户已持有某基金，将保留其原数据。`)) {
     return
   }
 
@@ -516,7 +516,7 @@ async function handleCloneUser() {
             </p>
             <p class="mt-1 opacity-80">
               操作逻辑：将该用户的所有基金（持仓+关注）复制给目标用户。
-              <br>• 取并集 (Union)
+              <br>• 取并集 (Union)，新条目作为<span class="font-bold">仅关注</span>添加。
               <br>• 如果目标用户已存在某基金，则<span class="font-bold">保留目标用户原数据</span>（不覆盖）。
             </p>
           </div>

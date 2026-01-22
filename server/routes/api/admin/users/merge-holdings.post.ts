@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
 
     const result = await db.execute(sql`
       INSERT INTO ${holdings} (user_id, fund_code, shares, cost_price)
-      SELECT ${targetUserId}, fund_code, shares, cost_price
+      SELECT ${targetUserId}, fund_code, NULL, NULL
       FROM ${holdings}
       WHERE user_id = ${sourceUserId}
       ON CONFLICT (user_id, fund_code) DO NOTHING
