@@ -64,5 +64,8 @@
     "unplugin": "catalog:build",
     "vite": "catalog:build",
     "vue-echarts": "catalog:frontend"
+  },
+  "dependencies": {
+    "@iconify-json/f7": "catalog:icons"
   }
 }

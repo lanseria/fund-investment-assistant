@@ -241,7 +241,7 @@ function getActionLabel(type: string) {
                     <span class="text-gray-800 font-bold dark:text-gray-200" :class="{ 'text-gray-400': group.txs.length === 0 }">
                       {{ group.user.username }}
                     </span>
-                    <span v-if="group.user.isAiAgent" class="i-carbon-bot text-xs text-primary" title="AI 代理账户" />
+                    <AiAgentBadge v-if="group.user.isAiAgent" />
                   </div>
                 </div>
 

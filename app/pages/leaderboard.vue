@@ -159,22 +159,47 @@ function getPeriodLabel(period: LeaderboardPeriod) {
           <div class="pl-2 flex-grow min-w-0">
             <div class="flex gap-2 items-center">
               <span class="font-bold truncate">{{ user.username }}</span>
-              <span v-if="user.isAiAgent" class="i-carbon-bot text-sm text-primary" title="AI 自动交易账户" />
+              <AiAgentBadge v-if="user.isAiAgent" />
             </div>
 
-            <!-- 资产细分条 -->
-            <div class="text-xs text-gray-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
-              <span class="text-gray-800 font-medium dark:text-gray-300">
-                总资产: {{ formatCurrency(user.totalAssets) }}
-              </span>
-              <span class="flex gap-1 items-center" title="持仓市值">
-                <div class="rounded-full bg-blue-400 h-2 w-2" />
-                {{ formatCurrency(user.fundValue) }}
-              </span>
-              <span class="flex gap-1 items-center" title="剩余资金">
-                <div class="rounded-full bg-gray-300 h-2 w-2 dark:bg-gray-600" />
-                {{ formatCurrency(user.cash) }}
-              </span>
+            <!-- 资产细分条 (带进度条) -->
+            <div class="mt-2 max-w-md w-full">
+              <!-- 进度条 -->
+              <div class="rounded-full bg-gray-100 flex h-1.5 w-full overflow-hidden dark:bg-gray-700/50">
+                <!-- 基金部分 -->
+                <div
+                  class="group/bar bg-blue-500 relative"
+                  :style="{ width: user.totalAssets > 0 ? `${(user.fundValue / user.totalAssets) * 100}%` : '0%' }"
+                >
+                  <!-- 悬浮显示仓位 -->
+                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar:opacity-100 -translate-x-1/2">
+                    仓位: {{ user.totalAssets > 0 ? ((user.fundValue / user.totalAssets) * 100).toFixed(0) : 0 }}%
+                  </div>
+                </div>
+                <!-- 现金部分 (自动填充剩余) -->
+                <div class="group/bar-cash bg-emerald-400 flex-grow relative">
+                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar-cash:opacity-100 -translate-x-1/2">
+                    现金: {{ user.totalAssets > 0 ? ((user.cash / user.totalAssets) * 100).toFixed(0) : 0 }}%
+                  </div>
+                </div>
+              </div>
+
+              <!-- 数值详情 -->
+              <div class="text-[10px] text-gray-400 font-mono mt-1 flex items-center justify-between">
+                <div class="flex gap-2">
+                  <span class="flex gap-1 items-center" title="基金市值">
+                    <span class="rounded-full bg-blue-500 h-1.5 w-1.5" />
+                    {{ formatCurrency(user.fundValue) }}
+                  </span>
+                  <span class="flex gap-1 items-center" title="可用现金">
+                    <span class="rounded-full bg-emerald-400 h-1.5 w-1.5" />
+                    {{ formatCurrency(user.cash) }}
+                  </span>
+                </div>
+                <div class="text-gray-600 font-bold dark:text-gray-300" title="总资产">
+                  Total: {{ formatCurrency(user.totalAssets) }}
+                </div>
+              </div>
             </div>
           </div>
 

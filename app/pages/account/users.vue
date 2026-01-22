@@ -243,140 +243,145 @@ async function handleCloneUser() {
     <div v-else-if="error" class="text-red-500">
       加载失败: {{ error.message }}
     </div>
-    <div v-else class="border border-gray-200 rounded-lg overflow-hidden dark:border-gray-700">
-      <table class="text-left w-full">
-        <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
+    <div v-else class="border border-gray-200 rounded-lg shadow-sm overflow-hidden dark:border-gray-700">
+      <table class="text-left w-full table-fixed">
+        <thead class="border-b border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800">
           <tr>
-            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 w-64 uppercase">
-              用户 (User)
+            <th class="text-xs text-gray-500 font-semibold px-6 py-4 w-[25%] uppercase">
+              用户
             </th>
-            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-center uppercase">
-              投资组合 (Portfolio)
+            <th class="text-xs text-gray-500 font-semibold px-6 py-4 w-[40%] uppercase">
+              资金分布 (利用率)
             </th>
-            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-right uppercase">
-              财务概览 (Financials)
+            <th class="text-xs text-gray-500 font-semibold px-6 py-4 text-center w-[15%] uppercase">
+              持仓统计
             </th>
-            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-center uppercase">
-              AI 代理
-            </th>
-            <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 text-right uppercase">
+            <th class="text-xs text-gray-500 font-semibold px-6 py-4 text-right w-[20%] uppercase">
               操作
             </th>
           </tr>
         </thead>
 
         <tbody class="bg-white divide-gray-100 divide-y dark:bg-gray-900 dark:divide-gray-800">
-          <tr v-for="user in users" :key="user.id" class="transition-colors duration-150 hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
-            <!-- 1. 用户信息：头像 + 名字 + 角色 -->
-            <td class="px-6 py-4 align-top">
-              <div class="flex gap-3 items-start">
-                <!-- 头像 -->
+          <tr v-for="user in users" :key="user.id" class="group transition-colors duration-150 hover:bg-gray-50/80 dark:hover:bg-gray-800/60">
+            <!-- 1. 用户信息 -->
+            <td class="px-6 py-5 align-top">
+              <div class="flex gap-3 items-center">
                 <div
-                  class="text-sm font-bold rounded-full flex h-10 w-10 shadow-sm items-center justify-center"
-                  :class="user.role === 'admin' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300'"
+                  class="text-sm font-bold rounded-full flex shrink-0 h-10 w-10 ring-1 ring-gray-200 shadow-sm items-center justify-center dark:ring-gray-700"
+                  :class="user.role === 'admin' ? 'bg-purple-100 text-purple-600 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-600 dark:bg-blue-900/40 dark:text-blue-300'"
                 >
                   {{ user.username.charAt(0).toUpperCase() }}
                 </div>
-                <!-- 详情 -->
-                <div>
-                  <div class="text-gray-900 font-medium dark:text-gray-100">
-                    {{ user.username }}
+                <div class="flex flex-col min-w-0">
+                  <div class="flex gap-2 items-center">
+                    <span class="text-gray-900 font-semibold truncate dark:text-gray-100">
+                      {{ user.username }}
+                    </span>
+                    <AiAgentBadge v-if="user.isAiAgent" />
                   </div>
-                  <div class="text-xs text-gray-400 mt-0.5 flex gap-1 items-center">
-                    <span class="font-mono">ID:{{ user.id }}</span>
-                    <span>·</span>
-                    <span class="capitalize">{{ user.role }}</span>
+                  <div class="mt-0.5 flex gap-2 items-center">
+                    <span class="text-[10px] text-gray-400 font-mono">ID:{{ user.id }}</span>
+                    <span
+                      class="text-[10px] px-1.5 py-px border rounded capitalize"
+                      :class="user.role === 'admin' ? 'border-purple-200 text-purple-600 bg-purple-50 dark:border-purple-800 dark:bg-purple-900/20' : 'border-gray-200 text-gray-500 bg-gray-50 dark:border-gray-700 dark:bg-gray-800'"
+                    >
+                      {{ user.role }}
+                    </span>
                   </div>
                 </div>
               </div>
             </td>
 
-            <!-- 2. 投资组合：持仓与关注 -->
-            <td class="px-6 py-4 text-center align-middle">
-              <div class="inline-flex flex-col gap-1.5 items-start">
-                <div class="text-xs text-blue-700 font-medium px-2.5 py-0.5 border border-blue-100 rounded-full bg-blue-50 flex gap-1.5 items-center dark:text-blue-300 dark:border-blue-800/50 dark:bg-blue-900/20">
-                  <div class="rounded-full bg-blue-500 h-1.5 w-1.5" />
-                  持仓: {{ user.holdingCount }}
+            <!-- 2. 资金分布 & 进度条 -->
+            <td class="px-6 py-5 align-middle">
+              <div class="flex flex-col gap-2 w-full">
+                <!-- 总资产标题 -->
+                <div class="flex items-baseline justify-between">
+                  <span class="text-xs text-gray-500 dark:text-gray-400">总资产</span>
+                  <span class="text-lg text-gray-900 font-bold font-numeric dark:text-white">
+                    {{ formatCurrency(user.totalAssets) }}
+                  </span>
                 </div>
-                <div class="text-xs text-gray-600 font-medium px-2.5 py-0.5 border border-gray-200 rounded-full bg-gray-100 flex gap-1.5 items-center dark:text-gray-400 dark:border-gray-700 dark:bg-gray-800">
-                  <div class="rounded-full bg-gray-400 h-1.5 w-1.5" />
-                  关注: {{ user.watchingCount }}
+
+                <!-- 进度条 (资金利用率) -->
+                <div class="rounded-full bg-gray-100 flex h-2.5 w-full overflow-hidden dark:bg-gray-700/50">
+                  <!-- 基金部分 (仓位) -->
+                  <div
+                    class="group/bar bg-blue-500 transition-all duration-500 ease-out relative"
+                    :style="{ width: user.totalAssets > 0 ? `${(user.fundValue / user.totalAssets) * 100}%` : '0%' }"
+                  >
+                    <!-- 悬浮提示仓位比例 -->
+                    <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar:opacity-100 -translate-x-1/2">
+                      仓位: {{ user.totalAssets > 0 ? ((user.fundValue / user.totalAssets) * 100).toFixed(1) : 0 }}%
+                    </div>
+                  </div>
+                  <!-- 现金部分 (剩余) - 自动填充剩余空间 -->
+                  <div class="group/bar-cash bg-emerald-400 flex-grow relative">
+                    <!-- 悬浮提示现金比例 -->
+                    <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar-cash:opacity-100 -translate-x-1/2">
+                      现金: {{ user.totalAssets > 0 ? ((user.cash / user.totalAssets) * 100).toFixed(1) : 0 }}%
+                    </div>
+                  </div>
+                </div>
+
+                <!-- 详细数值 (中文) -->
+                <div class="text-xs mt-0.5 flex items-center justify-between">
+                  <div class="flex gap-1.5 items-center" title="已买入基金的市值">
+                    <span class="rounded-full bg-blue-500 h-2 w-2" />
+                    <span class="text-gray-500 dark:text-gray-400">基金市值:</span>
+                    <span class="text-gray-700 font-medium font-numeric dark:text-gray-200">{{ formatCurrency(user.fundValue) }}</span>
+                  </div>
+                  <div class="flex gap-1.5 items-center" title="账户内可用余额">
+                    <span class="rounded-full bg-emerald-400 h-2 w-2" />
+                    <span class="text-gray-500 dark:text-gray-400">可用现金:</span>
+                    <span class="text-gray-700 font-medium font-numeric dark:text-gray-200">{{ formatCurrency(user.cash) }}</span>
+                  </div>
                 </div>
               </div>
             </td>
 
-            <!-- 3. 财务概览：主次分明 -->
-            <td class="px-6 py-4 text-right align-middle">
-              <div class="flex flex-col gap-0.5">
-                <span class="text-sm text-gray-900 font-bold font-numeric dark:text-gray-100">
-                  {{ formatCurrency(user.totalAssets) }}
-                </span>
-                <div class="text-[10px] text-gray-400 font-mono flex flex-col gap-0.5 items-end">
-                  <span title="基金市值">F: {{ formatCurrency(user.fundValue) }}</span>
-                  <span title="可用现金">C: {{ formatCurrency(user.cash) }}</span>
+            <!-- 3. 持仓统计 -->
+            <td class="px-6 py-5 align-middle">
+              <div class="flex flex-col gap-2 h-full items-center justify-center">
+                <div class="px-3 py-1.5 border border-blue-100 rounded-md bg-blue-50/50 flex w-24 items-center justify-between dark:border-blue-800/30 dark:bg-blue-900/10">
+                  <span class="text-xs text-blue-600/80 dark:text-blue-300/80">持仓</span>
+                  <span class="text-sm text-blue-700 font-bold font-numeric dark:text-blue-300">{{ user.holdingCount }}</span>
+                </div>
+                <div class="px-3 py-1.5 border border-gray-100 rounded-md bg-gray-50 flex w-24 items-center justify-between dark:border-gray-700/50 dark:bg-gray-800/50">
+                  <span class="text-xs text-gray-500">关注</span>
+                  <span class="text-sm text-gray-600 font-bold font-numeric dark:text-gray-400">{{ user.watchingCount }}</span>
                 </div>
               </div>
             </td>
 
-            <!-- 4. AI 状态 Badge -->
-            <td class="px-6 py-4 text-center align-middle">
-              <div
-                class="text-xs font-medium px-3 py-1 border rounded-full inline-flex gap-1.5 transition-colors items-center"
-                :class="user.isAiAgent
-                  ? 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-900/20 dark:text-teal-300 dark:border-teal-800'
-                  : 'bg-gray-50 text-gray-500 border-gray-200 dark:bg-gray-800 dark:text-gray-500 dark:border-gray-700'"
-              >
-                <div :class="user.isAiAgent ? 'i-carbon-bot text-teal-600 dark:text-teal-400' : 'i-carbon-user text-gray-400'" />
-                {{ user.isAiAgent ? 'Active' : 'Off' }}
-              </div>
-            </td>
-
-            <!-- 5. 操作按钮 -->
-            <td class="px-6 py-4 text-right align-middle">
-              <div class="flex gap-1 justify-end">
-                <!-- 原有按钮: 编辑 -->
-                <button
-                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/20"
-                  title="编辑用户/资金/AI配置"
-                  @click="openEditModal(user)"
-                >
+            <!-- 4. 操作按钮 -->
+            <td class="px-6 py-5 text-right align-middle">
+              <div class="opacity-60 flex gap-1 transition-opacity justify-end group-hover:opacity-100">
+                <!-- 编辑 -->
+                <button class="icon-btn p-2 hover:text-blue-600 hover:bg-blue-50 dark:hover:text-blue-400 dark:hover:bg-blue-900/30" title="编辑资料" @click="openEditModal(user)">
                   <div i-carbon-edit class="text-lg" />
                 </button>
 
-                <!-- 原有按钮: 重置密码 -->
-                <button
-                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/20"
-                  title="重置密码"
-                  @click="openResetPwdModal(user.id)"
-                >
+                <!-- 重置密码 -->
+                <button class="icon-btn p-2 hover:text-amber-600 hover:bg-amber-50 dark:hover:text-amber-400 dark:hover:bg-amber-900/30" title="重置密码" @click="openResetPwdModal(user.id)">
                   <div i-carbon-password class="text-lg" />
                 </button>
 
-                <!-- [新增] 按钮: 合并持仓 -->
-                <!-- 图标：migrate/flow-stream/arrows-horizontal -->
-                <button
-                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-teal-600 hover:bg-teal-50 dark:hover:text-teal-400 dark:hover:bg-teal-900/20"
-                  title="合并持仓到..."
-                  @click="openMergeModal(user)"
-                >
+                <!-- 合并 -->
+                <button class="icon-btn p-2 hover:text-teal-600 hover:bg-teal-50 dark:hover:text-teal-400 dark:hover:bg-teal-900/30" title="合并持仓" @click="openMergeModal(user)">
                   <div i-carbon-continuous-integration class="text-lg" />
                 </button>
 
-                <!-- 原有按钮: 克隆 (新建) -->
-                <button
-                  class="text-gray-500 p-1.5 rounded-md transition-colors dark:text-gray-400 hover:text-purple-600 hover:bg-purple-50 dark:hover:text-purple-400 dark:hover:bg-purple-900/20"
-                  title="克隆为新用户"
-                  @click="openCloneModal(user.id)"
-                >
+                <!-- 克隆 -->
+                <button class="icon-btn p-2 hover:text-purple-600 hover:bg-purple-50 dark:hover:text-purple-400 dark:hover:bg-purple-900/30" title="克隆用户" @click="openCloneModal(user.id)">
                   <div i-carbon-copy-file class="text-lg" />
                 </button>
 
-                <!-- 原有按钮: 删除 -->
-                <button
-                  class="text-gray-400 p-1.5 rounded-md transition-colors hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/20"
-                  title="删除用户"
-                  @click="deleteUser(user)"
-                >
+                <div class="mx-1 bg-gray-300 h-5 w-px self-center dark:bg-gray-600/50" />
+
+                <!-- 删除 -->
+                <button class="icon-btn p-2 hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/30" title="删除用户" @click="deleteUser(user)">
                   <div i-carbon-trash-can class="text-lg" />
                 </button>
               </div>
