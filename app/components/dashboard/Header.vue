@@ -62,6 +62,10 @@ const emit = defineEmits([
       <button class="icon-btn" title="导出数据" @click="emit('export')">
         <div i-carbon-download />
       </button>
+      <!-- 收益明细入口 -->
+      <NuxtLink to="/profit-analysis" class="icon-btn" title="收益明细">
+        <div i-carbon-chart-line-data />
+      </NuxtLink>
       <button class="icon-btn" title="复制持仓信息" @click="emit('copy-info')">
         <div i-carbon-copy />
       </button>
