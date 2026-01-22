@@ -45,6 +45,8 @@ export const useAuthStore = defineStore('auth', () => {
       console.error('Error during logout:', e)
     }
     finally {
+      // 必须手动清除客户端状态，否则跳转到 login 页面时会被判断为已登录从而弹回首页
+      user.value = null
       if (import.meta.client) {
         await navigateTo('/login', { replace: true })
       }
