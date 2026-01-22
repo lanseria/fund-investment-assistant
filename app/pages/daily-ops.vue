@@ -2,8 +2,8 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import { useClipboard } from '@vueuse/core'
-import CalendarWidget from '~/components/CalendarWidget.vue' // [新增]
-import { appName } from '~/constants'
+import CalendarWidget from '~/components/CalendarWidget.vue'
+import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 useHead({
@@ -12,7 +12,7 @@ useHead({
 
 const dayjs = useDayjs()
 const authStore = useAuthStore() // 获取当前用户信息用于权限控制
-
+const { getLabel } = useDictStore()
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期
 
@@ -226,55 +226,77 @@ function getActionLabel(type: string) {
               class="px-4 py-3 bg-gray-50 flex cursor-pointer transition-colors items-center justify-between dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
               @click="toggleGroup(group.user.username)"
             >
-              <div class="flex gap-3 items-center">
-                <!-- 头像 -->
-                <div
-                  class="text-sm font-bold border rounded-full flex h-8 w-8 shadow-sm items-center justify-center dark:border-gray-500"
-                  :class="group.txs.length > 0 ? 'bg-white text-primary dark:bg-gray-600 dark:text-gray-200' : 'bg-gray-200 text-gray-400 dark:bg-gray-700'"
-                >
-                  {{ group.user.username.charAt(0).toUpperCase() }}
+              <!-- 左侧：用户信息与资产概览 -->
+              <div class="flex flex-col gap-1 sm:flex-row sm:gap-4 sm:items-center">
+                <div class="flex gap-3 items-center">
+                  <!-- 头像 -->
+                  <div
+                    class="text-sm font-bold border rounded-full flex h-8 w-8 shadow-sm items-center justify-center dark:border-gray-500"
+                    :class="group.txs.length > 0 ? 'bg-white text-primary dark:bg-gray-600 dark:text-gray-200' : 'bg-gray-200 text-gray-400 dark:bg-gray-700'"
+                  >
+                    {{ group.user.username.charAt(0).toUpperCase() }}
+                  </div>
+                  <!-- 用户名 -->
+                  <div class="flex gap-2 items-center">
+                    <span class="text-gray-800 font-bold dark:text-gray-200" :class="{ 'text-gray-400': group.txs.length === 0 }">
+                      {{ group.user.username }}
+                    </span>
+                    <span v-if="group.user.isAiAgent" class="i-carbon-bot text-xs text-primary" title="AI 代理账户" />
+                  </div>
                 </div>
-                <!-- 用户名 -->
-                <div class="flex gap-2 items-center">
-                  <span class="text-gray-800 font-bold dark:text-gray-200" :class="{ 'text-gray-400': group.txs.length === 0 }">
-                    {{ group.user.username }}
+
+                <!--  资产统计条 -->
+                <div class="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1 sm:ml-2">
+                  <span title="总资产">
+                    <span class="i-carbon-wallet mr-0.5 align-text-bottom opacity-70 inline-block" />
+                    <span class="text-gray-700 font-medium dark:text-gray-300">{{ formatCurrency(group.user.stats.totalAssets) }}</span>
                   </span>
-                  <span v-if="group.user.isAiAgent" class="i-carbon-bot text-xs text-primary" title="AI 代理账户" />
-                  <span v-if="group.txs.length > 0" class="text-xs text-gray-500 ml-1">({{ group.txs.length }} 笔)</span>
-                  <span v-else class="text-xs text-gray-400 ml-1 italic">(无操作)</span>
-                </div>
-
-                <!-- 按钮组 -->
-                <div class="ml-4 flex gap-2" @click.stop>
-                  <!-- 复制 Prompt: 所有用户可见 -->
-                  <button
-                    class="text-xs px-2 py-1 border rounded bg-white flex dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
-                    title="生成并复制当前上下文的 Prompt"
-                    @click="handleCopyPrompt(group.user.id, group.user.username)"
-                  >
-                    <div class="i-carbon-copy" /> Prompt
-                  </button>
-
-                  <!-- 修正: 仅 Admin 或 自己 可见 -->
-                  <button
-                    v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
-                    class="text-xs text-blue-600 px-2 py-1 border rounded bg-white flex dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
-                    title="人工修正 (Import JSON)"
-                    @click="openImportModal({ id: group.user.id, username: group.user.username })"
-                  >
-                    <div class="i-carbon-edit" /> 修正
-                  </button>
+                  <span title="持仓市值">
+                    <span class="i-carbon-chart-pie mr-0.5 align-text-bottom opacity-70 inline-block" />
+                    {{ formatCurrency(group.user.stats.fundValue) }}
+                  </span>
+                  <span title="可用现金">
+                    <span class="i-carbon-money mr-0.5 align-text-bottom opacity-70 inline-block" />
+                    {{ formatCurrency(group.user.stats.cash) }}
+                  </span>
                 </div>
               </div>
 
-              <!-- 折叠图标 -->
-              <div
-                class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
-                :class="{ 'rotate-180': expandedGroups.has(group.user.username) }"
-              />
+              <!-- 右侧：按钮与折叠图标 -->
+              <div class="flex gap-3 items-center">
+                <span v-if="group.txs.length > 0" class="text-xs text-gray-500 hidden sm:inline">({{ group.txs.length }} 笔)</span>
+
+                <!-- 按钮组 -->
+                <div class="flex gap-2" @click.stop>
+                  <!-- 复制 Prompt -->
+                  <button
+                    class="text-xs px-2 py-1 border rounded bg-white flex gap-1 items-center dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="生成并复制当前上下文的 Prompt"
+                    @click="handleCopyPrompt(group.user.id, group.user.username)"
+                  >
+                    <div class="i-carbon-copy" /> <span class="hidden sm:inline">Prompt</span>
+                  </button>
+
+                  <!-- 修正 -->
+                  <button
+                    v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
+                    class="text-xs text-blue-600 px-2 py-1 border rounded bg-white flex gap-1 items-center dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="人工修正 (Import JSON)"
+                    @click="openImportModal({ id: group.user.id, username: group.user.username })"
+                  >
+                    <div class="i-carbon-edit" /> <span class="hidden sm:inline">修正</span>
+                  </button>
+                </div>
+
+                <!-- 折叠图标 -->
+                <div
+                  class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
+                  :class="{ 'rotate-180': expandedGroups.has(group.user.username) }"
+                />
+              </div>
             </div>
 
-            <!-- 交易列表：单行布局 -->
+            <!-- 交易列表 -->
             <div v-show="expandedGroups.has(group.user.username)" class="border-t divide-y dark:border-gray-700 dark:divide-gray-700">
               <!-- 空状态 -->
               <div v-if="group.txs.length === 0" class="text-sm text-gray-400 p-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
@@ -290,22 +312,9 @@ function getActionLabel(type: string) {
                 <!-- 1. 时间 & 状态图标 -->
                 <div class="text-xs text-gray-400 font-mono flex flex-shrink-0 gap-2 items-center sm:w-24">
                   <span>{{ dayjs(tx.createdAt).format('HH:mm:ss') }}</span>
-                  <!-- 状态Icon -->
-                  <div
-                    v-if="tx.status === 'pending'"
-                    class="i-carbon-hourglass text-yellow-500"
-                    title="待确认"
-                  />
-                  <div
-                    v-else-if="tx.status === 'failed'"
-                    class="i-carbon-close-filled text-red-500"
-                    title="失败"
-                  />
-                  <div
-                    v-else
-                    class="i-carbon-checkmark-filled text-green-500"
-                    title="已确认"
-                  />
+                  <div v-if="tx.status === 'pending'" class="i-carbon-hourglass text-yellow-500" title="待确认" />
+                  <div v-else-if="tx.status === 'failed'" class="i-carbon-close-filled text-red-500" title="失败" />
+                  <div v-else class="i-carbon-checkmark-filled text-green-500" title="已确认" />
                 </div>
 
                 <!-- 2. 类型标签 -->
@@ -315,14 +324,23 @@ function getActionLabel(type: string) {
                   </span>
                 </div>
 
-                <!-- 3. 基金名称与代码 -->
-                <div class="flex flex-grow flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:items-baseline">
-                  <span class="text-gray-900 font-medium truncate dark:text-gray-100" :title="tx.fundName">
-                    {{ tx.fundName || '未知基金' }}
+                <!-- 3.  基金名称、代码与板块 -->
+                <div class="flex flex-grow flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:items-center">
+                  <!--  板块 Badge -->
+                  <span
+                    v-if="tx.fundSector"
+                    class="text-[10px] text-gray-500 px-1.5 py-0.5 border border-gray-200 rounded bg-gray-100 flex-shrink-0 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700"
+                  >
+                    {{ getLabel(SECTOR_DICT_TYPE, tx.fundSector) }}
                   </span>
-                  <span class="text-xs text-gray-500 font-mono flex-shrink-0">
-                    {{ tx.fundCode }}
-                  </span>
+                  <div class="flex gap-2 truncate items-baseline">
+                    <span class="text-gray-900 font-medium truncate dark:text-gray-100" :title="tx.fundName">
+                      {{ tx.fundName || '未知基金' }}
+                    </span>
+                    <span class="text-xs text-gray-500 font-mono flex-shrink-0">
+                      {{ tx.fundCode }}
+                    </span>
+                  </div>
                 </div>
 
                 <!-- 4. 申报详情 -->
@@ -336,7 +354,6 @@ function getActionLabel(type: string) {
 
                 <!-- 5. 确认详情 / 备注 -->
                 <div class="flex flex-shrink-0 gap-1 min-h-[20px] items-center sm:text-right sm:w-40 sm:justify-end">
-                  <!-- 如果已确认，显示成交金额 -->
                   <template v-if="tx.status === 'confirmed'">
                     <span class="text-xs text-gray-400 sm:hidden">成交:</span>
                     <span class="text-gray-900 font-mono font-semibold dark:text-gray-100">
@@ -344,7 +361,6 @@ function getActionLabel(type: string) {
                       <span v-else>-</span>
                     </span>
                   </template>
-                  <!-- 否则显示备注 -->
                   <template v-else-if="tx.note">
                     <span class="text-xs text-gray-400 max-w-[150px] truncate italic" :title="tx.note">
                       {{ tx.note }}
@@ -357,28 +373,28 @@ function getActionLabel(type: string) {
           </div>
         </div>
       </div>
-    </div>
-    <!-- JSON 导入/修正模态框 -->
-    <Modal v-model="isImportModalOpen" :title="`人工修正 - ${importTargetUser?.username} (${selectedDate})`">
-      <div class="space-y-4">
-        <p class="text-sm text-gray-500">
-          请输入修正后的 JSON 数据。提交后，该用户当日所有 [待处理] 交易将被此处的内容替换。
-        </p>
-        <textarea
-          v-model="importJsonContent"
-          rows="10"
-          class="text-xs font-mono input-base w-full"
-          placeholder="{ &quot;decisions&quot;: [ { &quot;fundCode&quot;: &quot;...&quot;, &quot;action&quot;: &quot;buy&quot;, &quot;amount&quot;: 1000, &quot;reason&quot;: &quot;...&quot; } ] }"
-        />
-        <div class="flex gap-3 justify-end">
-          <button class="px-4 py-2 rounded bg-gray-100 dark:bg-gray-700" @click="isImportModalOpen = false">
-            取消
-          </button>
-          <button class="btn" :disabled="!importJsonContent || isImporting" @click="handleImportJsonSubmit">
-            {{ isImporting ? '处理中...' : '确认替换' }}
-          </button>
+      <!-- JSON 导入/修正模态框 -->
+      <Modal v-model="isImportModalOpen" :title="`人工修正 - ${importTargetUser?.username} (${selectedDate})`">
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500">
+            请输入修正后的 JSON 数据。提交后，该用户当日所有 [待处理] 交易将被此处的内容替换。
+          </p>
+          <textarea
+            v-model="importJsonContent"
+            rows="10"
+            class="text-xs font-mono input-base w-full"
+            placeholder="{ &quot;decisions&quot;: [ { &quot;fundCode&quot;: &quot;...&quot;, &quot;action&quot;: &quot;buy&quot;, &quot;amount&quot;: 1000, &quot;reason&quot;: &quot;...&quot; } ] }"
+          />
+          <div class="flex gap-3 justify-end">
+            <button class="px-4 py-2 rounded bg-gray-100 dark:bg-gray-700" @click="isImportModalOpen = false">
+              取消
+            </button>
+            <button class="btn" :disabled="!importJsonContent || isImporting" @click="handleImportJsonSubmit">
+              {{ isImporting ? '处理中...' : '确认替换' }}
+            </button>
+          </div>
         </div>
-      </div>
-    </Modal>
+      </Modal>
+    </div>
   </div>
 </template>
