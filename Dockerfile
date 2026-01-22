@@ -1,4 +1,4 @@
-FROM m.daocloud.io/docker.io/node:24.11.1-trixie-slim AS build-stage
+FROM m.daocloud.io/docker.io/node:24.13.0-alpine3.23 AS build-stage
 
 WORKDIR /app
 RUN corepack enable
@@ -11,7 +11,7 @@ COPY . .
 RUN pnpm build
 
 # SSR
-FROM m.daocloud.io/docker.io/node:24.11.1-trixie-slim AS production-stage
+FROM m.daocloud.io/docker.io/node:24.13.0-alpine3.23 AS production-stage
 
 # 设置时区
 ENV TZ=Asia/Shanghai

@@ -10,8 +10,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **ORM**: Drizzle ORM 0.45.1
 - **数据库**: PostgreSQL
 - **缓存**: Redis
-- **包管理器**: pnpm 10.28.0 (使用 workspace 和 catalog 管理)
-- **代码规范**: @antfu/eslint-config 7.0.1
+- **包管理器**: pnpm 10.28.1 (使用 workspace catalog 管理)
+  - Backend catalog: drizzle-orm, pg, etc.
+  - Build catalog: nuxt, vite, unocss, etc.
+  - Frontend catalog: vue, pinia, echarts, etc.
+  - Utils catalog: es-toolkit, dayjs, paseto-ts, etc.
+- **代码规范**: @antfu/eslint-config 7.1.0
 
 ## 常用命令
 
@@ -60,21 +64,24 @@ fund-investment-assistant/
 │   ├── types/                 # TypeScript 类型定义
 │   └── utils/                 # 前端工具函数
 ├── server/                   # 后端代码 (Nitro)
-│   ├── api/                  # API 路由 (文件系统路由)
-│   │   ├── auth/             # 认证 API
-│   │   ├── fund/             # 基金 API
-│   │   ├── transactions/     # 交易 API
+│   ├── routes/api/           # API 路由 (文件系统路由)
+│   │   ├── auth/             # 认证 API (login, logout, me, refresh)
+│   │   ├── fund/             # 基金 API (holdings, transactions, etc.)
+│   │   ├── sse/              # SSE 实时推送 (holdings, market)
+│   │   ├── admin/            # 管理员 API
 │   │   └── ...
 │   ├── database/             # 数据库
-│   │   ├── schemas.ts        # Drizzle Schema 定义
+│   │   ├── schemas.ts        # Drizzle Schema 定义 (fund_app schema)
 │   │   └── drizzle/          # 迁移文件
 │   ├── middleware/           # 服务器中间件
-│   ├── plugins/              # Nitro 插件
+│   ├── mcp/                 # MCP 服务器定义
+│   ├── plugins/              # Nitro 插件 (按数字顺序加载)
 │   │   ├── 0.storage.ts      # 存储/Redis 初始化
-│   │   ├── 1.paseto.ts      # PASETO 认证初始化
+│   │   ├── 1.paseto.ts      # PASETO 密钥初始化 (Redis 存储)
 │   │   └── 2.market-polling.ts
 │   ├── tasks/                # Nitro 定时任务
 │   │   ├── fund/             # 基金相关任务
+│   │   ├── initAdmin.ts      # 初始化管理员任务
 │   │   └── ai/               # AI 任务
 │   └── utils/                # 后端工具函数
 ├── shared/                   # 前后端共享代码
@@ -83,9 +90,11 @@ fund-investment-assistant/
 
 ### 核心模块说明
 
-**用户认证**: 使用 PASETO (v4.local + v4.public) 令牌机制，Token 存储在 HttpOnly Cookie 中。
+**用户认证**: 使用 PASETO (v4.local + v4.public) 令牌机制，密钥存储在 Redis 中，Token 存储在 HttpOnly Cookie 中。
 
-**实时数据推送**: 使用 Server-Sent Events (SSE) 技术在交易时间段内实时推送基金估值更新。
+**实时数据推送**: 使用 mitt 事件总线 + Server-Sent Events (SSE) 实现。定时任务完成估值同步后通过 `emitter.emit('holdings:updated')` 触发，SSE 接口监听事件并推送更新给前端。
+
+**外部策略 API**: 依赖外部 FastAPI 服务 (`NUXT_STRATEGY_API_URL`) 进行策略分析计算（RSI、MACD、布林带等）。
 
 **定时任务** (Nitro Tasks):
 
@@ -93,9 +102,10 @@ fund-investment-assistant/
 - `fund:syncEstimate` - 实时估值同步 (默认: `* 8-23 * * *`)
 - `fund:runStrategies` - 策略分析执行 (默认: `0 6 * * *`)
 - `fund:processTransactions` - 交易处理 (默认: `0 9 * * *`)
-- `ai:runAutoTrade` - AI 自动交易 (默认: `40 14 * * 1-5`)
+- `ai:runAutoTrade` - AI 自动交易 (默认: `30 14 * * 1-5`)
+- `initAdmin` - 初始化管理员账户 (手动执行: `pnpm nuxt task run initAdmin`)
 
-**数据库**: PostgreSQL，主要表包括 `users`, `funds`, `holdings`, `fund_nav_history`, `strategy_signals`, `fund_transactions` 等。
+**数据库**: PostgreSQL，使用 `fund_app` schema。主要表包括 `users`, `funds`, `holdings`, `fund_nav_history`, `strategy_signals`, `fund_transactions`, `daily_news`, `news_items`, `ai_daily_analysis`, `ai_execution_logs` 等。
 
 ### 前后端代码约定
 
@@ -103,6 +113,7 @@ fund-investment-assistant/
 - **组合式函数**: camelCase 并以 `use` 开头
 - **API 路由**: 位于 `server/routes/api/`，使用 Nitro 文件系统路由
 - **Pinia Stores**: 位于 `app/composables/`，使用 Composition API 风格
+- **事件总线**: 使用 mitt (`server/utils/emitter.ts`) 实现跨模块通信
 
 ## UnoCSS 配置
 
@@ -121,13 +132,21 @@ fund-investment-assistant/
 - 导入排序
 - TypeScript 严格模式
 
+## MCP 服务器
+
+项目集成 `@nuxtjs/mcp-toolkit`，MCP 定义位于 `server/mcp/`，访问路径为 `/mcp`。
+
 ## 环境变量
 
-| 变量                       | 说明                     |
-| -------------------------- | ------------------------ |
-| `NUXT_DB_URL`              | PostgreSQL 连接字符串    |
-| `NUXT_STRATEGY_API_URL`    | 策略分析 API 地址        |
-| `NUXT_REDIS_HOST`          | Redis 主机               |
-| `NUXT_REDIS_PASSWORD`      | Redis �密码              |
-| `NUXT_OPEN_ROUTER_API_KEY` | OpenRouter API Key (AI)  |
-| `CRON_*`                   | 各定时任务的 Cron 表达式 |
+| 变量                             | 说明                                     |
+| -------------------------------- | ---------------------------------------- |
+| `NUXT_DB_URL`                    | PostgreSQL 连接字符串                    |
+| `NUXT_STRATEGY_API_URL`          | 策略分析 API 地址                        |
+| `NUXT_REDIS_HOST`                | Redis 主机                               |
+| `NUXT_REDIS_PASSWORD`            | Redis 密码                               |
+| `NUXT_OPEN_ROUTER_API_KEY`       | OpenRouter API Key (AI)                  |
+| `CRON_FUND_SYNC_HISTORY`         | 历史净值同步 Cron (默认: `0 2 * * *`)    |
+| `CRON_FUND_SYNC_ESTIMATE`        | 实时估值同步 Cron (默认: `* 8-23 * * *`) |
+| `CRON_FUND_RUN_STRATEGIES`       | 策略分析执行 Cron (默认: `0 6 * * *`)    |
+| `CRON_FUND_PROCESS_TRANSACTIONS` | 交易处理 Cron (默认: `0 9 * * *`)        |
+| `CRON_AI_AUTO_TRADE`             | AI 自动交易 Cron (默认: `30 14 * * 1-5`) |
