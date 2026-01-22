@@ -14,8 +14,8 @@ export function formatCurrency(
   } = {},
 ): string {
   const {
-    minimumFractionDigits: minDigits = 4,
-    maximumFractionDigits: maxDigits = 4,
+    minimumFractionDigits: minDigits = 2,
+    maximumFractionDigits: maxDigits = 2,
   } = options
 
   const num = Number(value)
