@@ -1,12 +1,12 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import { apiFetch } from '~/utils/api'
+import { formatCurrency } from '~/utils/format'
 
 definePageMeta({
   layout: 'account',
 })
 
-// [类型定义] 为了更好的类型提示
 interface AdminUserItem {
   id: number
   username: string
@@ -16,8 +16,8 @@ interface AdminUserItem {
   cash: number // 后端计算返回
   fundValue: number // 后端计算返回
   totalAssets: number // 后端计算返回
-  holdingCount: number // [新增]
-  watchingCount: number // [新增]
+  holdingCount: number
+  watchingCount: number
   createdAt: string
   aiSystemPrompt?: string
 }
@@ -31,12 +31,12 @@ const isCloneModalOpen = ref(false)
 const isEditModalOpen = ref(false)
 const isSubmitting = ref(false)
 
-// --- [新增] 合并持仓相关状态 ---
+// --- 合并持仓相关状态 ---
 const isMergeModalOpen = ref(false)
 const mergeSourceUser = ref<AdminUserItem | null>(null) // 来源用户 (当前点击的那行)
 const mergeTargetUserId = ref<number | null>(null) // 目标用户 ID
 
-// [新增] 打开合并模态框
+// 打开合并模态框
 function openMergeModal(user: AdminUserItem) {
   mergeSourceUser.value = user
   mergeTargetUserId.value = null // 重置目标选择
@@ -95,11 +95,6 @@ const editForm = reactive({
 const isResetPwdModalOpen = ref(false)
 const resetPwdUserId = ref<number | null>(null)
 const newPassword = ref('')
-
-// 辅助函数：格式化金额
-function formatCurrency(value: number | string) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(value))
-}
 
 function openEditModal(user: any) {
   editingUserId.value = user.id
@@ -250,7 +245,6 @@ async function handleCloneUser() {
     </div>
     <div v-else class="border border-gray-200 rounded-lg overflow-hidden dark:border-gray-700">
       <table class="text-left w-full">
-        <!-- 表头：简化背景，使用 uppercase 和 spacing 增加质感 -->
         <thead class="border-b border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800">
           <tr>
             <th class="text-xs text-gray-500 tracking-wider font-semibold px-6 py-3 w-64 uppercase">

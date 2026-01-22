@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { GroupedHolding, Holding, SortableKey } from '~/types/holding'
 import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
-// 导入新组件
+import { formatCurrency } from '~/utils/format'
 import HoldingListRow from './HoldingListRow.vue'
 
 withDefaults(defineProps<{
@@ -18,12 +18,6 @@ const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
-}
-
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
 }
 
 function getChangeClass(value: number | null) {

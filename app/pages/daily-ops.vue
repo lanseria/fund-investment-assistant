@@ -4,6 +4,7 @@
 import { useClipboard } from '@vueuse/core'
 import CalendarWidget from '~/components/CalendarWidget.vue' // [新增]
 import { appName } from '~/constants'
+import { formatCurrency } from '~/utils/format'
 
 useHead({
   title: `每日操作 - ${appName}`,
@@ -37,7 +38,7 @@ const importTargetUser = ref<{ id: number, username: string } | null>(null)
 const importJsonContent = ref('')
 const isImporting = ref(false)
 
-// [修改] 动态获取 Prompt，不再依赖日志表
+// 动态获取 Prompt，不再依赖日志表
 async function handleCopyPrompt(userId: number, username: string) {
   isLogLoading.value = true
   try {
@@ -176,12 +177,6 @@ function getActionLabel(type: string) {
   }
   return map[type] || type
 }
-
-function formatCurrency(val: any) {
-  if (!val)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(val))
-}
 </script>
 
 <template>
@@ -196,7 +191,7 @@ function formatCurrency(val: any) {
     </header>
 
     <div class="flex flex-col gap-8 items-start md:flex-row">
-      <!-- 左侧：日历 [修改] 使用组件 -->
+      <!-- 左侧：日历使用组件 -->
       <CalendarWidget v-model="selectedDate" />
 
       <!-- 右侧：操作列表 -->
@@ -335,7 +330,7 @@ function formatCurrency(val: any) {
                   <span class="text-xs text-gray-400 sm:hidden">申报:</span>
                   <span class="text-gray-700 font-medium font-mono dark:text-gray-300">
                     <span v-if="tx.orderAmount">{{ formatCurrency(tx.orderAmount) }}</span>
-                    <span v-else>{{ Number(tx.orderShares).toFixed(2) }} 份</span>
+                    <span v-else>{{ Number(tx.orderShares).toFixed(4) }} 份</span>
                   </span>
                 </div>
 

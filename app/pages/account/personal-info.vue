@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import AiSettingsPanel from '~/components/AiSettingsPanel.vue'
 import { apiFetch } from '~/utils/api'
+import { formatCurrency } from '~/utils/format'
 
 definePageMeta({
   layout: 'account',
@@ -92,12 +93,6 @@ async function handleSaveConfig() {
   finally {
     isToggling.value = false
   }
-}
-
-function formatCurrency(value: string | number | null | undefined) {
-  if (value === null || value === undefined)
-    return '¥0.00'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(value))
 }
 </script>
 

@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm'
+import { sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { holdings } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
@@ -29,9 +29,6 @@ export default defineEventHandler(async (event) => {
 
   try {
     // 3. 核心逻辑：查出源用户的持仓，尝试插入目标用户
-    // 使用 INSERT ... SELECT ... ON CONFLICT DO NOTHING 语句
-    // 这样可以直接在数据库层面完成“取并集”，如果目标用户已拥有该基金，则跳过（保留目标用户原有的持有数据）
-
     const result = await db.execute(sql`
       INSERT INTO ${holdings} (user_id, fund_code, shares, cost_price)
       SELECT ${targetUserId}, fund_code, NULL, NULL

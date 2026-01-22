@@ -5,14 +5,13 @@ import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
 import { SECTOR_DICT_TYPE } from '~/constants'
 import { dateFilterOptions } from '~/constants/chart'
+import { formatCurrency } from '~/utils/format'
 
 interface ChartCardData {
   code: string
   name: string
   strategy: string
-  // data 是全量数据
   data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[] }
-  // --- [新增] ---
   sector: string | null
   holdingAmount: number | null
   percentageChange: number | null
@@ -27,7 +26,7 @@ const props = defineProps<{
 const dayjs = useDayjs()
 const { getLabel } = useDictStore()
 
-// --- [新增] 辅助函数 ---
+// --- 辅助函数 ---
 function getChangeClass(value: number | null | undefined) {
   if (value === undefined || value === null)
     return 'text-gray'
@@ -37,13 +36,6 @@ function getChangeClass(value: number | null | undefined) {
     return 'text-green-500 dark:text-green-400'
   return 'text-gray'
 }
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
-}
-// --- [结束] ---
-
 // [核心] 在卡片组件内部根据全量数据和筛选器，计算出需要传递给图表的数据切片
 const slicedData = computed(() => {
   const period = props.activeDateFilter

@@ -3,6 +3,7 @@ import type { Holding } from '~/types/holding'
 import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
 import HoldingList from '~/components/HoldingList.vue'
 import { appName } from '~/constants'
+import { formatCurrency as formatCurrencyUtil } from '~/utils/format'
 
 useHead({
   title: `收益率排行榜 - ${appName}`,
@@ -71,7 +72,7 @@ function formatCurrency(value: number) {
   if (Math.abs(value) > 10000) {
     return `¥${(value / 10000).toFixed(2)}万`
   }
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
+  return formatCurrencyUtil(value)
 }
 
 function getPeriodLabel(period: LeaderboardPeriod) {

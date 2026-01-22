@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HoldingSummary } from '~/types/holding'
+import { formatCurrency } from '~/utils/format'
 
 // 定义组件接收的 props
 const props = defineProps<{
@@ -20,13 +21,6 @@ const sseStatusText = computed(() => {
       return '未知状态'
   }
 })
-
-// 格式化货币
-function formatCurrency(value: number | undefined) {
-  if (value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
-}
 
 // 根据数值正负返回不同的文本颜色类
 function getChangeClass(value: number | undefined) {

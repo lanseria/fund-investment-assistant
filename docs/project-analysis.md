@@ -35,16 +35,16 @@ fund-investment-assistant/
 
 ### 1.2 核心技术选型
 
-| 技术 | 版本 | 用途 | 评价 |
-|------|------|------|------|
-| **Nuxt** | 4.2.2 | 全栈框架 | 现代化，内置路由、中间件、API 等功能 |
-| **Vue** | 3.5.26 | 前端框架 | 响应式开发，Composition API 风格 |
-| **Pinia** | 3.0.4 | 状态管理 | Vue 3 官方推荐，API 简洁 |
-| **Drizzle ORM** | 0.45.1 | 数据库操作 | Type-safe，查询构建器强大 |
-| **PostgreSQL** | - | 数据库 | 适合复杂查询和关系管理 |
-| **Redis** | - | 缓存 | 提升性能，会话存储 |
-| **UnoCSS** | 66.6.0 | 样式 | Tailwind 4 风格，原子化 CSS |
-| **PASETO** | - | 认证 | 比 JWT 更安全的令牌机制 |
+| 技术            | 版本   | 用途       | 评价                                 |
+| --------------- | ------ | ---------- | ------------------------------------ |
+| **Nuxt**        | 4.2.2  | 全栈框架   | 现代化，内置路由、中间件、API 等功能 |
+| **Vue**         | 3.5.26 | 前端框架   | 响应式开发，Composition API 风格     |
+| **Pinia**       | 3.0.4  | 状态管理   | Vue 3 官方推荐，API 简洁             |
+| **Drizzle ORM** | 0.45.1 | 数据库操作 | Type-safe，查询构建器强大            |
+| **PostgreSQL**  | -      | 数据库     | 适合复杂查询和关系管理               |
+| **Redis**       | -      | 缓存       | 提升性能，会话存储                   |
+| **UnoCSS**      | 66.6.0 | 样式       | Tailwind 4 风格，原子化 CSS          |
+| **PASETO**      | -      | 认证       | 比 JWT 更安全的令牌机制              |
 
 ## 2. 前端代码分析（app/ 目录）
 
@@ -53,6 +53,7 @@ fund-investment-assistant/
 项目包含 25 个 Vue 组件：
 
 #### 核心组件
+
 - `index.vue` - 主页面（包含过多业务逻辑，建议拆分）
 - `HoldingList.vue` - 持仓列表
 - `PortfolioSummaryCard.vue` - 投资组合摘要
@@ -60,12 +61,14 @@ fund-investment-assistant/
 - `AddEditHoldingForm.vue` - 添加/编辑持仓表单
 
 #### 图表组件（charts/）
+
 - `MarketHeatmap.vue` - 市场热力图
 - `FundDistributionChart.vue` - 基金分布图表
 - `KLineChart.vue` - K 线图
 - `MarketIndicesChart.vue` - 市场指数图表
 
 #### 策略图表组件（strategy-charts/）
+
 - `BsStrategyChart.vue` - 买卖策略图表
 - `GridStrategyChart.vue` - 网格策略图表
 
@@ -73,14 +76,15 @@ fund-investment-assistant/
 
 ```typescript
 // app/composables/
-- useAuthStore.ts    // 认证状态管理（PASETO）
-- useMarketStore.ts  // 市场数据状态
-- holdings.ts        // 持仓状态管理
+-useAuthStore.ts // 认证状态管理（PASETO）
+- useMarketStore.ts // 市场数据状态
+- holdings.ts // 持仓状态管理
 ```
 
 ### 2.3 前端代码质量评估
 
 **优点：**
+
 - ✅ 组件命名规范（PascalCase）
 - ✅ TypeScript 类型定义完善
 - ✅ 使用 Composition API，代码结构清晰
@@ -89,6 +93,7 @@ fund-investment-assistant/
 - ✅ 错误处理和加载状态管理完善
 
 **潜在问题：**
+
 - `index.vue` 文件过大（>500 行），业务逻辑过于集中
 - 部分组件使用 `alert()` 进行用户提示，体验不佳
 - SSE 连接管理可以进一步优化，防止内存泄漏
@@ -117,35 +122,36 @@ api/
 
 ```typescript
 // server/database/schemas.ts
-- users                  // 用户表（含 AI 代理字段）
-- funds                  // 基金信息表
-- holdings               // 用户持仓表
-- fund_nav_history       // 基金历史净值表
-- strategy_signals       // 策略信号表
-- fund_transactions      // 交易记录表
-- daily_news             // 每日新闻表
-- news_items             // 新闻明细表
-- ai_execution_logs      // AI 执行日志表
-- dictionary_types       // 字典类型表
-- dictionary_data        // 字典数据表
+-users // 用户表（含 AI 代理字段）
+- funds // 基金信息表
+- holdings // 用户持仓表
+- fund_nav_history // 基金历史净值表
+- strategy_signals // 策略信号表
+- fund_transactions // 交易记录表
+- daily_news // 每日新闻表
+- news_items // 新闻明细表
+- ai_execution_logs // AI 执行日志表
+- dictionary_types // 字典类型表
+- dictionary_data // 字典数据表
 ```
 
 ### 3.3 核心业务逻辑（server/utils/）
 
 ```typescript
-- auth.ts                // 认证工具函数（密码哈希、用户信息获取）
-- aiTrader.ts            // AI 自动交易决策
-- aiNews.ts              // 新闻分析
-- holdingAnalysis.ts     // 持仓分析
-- fundService.ts         // 基金服务
-- dataFetcher.ts         // 数据抓取（天天基金网、腾讯证券等）
-- market.ts              // 市场数据管理
-- strategies.ts          // 策略分析
+-auth.ts // 认证工具函数（密码哈希、用户信息获取）
+- aiTrader.ts // AI 自动交易决策
+- aiNews.ts // 新闻分析
+- holdingAnalysis.ts // 持仓分析
+- fundService.ts // 基金服务
+- dataFetcher.ts // 数据抓取（天天基金网、腾讯证券等）
+- market.ts // 市场数据管理
+- strategies.ts // 策略分析
 ```
 
 ### 3.4 后端代码质量评估
 
 **优点：**
+
 - ✅ API 路由结构清晰，分层明确
 - ✅ 数据库模型设计合理，关系定义清晰
 - ✅ 使用 Drizzle ORM，类型安全
@@ -154,6 +160,7 @@ api/
 - ✅ 错误处理和日志记录完善
 
 **潜在问题：**
+
 - `auth.ts` 中使用 SHA-512 哈希密码，建议使用 bcrypt 或 argon2
 - `dataFetcher.ts` 中的第三方 API 抓取可能不稳定，建议添加重试机制和缓存
 - 部分 SQL 查询使用 raw SQL，建议尽量使用 Drizzle 查询构建器
@@ -163,23 +170,25 @@ api/
 
 ### 4.1 任务列表
 
-| 任务名 | 描述 | 默认 Cron |
-|--------|------|-----------|
-| `fund:syncHistory` | 历史净值同步 | `0 2 * * *`（每日凌晨 2 点） |
-| `fund:syncEstimate` | 实时估值同步 | `* 8-23 * * *`（交易时间每分钟） |
-| `fund:runStrategies` | 策略分析执行 | `0 6 * * *`（每日早晨 6 点） |
-| `fund:processTransactions` | 交易处理 | `0 9 * * *`（每日上午 9 点） |
-| `ai:runAutoTrade` | AI 自动交易 | `40 14 * * 1-5`（工作日 14:30） |
+| 任务名                     | 描述         | 默认 Cron                        |
+| -------------------------- | ------------ | -------------------------------- |
+| `fund:syncHistory`         | 历史净值同步 | `0 2 * * *`（每日凌晨 2 点）     |
+| `fund:syncEstimate`        | 实时估值同步 | `* 8-23 * * *`（交易时间每分钟） |
+| `fund:runStrategies`       | 策略分析执行 | `0 6 * * *`（每日早晨 6 点）     |
+| `fund:processTransactions` | 交易处理     | `0 9 * * *`（每日上午 9 点）     |
+| `ai:runAutoTrade`          | AI 自动交易  | `40 14 * * 1-5`（工作日 14:30）  |
 
 ### 4.2 定时任务评估
 
 **优点：**
+
 - ✅ 任务配置通过环境变量可配置
 - ✅ 使用 Nitro Tasks 调度，内置错误处理
 - ✅ 任务逻辑与业务逻辑分离
 - ✅ 交易日期检查（包含节假日）
 
 **潜在问题：**
+
 - 节假日配置硬编码在 `runAutoTrade.ts` 中，建议存储在数据库或配置文件中
 - 任务之间缺少依赖关系管理
 - 缺少任务执行监控和失败告警
@@ -187,13 +196,16 @@ api/
 ## 5. 共享代码分析（shared/ 目录）
 
 目前共享代码目录只有一个文件：
+
 - `market.ts` - 市场指数分组配置
 
 **优点：**
+
 - ✅ 前后端共享配置，避免重复定义
 - ✅ 使用 TypeScript 类型定义
 
 **潜在问题：**
+
 - 共享代码目录过于简单，可扩展性不足
 - 建议将更多通用类型和工具函数移到共享目录
 
@@ -235,6 +247,7 @@ api/
 ### 8.1 代码规范
 
 项目使用 @antfu/eslint-config：
+
 - ✅ 无分号
 - ✅ 单引号
 - ✅ 尾随逗号（多行对象/数组）
@@ -269,14 +282,14 @@ api/
 
 ### 10.1 评分
 
-| 维度 | 评分 | 说明 |
-|------|------|------|
-| 架构设计 | 85/100 | 全栈架构合理，但可扩展性有待提高 |
-| 代码质量 | 80/100 | 类型安全，规范统一，但部分文件过大 |
-| 安全性 | 75/100 | 认证机制安全，但缺少其他安全措施 |
-| 性能优化 | 70/100 | 基础优化已做，可进一步优化 |
-| 可维护性 | 80/100 | 代码结构清晰，但测试覆盖不足 |
-| 功能完整性 | 90/100 | 核心功能完善，AI 功能先进 |
+| 维度       | 评分   | 说明                               |
+| ---------- | ------ | ---------------------------------- |
+| 架构设计   | 85/100 | 全栈架构合理，但可扩展性有待提高   |
+| 代码质量   | 80/100 | 类型安全，规范统一，但部分文件过大 |
+| 安全性     | 75/100 | 认证机制安全，但缺少其他安全措施   |
+| 性能优化   | 70/100 | 基础优化已做，可进一步优化         |
+| 可维护性   | 80/100 | 代码结构清晰，但测试覆盖不足       |
+| 功能完整性 | 90/100 | 核心功能完善，AI 功能先进          |
 
 ### 10.2 总体评价
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-// [新增] 导入新创建的组件
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName } from '~/constants'
+import { formatCurrency } from '~/utils/format'
 
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
@@ -48,9 +48,6 @@ function getTransactionTypeInfo(type: string) {
     case 'convert_out': return { label: '转换转出', color: 'text-blue-500' }
     default: return { label: type, color: 'text-gray-500' }
   }
-}
-function formatCurrency(val: any) {
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(Number(val))
 }
 
 const { data, pending, error, refresh } = await useAsyncData(

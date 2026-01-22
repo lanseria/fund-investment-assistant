@@ -30,7 +30,7 @@ export default defineMcpTool({
     }
 
     const db = useDb()
-    
+
     // 查询当前请求者的角色
     const operator = await db.query.users.findFirst({
       where: eq(users.id, requestUserId),
@@ -61,8 +61,8 @@ export default defineMcpTool({
       })
 
       // 格式化输出
-      const table = allUsers.map(u => 
-        `ID: ${u.id} | User: ${u.username} | Role: ${u.role} | Cash: ${u.availableCash} | AI: ${u.isAiAgent ? 'ON' : 'OFF'}`
+      const table = allUsers.map(u =>
+        `ID: ${u.id} | User: ${u.username} | Role: ${u.role} | Cash: ${u.availableCash} | AI: ${u.isAiAgent ? 'ON' : 'OFF'}`,
       ).join('\n')
 
       return {
@@ -85,7 +85,7 @@ export default defineMcpTool({
       }
 
       const hashedPassword = await hashPassword(args.password)
-      
+
       const [newUser] = await db.insert(users).values({
         username: args.username,
         password: hashedPassword,

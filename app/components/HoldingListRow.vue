@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import { SECTOR_DICT_TYPE } from '~/constants'
+import { formatCurrency } from '~/utils/format'
 
 const props = defineProps<{
   holding: Holding
@@ -72,13 +73,6 @@ function getTransactionTooltip(tx: any) {
 
   const navStr = tx.nav ? ` (净值: ${Number(tx.nav).toFixed(4)})` : ''
   return `${dateStr} ${typeStr}\n${detailStr}${navStr}`
-}
-
-// ... (其他原有函数保持不变: formatCurrency, getProfitClass, etc.)
-function formatCurrency(value: number | null | undefined) {
-  if (value === null || value === undefined)
-    return '-'
-  return new Intl.NumberFormat('zh-CN', { style: 'currency', currency: 'CNY' }).format(value)
 }
 
 function getProfitClass(h: Holding) {
@@ -267,7 +261,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           {{ formatCurrency(holding.holdingAmount) }}
         </div>
         <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
-          {{ holding.shares?.toFixed(2) }} 份
+          {{ holding.shares?.toFixed(4) }} 份
         </div>
         <div class="text-xs text-gray-500 font-numeric dark:text-gray-400">
           {{ holding.yesterdayNav }}
