@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   // 权限校验
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   // 读取并验证请求体
   const body = await readBody(event)
@@ -29,7 +29,7 @@ export default defineEventHandler(async (event) => {
   catch (error: any) {
     // 捕获数据库层面的主键冲突错误
     if (error.code === '23505') // PostgreSQL unique violation error code
-      throw createError({ statusCode: 409, message: `类别编码 "${data.type}" 已存在。` })
+      throw createError({ status: 409, statusText: `类别编码 "${data.type}" 已存在。` })
 
     // 抛出其他未知错误
     throw error

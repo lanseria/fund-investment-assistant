@@ -26,8 +26,8 @@ export default defineEventHandler(async (event) => {
 
   if (!record || !record.content) {
     throw createError({
-      statusCode: 404,
-      message: '当日暂无原始报告数据，无法执行分析。',
+      status: 404,
+      statusText: '当日暂无原始报告数据，无法执行分析。',
     })
   }
 
@@ -38,8 +38,8 @@ export default defineEventHandler(async (event) => {
 
     if (structuredItems.length === 0) {
       throw createError({
-        statusCode: 500,
-        message: 'AI 未能提取有效信息，请检查原始报告内容是否为空或格式异常。',
+        status: 500,
+        statusText: 'AI 未能提取有效信息，请检查原始报告内容是否为空或格式异常。',
       })
     }
 
@@ -68,8 +68,8 @@ export default defineEventHandler(async (event) => {
   catch (error: any) {
     console.error('手动触发 AI 分析失败:', error)
     throw createError({
-      statusCode: 500,
-      message: error.message || '分析过程中发生错误',
+      status: 500,
+      statusText: error.message || '分析过程中发生错误',
     })
   }
 })

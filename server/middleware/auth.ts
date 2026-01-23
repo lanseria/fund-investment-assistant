@@ -27,8 +27,8 @@ export default defineEventHandler(async (event) => {
 
   if (!token) {
     throw createError({
-      statusCode: 401,
-      message: 'Authorization token is missing from cookies',
+      status: 401,
+      statusText: 'Authorization token is missing from cookies',
     })
   }
 
@@ -50,8 +50,8 @@ export default defineEventHandler(async (event) => {
     console.warn(`Token validation failed for path ${path}:`, error.message)
 
     throw createError({
-      statusCode: 401,
-      message: 'Invalid or expired token',
+      status: 401,
+      statusText: 'Invalid or expired token',
     })
   }
 })

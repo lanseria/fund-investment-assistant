@@ -23,7 +23,7 @@ async function generateToken() {
     generatedToken.value = res.token
   }
   catch (e: any) {
-    alert(`生成失败: ${e.data?.message || e.message}`)
+    alert(`生成失败: ${e.data?.statusMessage || e.message}`)
   }
   finally {
     isGenerating.value = false

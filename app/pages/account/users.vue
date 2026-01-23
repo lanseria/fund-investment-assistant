@@ -71,7 +71,7 @@ async function handleMergeHoldings() {
     await refresh() // 刷新列表以更新统计数据
   }
   catch (err: any) {
-    alert(`合并失败: ${err.data?.message || err.message}`)
+    alert(`合并失败: ${err.data?.statusMessage || err.message}`)
   }
   finally {
     isSubmitting.value = false
@@ -128,7 +128,7 @@ async function handleResetPassword() {
     alert('密码重置成功')
   }
   catch (err: any) {
-    alert(`重置失败: ${err.data?.message || '未知错误'}`)
+    alert(`重置失败: ${err.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isSubmitting.value = false
@@ -154,7 +154,7 @@ async function handleEditUser() {
     alert('用户信息修改成功')
   }
   catch (err: any) {
-    alert(`修改失败: ${err.data?.message || '未知错误'}`)
+    alert(`修改失败: ${err.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isSubmitting.value = false
@@ -174,7 +174,7 @@ async function handleAddUser(formData: any) {
   }
   catch (err: any) {
     console.error('添加用户失败:', err)
-    alert(`添加失败: ${err.data?.message || '发生未知错误'}`)
+    alert(`添加失败: ${err.data?.statusMessage || '发生未知错误'}`)
   }
   finally {
     isSubmitting.value = false
@@ -190,7 +190,7 @@ async function deleteUser(user: any) {
     await refresh()
   }
   catch (e: any) {
-    alert(`删除失败: ${e.data?.message || '未知错误'}`)
+    alert(`删除失败: ${e.data?.statusMessage || '未知错误'}`)
   }
 }
 
@@ -217,7 +217,7 @@ async function handleCloneUser() {
     alert(`用户克隆成功！新用户: ${cloneNewUsername.value}, 默认密码: 123456`)
   }
   catch (err: any) {
-    alert(`克隆失败: ${err.data?.message || '未知错误'}`)
+    alert(`克隆失败: ${err.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isSubmitting.value = false

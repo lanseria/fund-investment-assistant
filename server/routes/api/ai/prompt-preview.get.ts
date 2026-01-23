@@ -12,12 +12,12 @@ export default defineEventHandler(async (event) => {
   const targetUserId = Number(query.userId)
 
   if (!targetUserId) {
-    throw createError({ statusCode: 400, message: 'Missing userId' })
+    throw createError({ status: 400, statusText: 'Missing userId' })
   }
 
   // 权限校验：Admin 可以查看任何人，普通用户只能查看自己
   if (currentUser.role !== 'admin' && currentUser.id !== targetUserId) {
-    throw createError({ statusCode: 403, message: 'Forbidden' })
+    throw createError({ status: 403, statusText: 'Forbidden' })
   }
 
   const db = useDb()
@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!targetUser) {
-    throw createError({ statusCode: 404, message: 'User not found' })
+    throw createError({ status: 404, statusText: 'User not found' })
   }
 
   // 1. 获取持仓数据
@@ -44,6 +44,6 @@ export default defineEventHandler(async (event) => {
     return { prompt: fullPromptLog }
   }
   catch (e: any) {
-    throw createError({ statusCode: 500, message: e.message })
+    throw createError({ status: 500, statusText: e.message })
   }
 })

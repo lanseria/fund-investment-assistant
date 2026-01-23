@@ -18,8 +18,8 @@ export default defineEventHandler(async (event) => {
   catch (error: any) {
     console.error(`获取用户上下文数据失败 (User: ${user.username}):`, error)
     throw createError({
-      statusCode: 500,
-      message: '无法生成上下文数据',
+      status: 500,
+      statusText: '无法生成上下文数据',
     })
   }
 })

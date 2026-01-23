@@ -121,6 +121,6 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: any) {
     console.error('[Webhook] Error:', error)
-    throw createError({ statusCode: 500, message: 'Internal Server Error' })
+    throw createError({ status: 500, statusText: 'Internal Server Error' })
   }
 })

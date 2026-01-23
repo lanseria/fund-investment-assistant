@@ -16,12 +16,12 @@ export default defineEventHandler(async (event) => {
   // 权限校验
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   // 从 URL 路径中获取要更新的数据项 ID
   const id = getRouterParam(event, 'id')
   if (!id)
-    throw createError({ statusCode: 400, message: 'ID 是必需的' })
+    throw createError({ status: 400, statusText: 'ID 是必需的' })
 
   // 读取并验证请求体
   const body = await readBody(event)
@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
 
   // 如果没有找到记录，Drizzle 不会报错，但 updatedItem 会是 undefined
   if (!updatedItem)
-    throw createError({ statusCode: 404, message: '未找到指定的字典数据项' })
+    throw createError({ status: 404, statusText: '未找到指定的字典数据项' })
 
   return updatedItem
 })

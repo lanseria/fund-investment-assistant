@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const refreshToken = getCookie(event, 'auth-refresh-token')
 
   if (!refreshToken) {
-    throw createError({ statusCode: 401, message: 'Refresh token is missing.' })
+    throw createError({ status: 401, statusText: 'Refresh token is missing.' })
   }
 
   const refreshPublicKey = await useStorage('redis').getItem<string>('refreshPublicKey')
@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     console.error(error)
     deleteCookie(event, 'auth-token', { path: '/' })
     deleteCookie(event, 'auth-refresh-token', { path: '/' })
-    throw createError({ statusCode: 401, message: 'Invalid or expired refresh token.' })
+    throw createError({ status: 401, statusText: 'Invalid or expired refresh token.' })
   }
 
   const userId = payload.sub
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const user = await db.query.users.findFirst({ where: eq(users.id, Number(userId)) })
   if (!user)
-    throw createError({ statusCode: 401, message: 'Invalid refresh token: user not found.' })
+    throw createError({ status: 401, statusText: 'Invalid refresh token: user not found.' })
 
   // 1. 完整数据返回给前端
   const fullUserPayload: UserPayload = {

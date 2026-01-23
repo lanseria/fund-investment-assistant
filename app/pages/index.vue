@@ -196,7 +196,7 @@ async function handleProcessTransactions() {
   }
   catch (e: any) {
     console.error(e)
-    alert(`处理失败: ${e.data?.message || e.message}`)
+    alert(`处理失败: ${e.data?.statusMessage || e.message}`)
   }
   finally {
     isProcessingTransactions.value = false

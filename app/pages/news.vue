@@ -69,7 +69,7 @@ async function handleAnalyze() {
     await refresh()
   }
   catch (e: any) {
-    alert(`分析失败: ${e.data?.message || e.message}`)
+    alert(`分析失败: ${e.data?.statusMessage || e.message}`)
   }
   finally {
     isAnalyzing.value = false

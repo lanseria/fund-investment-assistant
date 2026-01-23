@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
     const data = await convertSchema.parseAsync(body)
 
     if (data.fromCode === data.toCode) {
-      throw createError({ statusCode: 400, message: '转出和转入基金不能相同' })
+      throw createError({ status: 400, statusText: '转出和转入基金不能相同' })
     }
 
     const db = useDb()
@@ -54,9 +54,9 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: any) {
     if (error instanceof z.ZodError) {
-      throw createError({ statusCode: 400, message: '输入数据格式错误' })
+      throw createError({ status: 400, statusText: '输入数据格式错误' })
     }
     console.error('转换失败:', error)
-    throw createError({ statusCode: 500, message: error.message || '转换提交失败' })
+    throw createError({ status: 500, statusText: error.message || '转换提交失败' })
   }
 })

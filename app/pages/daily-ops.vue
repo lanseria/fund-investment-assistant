@@ -52,7 +52,7 @@ async function handleCopyPrompt(userId: number, username: string) {
     alert(`用户 ${username} 的 Prompt (实时生成) 已复制到剪贴板！`)
   }
   catch (e: any) {
-    alert(`获取 Prompt 失败: ${e.data?.message || '未知错误'}`)
+    alert(`获取 Prompt 失败: ${e.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isLogLoading.value = false
@@ -101,7 +101,7 @@ async function handleImportJsonSubmit() {
     refresh() // 刷新列表
   }
   catch (e: any) {
-    alert(`提交失败: ${e.data?.message || e.message}`)
+    alert(`提交失败: ${e.data?.statusMessage || e.message}`)
   }
   finally {
     isImporting.value = false

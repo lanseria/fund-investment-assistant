@@ -15,7 +15,7 @@ export default defineEventHandler(async (event) => {
   // 权限校验：确保只有管理员可以操作
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   // 读取并验证请求体
   const body = await readBody(event)

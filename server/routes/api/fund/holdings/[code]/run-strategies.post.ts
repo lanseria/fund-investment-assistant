@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event)
   const code = getRouterParam(event, 'code')
   if (!code)
-    throw createError({ statusCode: 400, message: 'Fund code is required.' })
+    throw createError({ status: 400, statusText: 'Fund code is required.' })
 
   try {
     // [修改] 调用 runStrategiesForFund 时，传入用户ID
@@ -20,8 +20,8 @@ export default defineEventHandler(async (event) => {
   catch (error: any) {
     console.error(`为基金 ${code} 手动执行策略分析时出错:`, error)
     throw createError({
-      statusCode: 500,
-      message: `执行失败: ${error.message}`,
+      status: 500,
+      statusText: `执行失败: ${error.message}`,
     })
   }
 })

@@ -65,7 +65,7 @@ export default defineEventHandler(async (event) => {
   const conversationHistory = body.history || []
 
   if (!userMessage) {
-    throw createError({ statusCode: 400, statusMessage: 'Message is required' })
+    throw createError({ status: 400, statusText: 'Message is required' })
   }
 
   // ==========================================
@@ -89,7 +89,7 @@ export default defineEventHandler(async (event) => {
   }
   catch (e) {
     console.error('MCP 连接失败:', e)
-    throw createError({ statusCode: 503, statusMessage: 'MCP Service Unavailable' })
+    throw createError({ status: 503, statusText: 'MCP Service Unavailable' })
   }
 
   // 获取工具列表并转换为 Claude 格式
@@ -189,7 +189,7 @@ export default defineEventHandler(async (event) => {
   }
   catch (error: any) {
     console.error('AI 交互流程异常:', error)
-    throw createError({ statusCode: 500, statusMessage: error.message })
+    throw createError({ status: 500, statusText: error.message })
   }
   finally {
     // 务必关闭连接，防止资源泄漏

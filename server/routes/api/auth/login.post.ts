@@ -5,7 +5,6 @@ import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
 import { users } from '~~/server/database/schemas'
-// [修改] 导入新的工具函数
 import { hashPassword, needsRehash, verifyPassword } from '~~/server/utils/auth'
 
 const loginSchema = z.object({
@@ -27,8 +26,8 @@ export default defineEventHandler(async (event) => {
 
   if (!isValid || !user) {
     throw createError({
-      statusCode: 401,
-      message: '用户名或密码错误。',
+      status: 401,
+      statusText: '用户名或密码错误。',
     })
   }
 

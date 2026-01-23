@@ -12,8 +12,8 @@ export default defineEventHandler(async (event) => {
   catch (error) {
     console.error(`获取排行榜数据(${period})时出错:`, error)
     throw createError({
-      statusCode: 500,
-      message: '获取排行榜数据失败。',
+      status: 500,
+      statusText: '获取排行榜数据失败。',
     })
   }
 })

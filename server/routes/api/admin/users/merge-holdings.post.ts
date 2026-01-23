@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   // 1. 权限验证
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
   }
 
   // 2. 参数解析
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   const { sourceUserId, targetUserId } = await mergeSchema.parseAsync(body)
 
   if (sourceUserId === targetUserId) {
-    throw createError({ statusCode: 400, message: '源用户和目标用户不能相同' })
+    throw createError({ status: 400, statusText: '源用户和目标用户不能相同' })
   }
 
   const db = useDb()
@@ -48,8 +48,8 @@ export default defineEventHandler(async (event) => {
   catch (error: any) {
     console.error('Merge holdings error:', error)
     throw createError({
-      statusCode: 500,
-      message: `合并失败: ${error.message}`,
+      status: 500,
+      statusText: `合并失败: ${error.message}`,
     })
   }
 })

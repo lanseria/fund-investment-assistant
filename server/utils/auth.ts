@@ -43,8 +43,8 @@ export function getUserFromEvent(event: H3Event): UserPayload {
   const user = event.context.user as UserPayload | undefined
   if (!user) {
     throw createError({
-      statusCode: 401,
-      message: 'User not found in context. Authentication required.',
+      status: 401,
+      statusText: 'User not found in context. Authentication required.',
     })
   }
   return user

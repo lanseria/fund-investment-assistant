@@ -5,7 +5,7 @@ import { useDb } from '~~/server/utils/db'
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
   }
 
   const db = useDb()

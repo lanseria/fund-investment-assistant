@@ -25,7 +25,7 @@ const BatchReplaceSchema = z.object({
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
   }
 
   const body = await readBody(event)
@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
     parsedBody = await BatchReplaceSchema.parseAsync(body)
   }
   catch (e: any) {
-    throw createError({ statusCode: 400, message: `Invalid JSON format: ${e.message}` })
+    throw createError({ status: 400, statusText: `Invalid JSON format: ${e.message}` })
   }
 
   const { userId, date, decisions } = parsedBody
@@ -66,8 +66,8 @@ export default defineEventHandler(async (event) => {
             // 如果指向的索引还未插入（比如指向后面的），则无法关联，抛出错误或忽略
             // 这里我们要求源交易（convert_out）必须在目标交易（convert_in）之前
             throw createError({
-              statusCode: 400,
-              message: `Decision at index ${index} refers to relatedIndex ${d.relatedIndex} which has not been processed yet. Please order 'convert_out' before 'convert_in'.`,
+              status: 400,
+              statusText: `Decision at index ${index} refers to relatedIndex ${d.relatedIndex} which has not been processed yet. Please order 'convert_out' before 'convert_in'.`,
             })
           }
         }

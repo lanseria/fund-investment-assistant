@@ -102,7 +102,7 @@ export default defineTask({
         const todayStr = new Date().toISOString().split('T')[0]
         await db.insert(aiExecutionLogs).values({
           userId: user.id,
-          date: todayStr,
+          date: todayStr ?? '',
           prompt: fullPrompt,
           response: rawResponse,
         })
@@ -127,7 +127,7 @@ export default defineTask({
             status: 'pending',
             orderAmount: decision.amount ? String(decision.amount) : null,
             orderShares: decision.shares ? String(decision.shares) : null,
-            orderDate: todayStr,
+            orderDate: todayStr ?? '',
             note: `[AI操作] ${decision.reason}`,
           })
 

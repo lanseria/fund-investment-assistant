@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   // 权限校验：确保是管理员
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   const db = useDb()
   // 查询所有字典类型，并按名称排序

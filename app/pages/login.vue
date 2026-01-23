@@ -50,7 +50,7 @@ async function handleLogin() {
   }
   catch (error: any) {
     // 将 alert 替换为设置错误信息
-    errorMessage.value = error.data?.message || '登录时发生未知错误，请重试。'
+    errorMessage.value = error.data?.statusMessage || '登录时发生未知错误，请重试。'
   }
   finally {
     isLoading.value = false

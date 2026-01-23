@@ -18,7 +18,7 @@ const transactionSchema = z.object({
     return false
   return true
 }, {
-  message: '买入需提供金额，卖出需提供份额',
+  error: '买入需提供金额，卖出需提供份额',
   path: ['amount'],
 })
 
@@ -41,13 +41,13 @@ export default defineEventHandler(async (event) => {
       orderDate: data.date,
     }).returning()
 
-    return { message: '交易请求已记录', record }
+    return { statusText: '交易请求已记录', record }
   }
   catch (error) {
     if (error instanceof z.ZodError) {
-      throw createError({ statusCode: 400, message: error.message || '输入无效' })
+      throw createError({ status: 400, statusText: error.message || '输入无效' })
     }
     console.error('保存交易记录失败:', error)
-    throw createError({ statusCode: 500, message: '服务器内部错误' })
+    throw createError({ status: 500, statusText: '服务器内部错误' })
   }
 })

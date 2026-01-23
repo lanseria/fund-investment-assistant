@@ -6,7 +6,7 @@ import { useDb } from '~~/server/utils/db'
 export default defineEventHandler(async (event) => {
   const code = getRouterParam(event, 'code')
   if (!code) {
-    throw createError({ statusCode: 400, message: 'Fund code is required' })
+    throw createError({ status: 400, statusText: 'Fund code is required' })
   }
 
   const db = useDb()

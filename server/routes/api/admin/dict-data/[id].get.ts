@@ -7,12 +7,12 @@ export default defineEventHandler(async (event) => {
   // 权限校验
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   // 从 URL 路径中获取字典类型参数
   const id = getRouterParam(event, 'id')
   if (!id)
-    throw createError({ statusCode: 400, message: '字典类型 (type) 是必需的' })
+    throw createError({ status: 400, statusText: '字典类型 (type) 是必需的' })
 
   const db = useDb()
   // 查询指定类型的所有数据，并按 sortOrder 排序

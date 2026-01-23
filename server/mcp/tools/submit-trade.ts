@@ -74,7 +74,7 @@ export default defineMcpTool({
       return {
         content: [{
           type: 'text',
-          text: `✅ 交易申请已提交！\n\n- 基金: ${fundCode}\n- 操作: ${actionText}\n- 数量: ${valueText}\n- 状态: 待确认 (ID: ${record.id})\n- 备注: ${reason}\n\n请在“每日操作”页面进行最终确认。`,
+          text: `✅ 交易申请已提交！\n\n- 基金: ${fundCode}\n- 操作: ${actionText}\n- 数量: ${valueText}\n- 状态: 待确认 (ID: ${record!.id})\n- 备注: ${reason}\n\n请在“每日操作”页面进行最终确认。`,
         }],
       }
     }

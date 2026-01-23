@@ -17,6 +17,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate"
   },
+  "dependencies": {
+    "@iconify-json/f7": "catalog:icons"
+  },
   "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@iconify-json/carbon": "catalog:icons",
@@ -42,7 +45,7 @@
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
-    "nuxt": "catalog:build",
+    "nuxt": "catalog:",
     "nuxt-echarts": "catalog:frontend",
     "openai": "catalog:",
     "paseto-ts": "catalog:utils",
@@ -64,8 +67,5 @@
     "unplugin": "catalog:build",
     "vite": "catalog:build",
     "vue-echarts": "catalog:frontend"
-  },
-  "dependencies": {
-    "@iconify-json/f7": "catalog:icons"
   }
 }

@@ -96,7 +96,7 @@ export default defineMcpTool({
       }).returning()
 
       return {
-        content: [{ type: 'text', text: `✅ 用户创建成功!\nID: ${newUser.id}\nUsername: ${newUser.username}\nRole: ${newUser.role}` }],
+        content: [{ type: 'text', text: `✅ 用户创建成功!\nID: ${newUser!.id}\nUsername: ${newUser!.username}\nRole: ${newUser!.role}` }],
       }
     }
 

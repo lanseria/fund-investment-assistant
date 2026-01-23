@@ -49,7 +49,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   }
 
   // 2. 确定时间范围和涉及的基金
-  const firstTxDate = dayjs(allTxs[0].orderDate)
+  const firstTxDate = dayjs(allTxs[0]!.orderDate)
   const today = dayjs()
   // 提取所有涉及的基金代码 (去重)
   const fundCodes = [...new Set(allTxs.map(t => t.fundCode))]

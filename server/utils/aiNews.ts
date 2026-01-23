@@ -136,7 +136,7 @@ export async function processNewsWithAi(rawText: string): Promise<StructuredNews
       const validationResult = NewsResponseSchema.safeParse(parsedJson)
 
       if (!validationResult.success) {
-        console.warn(`[AI分析] Zod 结构校验失败:`, validationResult.error.issues[0].message)
+        console.warn(`[AI分析] Zod 结构校验失败:`, validationResult.error.issues[0]!.message)
         throw new Error('Zod 校验不通过')
       }
 

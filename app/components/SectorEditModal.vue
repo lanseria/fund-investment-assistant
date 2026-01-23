@@ -37,7 +37,7 @@ async function handleSubmit() {
     emit('success', { code: props.fundCode, newSector: selectedSector.value })
   }
   catch (error: any) {
-    alert(`更新失败: ${error.data?.message || '未知错误'}`)
+    alert(`更新失败: ${error.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isSubmitting.value = false

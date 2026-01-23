@@ -3,7 +3,7 @@
 export default defineEventHandler(async (event) => {
   const code = getRouterParam(event, 'code')
   if (!code)
-    throw createError({ statusCode: 400, message: 'Fund code is required.' })
+    throw createError({ status: 400, statusText: 'Fund code is required.' })
 
   try {
     const count = await syncSingleFundHistory(code)
@@ -14,9 +14,9 @@ export default defineEventHandler(async (event) => {
   }
   catch (error) {
     if (error instanceof HoldingNotFoundError)
-      throw createError({ statusCode: 404, message: error.message })
+      throw createError({ status: 404, statusText: error.message })
 
     console.error(`手动同步基金 ${code} 历史数据时出错:`, error)
-    throw createError({ statusCode: 500, message: '同步失败，请查看服务器日志。' })
+    throw createError({ status: 500, statusText: '同步失败，请查看服务器日志。' })
   }
 })

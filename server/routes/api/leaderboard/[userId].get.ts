@@ -4,8 +4,8 @@ export default defineEventHandler(async (event) => {
   const userId = getRouterParam(event, 'userId')
   if (!userId) {
     throw createError({
-      statusCode: 400,
-      message: '需要提供用户 ID。',
+      status: 400,
+      statusText: '需要提供用户 ID。',
     })
   }
 
@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
   catch (error) {
     console.error(`获取用户 ${userId} 的持仓详情时出错:`, error)
     throw createError({
-      statusCode: 500,
-      message: '获取持仓详情失败。',
+      status: 500,
+      statusText: '获取持仓详情失败。',
     })
   }
 })

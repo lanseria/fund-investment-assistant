@@ -6,7 +6,7 @@ import { useDb } from '~~/server/utils/db'
 export default defineEventHandler(async (event) => {
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin') {
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
   }
 
   const query = getQuery(event)
@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   const date = query.date as string
 
   if (!userId || !date) {
-    throw createError({ statusCode: 400, message: 'Missing userId or date' })
+    throw createError({ status: 400, statusText: 'Missing userId or date' })
   }
 
   const db = useDb()
@@ -27,7 +27,7 @@ export default defineEventHandler(async (event) => {
   })
 
   if (!log) {
-    throw createError({ statusCode: 404, message: 'Log not found' })
+    throw createError({ status: 404, statusText: 'Log not found' })
   }
 
   return log

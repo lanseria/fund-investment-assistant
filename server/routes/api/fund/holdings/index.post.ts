@@ -21,12 +21,12 @@ export default defineEventHandler(async (event) => {
   }
   catch (error) {
     if (error instanceof HoldingExistsError)
-      throw createError({ statusCode: 409, message: error.message })
+      throw createError({ status: 409, statusText: error.message })
 
     if (error instanceof z.ZodError)
-      throw createError({ statusCode: 400, message: '输入数据无效。' })
+      throw createError({ status: 400, statusText: '输入数据无效。' })
 
     console.error('添加持仓时发生错误:', error)
-    throw createError({ statusCode: 500, message: '服务器内部错误' })
+    throw createError({ status: 500, statusText: '服务器内部错误' })
   }
 })

@@ -14,12 +14,12 @@ export default defineEventHandler(async (event) => {
   // 权限校验
   const admin = getUserFromEvent(event)
   if (admin.role !== 'admin')
-    throw createError({ statusCode: 403, message: 'Forbidden: Admins only' })
+    throw createError({ status: 403, statusText: 'Forbidden: Admins only' })
 
   // 从 URL 路径中获取要更新的类型编码
   const type = getRouterParam(event, 'type')
   if (!type)
-    throw createError({ statusCode: 400, message: '字典类型 (type) 是必需的' })
+    throw createError({ status: 400, statusText: '字典类型 (type) 是必需的' })
 
   // 读取并验证请求体
   const body = await readBody(event)
@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
     .returning()
 
   if (!updatedItem)
-    throw createError({ statusCode: 404, message: '未找到指定的字典类型' })
+    throw createError({ status: 404, statusText: '未找到指定的字典类型' })
 
   return updatedItem
 })

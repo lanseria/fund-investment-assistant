@@ -12,8 +12,8 @@ export default defineEventHandler(async () => {
   catch (error: any) {
     console.error('刷新所有基金估值时出错:', error)
     throw createError({
-      statusCode: 500,
-      message: `刷新失败: ${error.message}`,
+      status: 500,
+      statusText: `刷新失败: ${error.message}`,
     })
   }
 })

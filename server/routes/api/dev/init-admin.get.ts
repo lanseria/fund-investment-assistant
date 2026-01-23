@@ -5,8 +5,8 @@ export default defineEventHandler(async () => {
   // [安全措施] 仅在开发环境中允许此操作
   if (env.NODE_ENV !== 'development') {
     throw createError({
-      statusCode: 403,
-      message: 'Forbidden: This endpoint is only available in development mode.',
+      status: 403,
+      statusText: 'Forbidden: This endpoint is only available in development mode.',
     })
   }
 
@@ -19,15 +19,15 @@ export default defineEventHandler(async () => {
 
     if (taskResult.result === 'Success') {
       return {
-        statusCode: 200,
-        message: 'Admin initialization task completed successfully.',
+        status: 200,
+        statusText: 'Admin initialization task completed successfully.',
         details: 'Admin user has been created. Check server logs for credentials.',
       }
     }
     else if (taskResult.result === 'Skipped') {
       return {
-        statusCode: 200,
-        message: 'Admin initialization task was skipped.',
+        status: 200,
+        statusText: 'Admin initialization task was skipped.',
         details: 'An admin user already exists.',
       }
     }
@@ -39,8 +39,8 @@ export default defineEventHandler(async () => {
   catch (error: any) {
     console.error('Error running init:admin task via API:', error)
     throw createError({
-      statusCode: 500,
-      message: 'Failed to run the admin initialization task.',
+      status: 500,
+      statusText: 'Failed to run the admin initialization task.',
       data: {
         error: error.message,
       },

@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const dateStr = getRouterParam(event, 'date')
 
   if (!dateStr) {
-    throw createError({ statusCode: 400, message: 'Date is required' })
+    throw createError({ status: 400, statusText: 'Date is required' })
   }
 
   const db = useDb()

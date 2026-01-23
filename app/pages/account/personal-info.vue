@@ -68,7 +68,7 @@ async function handleToggle(newState: boolean) {
     aiForm.isAiAgent = newState
   }
   catch (e: any) {
-    alert(`操作失败: ${e.data?.message || '未知错误'}`)
+    alert(`操作失败: ${e.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isToggling.value = false

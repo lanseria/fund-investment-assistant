@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const dateStr = query.date as string
 
   if (!dateStr) {
-    throw createError({ statusCode: 400, message: 'Date is required (YYYY-MM-DD)' })
+    throw createError({ status: 400, statusText: 'Date is required (YYYY-MM-DD)' })
   }
 
   const db = useDb()

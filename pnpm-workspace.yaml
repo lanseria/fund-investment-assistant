@@ -1,12 +1,10 @@
-catalogMode: prefer
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
 packages: []
 
 catalog:
+  nuxt: ^4.3.0
   openai: ^6.16.0
+
+catalogMode: prefer
 
 catalogs:
   backend:
@@ -59,3 +57,7 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
