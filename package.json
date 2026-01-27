@@ -2,7 +2,7 @@
   "name": "fund-investment-assistant",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.28.1",
+  "packageManager": "pnpm@10.28.2",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -18,13 +18,11 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@iconify-json/f7": "catalog:icons"
-  },
-  "devDependencies": {
     "@antfu/eslint-config": "catalog:dev",
     "@iconify-json/carbon": "catalog:icons",
+    "@iconify-json/f7": "catalog:icons",
     "@iconify-json/twemoji": "catalog:icons",
-    "@nuxt/devtools": "catalog:build",
+    "@nuxt/devtools": "^3.1.1",
     "@nuxt/eslint": "catalog:build",
     "@nuxtjs/color-mode": "catalog:build",
     "@nuxtjs/mcp-toolkit": "catalog:backend",
@@ -45,16 +43,16 @@
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
-    "nuxt": "catalog:",
+    "nuxt": "^4.3.0",
     "nuxt-echarts": "catalog:frontend",
-    "openai": "catalog:",
+    "openai": "catalog:backend",
     "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
     "pinia": "catalog:frontend",
     "typescript": "catalog:dev",
     "unocss": "catalog:build",
     "vue": "catalog:frontend",
-    "vue-echarts": "catalog:frontend",
+    "vue-echarts": "^8.0.1",
     "vue-tsc": "catalog:dev",
     "zod": "catalog:utils"
   },
