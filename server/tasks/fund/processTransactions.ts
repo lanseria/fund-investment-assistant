@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
-import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm'
+import { and, eq, inArray, lt, sql } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas' // [修改] 导入 users
 import { useDb } from '~~/server/utils/db'
 
@@ -30,6 +30,7 @@ export default defineTask({
     let skippedCount = 0
     const skippedReasons: string[] = []
 
+    // 辅助函数：更新关联买入单的金额
     const updateRelatedBuyAmount = async (sellTxId: number, confirmedAmount: string) => {
       await db.update(fundTransactions)
         .set({ orderAmount: confirmedAmount })
@@ -81,15 +82,15 @@ export default defineTask({
           confirmedShares = orderAmount.dividedBy(nav)
           confirmedAmount = orderAmount
 
-          // [核心修改] 如果是普通买入，扣减用户余额
+          // 扣减余额
           if (tx.type === 'buy') {
             await db.update(users)
               .set({ availableCash: sql`${users.availableCash} - ${confirmedAmount.toString()}` })
               .where(eq(users.id, tx.userId))
-
             console.log(`[Cash] 用户 ${tx.userId} 买入扣款: -${confirmedAmount.toFixed(2)}`)
           }
 
+          // 更新平均成本
           if (currentHolding && finalShares.gt(0)) {
             const oldTotalCost = finalShares.multipliedBy(finalCostPrice)
             const newTotalCost = oldTotalCost.plus(confirmedAmount)
@@ -102,40 +103,106 @@ export default defineTask({
             finalCostPrice = nav
           }
         }
-        // --- 卖出 / 转出 ---
+        // --- 卖出 / 转出 (核心修改：FIFO 7天惩罚计算) ---
         else if (tx.type === 'sell' || tx.type === 'convert_out') {
           const orderShares = new BigNumber(tx.orderShares || 0)
 
-          if (!currentHolding || finalShares.lt(orderShares)) {
+          if (!currentHolding || finalShares.lt(orderShares.minus(0.0001))) { // 容差
             await db.update(fundTransactions)
-              .set({ status: 'failed', note: `持仓不足 (需${orderShares}, 有${finalShares})` })
+              .set({ status: 'failed', note: `持仓不足 (需${orderShares.toFixed(2)}, 有${finalShares.toFixed(2)})` })
               .where(eq(fundTransactions.id, tx.id))
             continue
           }
 
           confirmedShares = orderShares
-          let rawAmount = orderShares.multipliedBy(nav)
+          let rawAmount = orderShares.multipliedBy(nav) // 未扣费前的金额
 
-          // 7天惩罚逻辑
-          const lastBuyTx = await db.query.fundTransactions.findFirst({
+          // === FIFO 逻辑开始 ===
+          // 1. 获取所有历史已确认的“增加份额”的交易 (买入/转入)，按时间正序
+          const historyBuys = await db.query.fundTransactions.findMany({
             where: and(
               eq(fundTransactions.userId, tx.userId),
               eq(fundTransactions.fundCode, tx.fundCode),
               inArray(fundTransactions.type, ['buy', 'convert_in']),
               eq(fundTransactions.status, 'confirmed'),
-              lt(fundTransactions.orderDate, tx.orderDate),
+              lt(fundTransactions.orderDate, tx.orderDate), // 仅查询本次交易之前的
             ),
-            orderBy: [desc(fundTransactions.orderDate)],
+            orderBy: [sql`${fundTransactions.orderDate} ASC`, sql`${fundTransactions.createdAt} ASC`],
           })
 
-          if (lastBuyTx) {
-            const diffDays = dayjs(tx.orderDate).diff(dayjs(lastBuyTx.orderDate), 'day')
-            if (diffDays < 7) {
-              const fee = rawAmount.multipliedBy(0.015)
-              rawAmount = rawAmount.minus(fee)
-              note += ` | 持有<7天, 扣费¥${fee.toFixed(2)}`
+          // 2. 获取所有历史已确认的“减少份额”的交易 (卖出/转出)
+          const historySells = await db.query.fundTransactions.findMany({
+            where: and(
+              eq(fundTransactions.userId, tx.userId),
+              eq(fundTransactions.fundCode, tx.fundCode),
+              inArray(fundTransactions.type, ['sell', 'convert_out']),
+              eq(fundTransactions.status, 'confirmed'),
+              lt(fundTransactions.orderDate, tx.orderDate),
+            ),
+            orderBy: [sql`${fundTransactions.orderDate} ASC`, sql`${fundTransactions.createdAt} ASC`],
+          })
+
+          // 3. 构建当前的持仓批次队列 (Lots)
+          // 结构: { date: string, shares: BigNumber }
+          const lots: { date: string, shares: BigNumber }[] = []
+
+          // 3.1 填充买入
+          for (const hBuy of historyBuys) {
+            lots.push({
+              date: hBuy.orderDate,
+              shares: new BigNumber(hBuy.confirmedShares || 0),
+            })
+          }
+
+          // 3.2 模拟历史卖出消耗 (FIFO)
+          let totalHistorySold = historySells.reduce((acc, s) => acc.plus(new BigNumber(s.confirmedShares || 0)), new BigNumber(0))
+
+          while (totalHistorySold.gt(0) && lots.length > 0) {
+            const head = lots[0]!
+            if (head.shares.lte(totalHistorySold)) {
+              // 这一批次全部卖完了
+              totalHistorySold = totalHistorySold.minus(head.shares)
+              lots.shift() // 移除队头
+            }
+            else {
+              // 这一批次只卖了一部分
+              head.shares = head.shares.minus(totalHistorySold)
+              totalHistorySold = new BigNumber(0)
             }
           }
+
+          // 4. 计算本次卖出的惩罚
+          let sharesToSell = new BigNumber(confirmedShares)
+          let totalPenaltyFee = new BigNumber(0)
+          const sellDate = dayjs(tx.orderDate)
+
+          // 从剩下的批次中扣减
+          for (const lot of lots) {
+            if (sharesToSell.lte(0))
+              break
+
+            const take = BigNumber.min(lot.shares, sharesToSell)
+            const buyDate = dayjs(lot.date)
+            // 计算持有天数 (diff)
+            const diffDays = sellDate.diff(buyDate, 'day')
+
+            // 如果持有不足 7 天，对这一部分 (take) 收取手续费
+            if (diffDays < 7) {
+              const partValue = take.multipliedBy(nav)
+              const partFee = partValue.multipliedBy(0.015) // 1.5%
+              totalPenaltyFee = totalPenaltyFee.plus(partFee)
+              console.log(`[FIFO Penalty] 扣减批次 ${lot.date} (持有${diffDays}天): 份额 ${take.toFixed(2)}, 费用 ${partFee.toFixed(2)}`)
+            }
+
+            sharesToSell = sharesToSell.minus(take)
+          }
+
+          // 5. 应用手续费
+          if (totalPenaltyFee.gt(0)) {
+            rawAmount = rawAmount.minus(totalPenaltyFee)
+            note += ` | 持有<7天惩罚: -¥${totalPenaltyFee.toFixed(2)}`
+          }
+          // === FIFO 逻辑结束 ===
 
           confirmedAmount = rawAmount
           finalShares = finalShares.minus(confirmedShares)
@@ -144,12 +211,11 @@ export default defineTask({
             finalCostPrice = new BigNumber(0)
           }
 
-          // [核心修改] 如果是普通卖出，增加用户余额
+          // 卖出回款
           if (tx.type === 'sell') {
             await db.update(users)
               .set({ availableCash: sql`${users.availableCash} + ${confirmedAmount.toString()}` })
               .where(eq(users.id, tx.userId))
-
             console.log(`[Cash] 用户 ${tx.userId} 卖出回款: +${confirmedAmount.toFixed(2)}`)
           }
 

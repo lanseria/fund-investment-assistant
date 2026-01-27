@@ -11,8 +11,8 @@ const props = defineProps<{
   currentShares: number
   // 所有可选的目标基金（必须从已添加的基金中选）
   availableFunds: Holding[]
-  // [新增] 最近一次买入日期
-  lastBuyDate?: string | null
+  // [新增] 交易记录
+  recentTransactions?: any[]
 }>()
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -38,18 +38,37 @@ const targetOptions = computed(() => {
     }))
 })
 
-// [新增] 检查是否由短期持有 (少于7天)
-const shortTermCheck = computed(() => {
-  if (!props.lastBuyDate || !formData.date)
-    return { isShortTerm: false, days: 0 }
+// [新增] 安全份额计算
+const safeShares = computed(() => {
+  if (!props.currentShares)
+    return 0
+  if (!formData.date)
+    return 0
 
-  const convertDate = dayjs(formData.date)
-  const buyDate = dayjs(props.lastBuyDate)
-  const diff = convertDate.diff(buyDate, 'day')
+  const sellDate = dayjs(formData.date)
+  const recentBuysWithin7Days = (props.recentTransactions || [])
+    .filter((t) => {
+      const isBuy = t.type === 'buy' || t.type === 'convert_in'
+      if (!isBuy)
+        return false
+      const diff = sellDate.diff(dayjs(t.date), 'day')
+      return diff < 7
+    })
+    .reduce((sum, t) => sum + (Number(t.shares) || 0), 0)
+
+  return Math.max(0, props.currentShares - recentBuysWithin7Days)
+})
+
+// [修改] 计算 FIFO 惩罚
+const penaltyAnalysis = computed(() => {
+  if (!formData.date || !formData.shares)
+    return { isShortTerm: false, penaltyShares: 0 }
+
+  const sharesSubjectToPenalty = Math.max(0, formData.shares - safeShares.value)
 
   return {
-    isShortTerm: diff < 7,
-    days: diff,
+    isShortTerm: sharesSubjectToPenalty > 0.0001,
+    penaltyShares: sharesSubjectToPenalty,
   }
 })
 
@@ -60,11 +79,17 @@ const ratios = [
   { label: '全部', value: 1 },
 ]
 
-function setShares(ratio: number) {
-  // 逻辑：(currentShares * ratio) -> 保留4位小数 -> 向下取整
-  formData.shares = +(new BigNumber(props.currentShares)
-    .times(ratio)
-    .toFixed(4, BigNumber.ROUND_DOWN))
+// [修改] 支持 safe 模式
+function setShares(ratio: number | 'safe') {
+  let val = 0
+  if (ratio === 'safe') {
+    val = safeShares.value
+  }
+  else {
+    val = new BigNumber(props.currentShares).times(ratio).toNumber()
+  }
+  // 逻辑：(val) -> 保留4位小数 -> 向下取整
+  formData.shares = +(new BigNumber(val).toFixed(4, BigNumber.ROUND_DOWN))
 }
 
 const canSubmit = computed(() => {
@@ -78,9 +103,9 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
-    // [新增] 7天惩罚二次确认
-    if (shortTermCheck.value.isShortTerm) {
-      if (!confirm(`⚠️ 警告：检测到该基金持有不足 7 天！\n\n转出将扣除 1.5% 的惩罚性手续费。\n\n确定要继续转换吗？`))
+    // [修改] 7天惩罚二次确认
+    if (penaltyAnalysis.value.isShortTerm) {
+      if (!confirm(`⚠️ 警告：检测到转出份额中有 ${penaltyAnalysis.value.penaltyShares.toFixed(2)} 份持有不足 7 天！\n\n转出将扣除 1.5% 的惩罚性手续费。\n\n确定要继续转换吗？`))
         return
     }
 
@@ -108,17 +133,17 @@ function handleSubmit() {
         </p>
       </div>
 
-      <!-- [新增] 7天惩罚提示 -->
+      <!-- [修改] 7天惩罚提示 -->
       <div
-        v-if="shortTermCheck.isShortTerm"
+        v-if="penaltyAnalysis.isShortTerm"
         class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
       >
         <div class="font-bold flex gap-2 items-center">
           <div i-carbon-warning-filled />
-          持有期警告 ({{ shortTermCheck.days }}天)
+          持有期警告 (FIFO)
         </div>
         <p class="mt-1">
-          最近一次买入于 {{ lastBuyDate }}，不足7天。
+          有 <b>{{ penaltyAnalysis.penaltyShares.toFixed(2) }}</b> 份不足7天。
           转出将扣除 <span class="font-bold">1.5%</span> 费用，导致实际转入金额减少。
         </p>
       </div>
@@ -170,7 +195,18 @@ function handleSubmit() {
           class="input-base"
           placeholder="请输入转出份额"
         >
-        <div class="mt-2 flex gap-2">
+        <div class="mt-2 flex flex-wrap gap-2">
+          <!-- [新增] 免手续费按钮 -->
+          <button
+            v-if="safeShares > 0 && safeShares < currentShares"
+            type="button"
+            class="text-xs text-green-700 px-2 py-1 border border-green-200 rounded bg-green-50 transition-colors dark:text-green-300 dark:border-green-800 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50"
+            title="转出持有超过7天的份额，不产生惩罚性手续费"
+            @click="setShares('safe')"
+          >
+            免赎回费 ({{ safeShares.toFixed(2) }})
+          </button>
+
           <button
             v-for="r in ratios"
             :key="r.value"

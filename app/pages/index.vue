@@ -48,7 +48,7 @@ const isConvertModalOpen = ref(false)
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
 const availableShares = ref(0)
-const lastBuyDateForTrade = ref<string | null>(null)
+const tradeTargetTransactions = ref<any[]>([]) // 新增
 
 // 辅助函数
 function calculateAvailableShares(holding: Holding) {
@@ -61,17 +61,10 @@ function calculateAvailableShares(holding: Holding) {
   return Math.max(0, currentShares - frozenShares)
 }
 
-function getLastBuyDate(holding: Holding): string | null {
-  if (!holding.recentTransactions || holding.recentTransactions.length === 0)
-    return null
-  const lastBuy = holding.recentTransactions.find(t => t.type === 'buy' || t.type === 'convert_in')
-  return lastBuy ? lastBuy.date : null
-}
-
 function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
   availableShares.value = calculateAvailableShares(holding)
-  lastBuyDateForTrade.value = getLastBuyDate(holding)
+  tradeTargetTransactions.value = holding.recentTransactions || [] // 新增
 
   if (type === 'convert') {
     isConvertModalOpen.value = true
@@ -299,7 +292,7 @@ async function onSectorUpdateSuccess() {
         :type="tradeType"
         :current-shares="availableShares"
         :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
-        :last-buy-date="lastBuyDateForTrade"
+        :recent-transactions="tradeTargetTransactions"
         @submit="handleTradeSubmit"
         @cancel="isTradeModalOpen = false"
       />
@@ -311,7 +304,7 @@ async function onSectorUpdateSuccess() {
         :from-name="tradeTarget.name"
         :current-shares="availableShares"
         :available-funds="holdings"
-        :last-buy-date="lastBuyDateForTrade"
+        :recent-transactions="tradeTargetTransactions"
         @submit="handleConvertSubmit"
         @cancel="isConvertModalOpen = false"
       />

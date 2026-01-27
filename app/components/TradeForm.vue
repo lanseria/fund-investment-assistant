@@ -11,8 +11,8 @@ const props = defineProps<{
   currentShares?: number
   // 卖出时需要知道当前预估市值(仅做参考)
   currentMarketValue?: number
-  // [新增] 最近一次买入日期 (用于计算7天惩罚)
-  lastBuyDate?: string | null
+  // [新增] 接收交易记录用于计算 FIFO
+  recentTransactions?: any[]
 }>()
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -27,32 +27,56 @@ const formData = reactive({
   shares: null as number | null, // 卖出份额
 })
 
-// [新增] 检查是否由短期持有 (少于7天)
-const shortTermCheck = computed(() => {
-  if (props.type !== 'sell' || !props.lastBuyDate || !formData.date)
-    return { isShortTerm: false, days: 0 }
+// [新增] 计算安全份额 (持有 > 7天，免赎回费)
+const safeShares = computed(() => {
+  if (!props.currentShares)
+    return 0
+  if (!formData.date)
+    return 0 // 如果日期无效，暂时无法计算
 
   const sellDate = dayjs(formData.date)
-  const buyDate = dayjs(props.lastBuyDate)
-  const diff = sellDate.diff(buyDate, 'day')
 
-  return {
-    isShortTerm: diff < 7,
-    days: diff,
-  }
+  // 1. 找出最近 7 天内的所有买入/转入份额总和
+  const recentBuysWithin7Days = (props.recentTransactions || [])
+    .filter((t) => {
+      const isBuy = t.type === 'buy' || t.type === 'convert_in'
+      if (!isBuy)
+        return false
+      const diff = sellDate.diff(dayjs(t.date), 'day')
+      return diff < 7
+    })
+    .reduce((sum, t) => sum + (Number(t.shares) || 0), 0)
+
+  // 2. 安全份额 = 当前总持仓 - 最近7天买入的
+  return Math.max(0, (props.currentShares || 0) - recentBuysWithin7Days)
 })
 
-// [新增] 预估惩罚性手续费
-const estimatedFee = computed(() => {
-  if (!shortTermCheck.value.isShortTerm || !formData.shares || !props.currentShares || !props.currentMarketValue)
-    return 0
+// [修改] 计算 FIFO 下的短期持有惩罚
+const penaltyAnalysis = computed(() => {
+  if (props.type !== 'sell' || !formData.date || !formData.shares)
+    return { isShortTerm: false, fee: 0, penaltyShares: 0 }
 
-  // 估算单价
-  const estimatedNav = props.currentMarketValue / props.currentShares
-  // 估算总额 = 卖出份额 * 估算单价
-  const estimatedAmount = formData.shares * estimatedNav
-  // 1.5% 手续费
-  return estimatedAmount * 0.015
+  // 3. 计算本次卖出中有多少份额落在“惩罚区”
+  // 只有当 卖出份额 > 安全份额 时，溢出部分才受罚
+  const sharesSubjectToPenalty = Math.max(0, formData.shares - safeShares.value)
+
+  if (sharesSubjectToPenalty <= 0.0001) {
+    return { isShortTerm: false, fee: 0, penaltyShares: 0 }
+  }
+
+  // 4. 估算费用
+  const estimatedNav = props.currentMarketValue && props.currentShares
+    ? props.currentMarketValue / props.currentShares
+    : 1.0
+
+  const estimatedPenaltyAmount = sharesSubjectToPenalty * estimatedNav
+  const fee = estimatedPenaltyAmount * 0.015
+
+  return {
+    isShortTerm: true,
+    fee,
+    penaltyShares: sharesSubjectToPenalty,
+  }
 })
 
 // 快捷比例按钮 (仅卖出)
@@ -63,13 +87,21 @@ const sellRatios = [
   { label: '全部', value: 1 },
 ]
 
-function setSellShares(ratio: number) {
-  if (props.currentShares) {
-    // 逻辑：(currentShares * ratio) -> 保留4位小数 -> 向下取整
-    formData.shares = +(new BigNumber(props.currentShares)
-      .times(ratio)
-      .toFixed(4, BigNumber.ROUND_DOWN))
+// [修改] 支持传入具体数值或比例
+function setSellShares(ratio: number | 'safe') {
+  if (!props.currentShares)
+    return
+
+  let val = 0
+  if (ratio === 'safe') {
+    val = safeShares.value
   }
+  else {
+    val = new BigNumber(props.currentShares).times(ratio).toNumber()
+  }
+
+  // 保留4位小数 -> 向下取整
+  formData.shares = +(new BigNumber(val).toFixed(4, BigNumber.ROUND_DOWN))
 }
 
 const canSubmit = computed(() => {
@@ -85,9 +117,11 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
-    // [新增] 如果触发惩罚，再次确认
-    if (shortTermCheck.value.isShortTerm) {
-      if (!confirm(`⚠️ 警告：检测到您持有该基金不足 7 天！\n\n卖出将产生约 ${estimatedFee.value.toFixed(2)} 元 (1.5%) 的惩罚性手续费。\n\n确定要继续吗？`))
+    // [修改] 7天惩罚二次确认
+    if (penaltyAnalysis.value.isShortTerm) {
+      const feeStr = penaltyAnalysis.value.fee.toFixed(2)
+      const sharesStr = penaltyAnalysis.value.penaltyShares.toFixed(2)
+      if (!confirm(`⚠️ 警告：根据 FIFO 原则，您本次卖出的份额中有 ${sharesStr} 份持有不足 7 天！\n\n预计将产生约 ¥${feeStr} (1.5%) 的惩罚性手续费。\n\n确定要继续吗？`))
         return
     }
 
@@ -116,21 +150,21 @@ function handleSubmit() {
         </p>
       </div>
 
-      <!-- [新增] 7天惩罚提示 -->
+      <!-- [修改] 7天惩罚提示 -->
       <div
-        v-if="type === 'sell' && shortTermCheck.isShortTerm"
+        v-if="type === 'sell' && penaltyAnalysis.isShortTerm"
         class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
       >
         <div class="font-bold flex gap-2 items-center">
           <div i-carbon-warning-filled />
-          持有期警告 ({{ shortTermCheck.days }}天)
+          持有期警告 (FIFO)
         </div>
         <p class="mt-1">
-          最近一次买入于 {{ lastBuyDate }}，不足7天。
-          卖出将收取 <span class="font-bold">1.5%</span> 惩罚性费率。
+          检测到有 <b>{{ penaltyAnalysis.penaltyShares.toFixed(2) }}</b> 份持仓不足7天。
+          <br>该部分将收取 <span class="font-bold">1.5%</span> 惩罚性费率。
         </p>
-        <p v-if="estimatedFee > 0" class="font-bold mt-1">
-          预估手续费: -¥{{ estimatedFee.toFixed(2) }}
+        <p v-if="penaltyAnalysis.fee > 0" class="font-bold mt-1">
+          预估惩罚手续费: -¥{{ penaltyAnalysis.fee.toFixed(2) }}
         </p>
       </div>
 
@@ -179,7 +213,18 @@ function handleSubmit() {
           autofocus
         >
         <!-- 快捷比例 -->
-        <div class="mt-2 flex gap-2">
+        <div class="mt-2 flex flex-wrap gap-2">
+          <!-- [新增] 免手续费按钮 -->
+          <button
+            v-if="safeShares > 0 && safeShares < (currentShares || 0)"
+            type="button"
+            class="text-xs text-green-700 px-2 py-1 border border-green-200 rounded bg-green-50 transition-colors dark:text-green-300 dark:border-green-800 dark:bg-green-900/30 hover:bg-green-100 dark:hover:bg-green-900/50"
+            title="卖出持有超过7天的份额，不产生惩罚性手续费"
+            @click="setSellShares('safe')"
+          >
+            免赎回费 ({{ safeShares.toFixed(2) }})
+          </button>
+
           <button
             v-for="r in sellRatios"
             :key="r.value"
