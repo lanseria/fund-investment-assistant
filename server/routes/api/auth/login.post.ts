@@ -97,5 +97,8 @@ export default defineEventHandler(async (event) => {
   })
 
   // 返回给前端的是完整数据
-  return { user: fullUserPayload }
+  return {
+    user: fullUserPayload,
+    token: accessToken, // 显式返回给小程序
+  }
 })
