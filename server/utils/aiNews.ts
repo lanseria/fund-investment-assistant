@@ -58,7 +58,7 @@ export async function processNewsWithAi(rawText: string): Promise<StructuredNews
     apiKey: config.openRouterApiKey,
   })
 
-  const targetModel = 'ark-code-latest'
+  const targetModel = 'glm-4.7'
   const MAX_RETRIES = 3
 
   // 强化 Prompt：增加筛选逻辑，减少输出量，防止截断

@@ -271,7 +271,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = 'ark-code-latest'
+  const targetModel = 'kimi-k2-thinking'
 
   try {
     const openai = new OpenAI({
