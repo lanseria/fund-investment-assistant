@@ -77,7 +77,7 @@ export default defineNuxtConfig({
     typedPages: true,
   },
 
-  compatibilityDate: '2025-06-25',
+  compatibilityDate: '2026-02-04',
 
   nitro: {
     moduleSideEffects: ['dayjs/plugin/isBetween'],

@@ -1,7 +1,9 @@
-packages: []
-
 catalogMode: prefer
 
+shellEmulator: true
+
+trustPolicy: no-downgrade
+packages: []
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.6.2
@@ -10,21 +12,18 @@ catalogs:
     drizzle-kit: ^0.31.8
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
-    openai: ^6.16.0
-    pg: ^8.17.2
+    openai: ^6.17.0
+    pg: ^8.18.0
   build:
-    '@nuxt/devtools': ^3.1.1
     '@nuxt/eslint': ^1.13.0
-    '@nuxt/kit': ^4.3.0
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
     '@unocss/eslint-config': ^66.6.0
     '@unocss/nuxt': ^66.6.0
-    '@vueuse/nuxt': ^14.1.0
+    '@vueuse/nuxt': ^14.2.0
     nuxt: ^4.3.0
     unocss: ^66.6.0
     unplugin: ^3.0.0
-    vite: ^7.3.1
   dev:
     '@antfu/eslint-config': ^7.2.0
     eslint: ^9.39.2
@@ -32,7 +31,7 @@ catalogs:
     typescript: ^5.9.3
     vue-tsc: ^3.2.4
   frontend:
-    '@vueuse/core': ^14.1.0
+    '@vueuse/core': ^14.2.0
     echarts: ^6.0.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
@@ -49,12 +48,7 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
     zod: ^4.3.6
-
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
-
-shellEmulator: true
-
-trustPolicy: no-downgrade
