@@ -10,6 +10,7 @@ export const useMarketStore = defineStore('market', () => {
   const indices = ref<Record<string, MarketIndexData>>({})
   const activeGroup = ref<MarketGroupKey>('A')
   const sseStatus = ref<'OPEN' | 'CONNECTING' | 'CLOSED'>('CLOSED')
+  const isLoading = ref(false)
   let sse: ReturnType<typeof useEventSource> | null = null
 
   // --- Getters ---
@@ -28,9 +29,28 @@ export const useMarketStore = defineStore('market', () => {
     activeGroup.value = group
   }
 
-  function startMarketUpdates() {
+  async function fetchMarketData() {
+    isLoading.value = true
+    try {
+      const data = await apiFetch<Record<string, MarketIndexData>>('/api/market/')
+      indices.value = data
+      return data
+    }
+    catch (error) {
+      console.error('获取指数数据失败:', error)
+      indices.value = {}
+      return null
+    }
+    finally {
+      isLoading.value = false
+    }
+  }
+
+  async function startMarketUpdates() {
     if (sse && sse.status.value !== 'CLOSED')
       return
+
+    await fetchMarketData()
 
     console.warn('[SSE Market] Initializing connection...')
     sse = useEventSource('/api/sse/market', [], { withCredentials: true })
@@ -64,8 +84,10 @@ export const useMarketStore = defineStore('market', () => {
     indices,
     activeGroup,
     sseStatus,
+    isLoading,
     activeGroupIndices,
     setActiveGroup,
+    fetchMarketData,
     startMarketUpdates,
     stopMarketUpdates,
   }

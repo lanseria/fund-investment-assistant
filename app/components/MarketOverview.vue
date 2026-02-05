@@ -3,7 +3,7 @@ import { marketGroups } from '~~/shared/market'
 
 const marketStore = useMarketStore()
 // [核心修改] 从 store 中获取完整的 indices 对象，而不仅仅是激活的
-const { activeGroup, indices, activeGroupIndices, sseStatus } = storeToRefs(marketStore)
+const { activeGroup, indices, activeGroupIndices, sseStatus, isLoading } = storeToRefs(marketStore)
 
 // [核心修改] 创建一个新的计算属性，用于生成每个分组的涨跌统计和颜色
 const groupSummaries = computed(() => {
@@ -82,7 +82,7 @@ function getGroupButtonClass(summary: typeof groupSummaries.value[0]) {
       </button>
     </div>
 
-    <div v-if="sseStatus === 'OPEN' && activeGroupIndices.length > 0" class="gap-4 grid grid-cols-2 lg:grid-cols-5 md:grid-cols-4 sm:grid-cols-3">
+    <div v-if="activeGroupIndices.length > 0" class="gap-4 grid grid-cols-2 lg:grid-cols-5 md:grid-cols-4 sm:grid-cols-3">
       <IndexCard
         v-for="index in activeGroupIndices"
         :key="index!.code"
@@ -90,7 +90,11 @@ function getGroupButtonClass(summary: typeof groupSummaries.value[0]) {
       />
     </div>
     <div v-else class="text-gray-500 card flex h-32 items-center justify-center">
-      <div v-if="sseStatus === 'CONNECTING'" class="flex gap-2 items-center">
+      <div v-if="isLoading" class="flex gap-2 items-center">
+        <div i-carbon-circle-dash class="text-2xl text-primary animate-spin" />
+        <span>行情加载中...</span>
+      </div>
+      <div v-else-if="sseStatus === 'CONNECTING'" class="flex gap-2 items-center">
         <div i-carbon-circle-dash class="text-2xl text-primary animate-spin" />
         <span>行情连接中...</span>
       </div>
