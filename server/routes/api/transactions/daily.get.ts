@@ -3,6 +3,7 @@ import BigNumber from 'bignumber.js' //
 import { desc, eq } from 'drizzle-orm'
 import { funds, fundTransactions } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
+import { getAiFixStatus } from '~~/server/utils/aiFixStatus'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {
@@ -27,6 +28,16 @@ export default defineEventHandler(async (event) => {
       isAiAgent: true,
       availableCash: true, //  获取现金余额
     },
+  })
+
+  const loadingStatuses = await Promise.all(
+    allUsers.map(user => getAiFixStatus(dateStr, user.id)),
+  )
+  const loadingMap = new Map<number, boolean>()
+  loadingStatuses.forEach((status, index) => {
+    const userId = allUsers[index]?.id
+    if (userId !== undefined)
+      loadingMap.set(userId, status?.loading ?? false)
   })
 
   // 2.  获取所有持仓数据以计算实时资产和收益率
@@ -96,6 +107,7 @@ export default defineEventHandler(async (event) => {
         },
       },
       txs: userTxs,
+      loading: loadingMap.get(user.id) ?? false,
     }
   })
 

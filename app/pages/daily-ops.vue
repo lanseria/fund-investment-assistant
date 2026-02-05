@@ -5,6 +5,7 @@ import { useClipboard } from '@vueuse/core'
 import CalendarWidget from '~/components/CalendarWidget.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
+import { AI_MODELS, type AiModel } from '~~/shared/ai-models'
 
 useHead({
   title: `每日操作 - ${appName}`,
@@ -37,6 +38,10 @@ const isImportModalOpen = ref(false)
 const importTargetUser = ref<{ id: number, username: string } | null>(null)
 const importJsonContent = ref('')
 const isImporting = ref(false)
+const isAiFixModalOpen = ref(false)
+const aiFixTargetUser = ref<{ id: number, username: string } | null>(null)
+const aiFixModel = ref<AiModel>('kimi-k2-thinking')
+const isAiFixSubmitting = ref(false)
 
 // 动态获取 Prompt，不再依赖日志表
 async function handleCopyPrompt(userId: number, username: string) {
@@ -64,6 +69,20 @@ function openImportModal(user: { id: number, username: string }) {
   importTargetUser.value = { ...user, id: Number(user.id) } // 确保 id 是数字
   importJsonContent.value = '' // 清空
   isImportModalOpen.value = true
+}
+
+function openAiFixModal(user: { id: number, username: string }) {
+  aiFixTargetUser.value = { ...user, id: Number(user.id) }
+  aiFixModel.value = 'kimi-k2-thinking'
+  isAiFixModalOpen.value = true
+}
+
+function setGroupLoading(userId: number, loading: boolean) {
+  if (!groupedTransactions.value)
+    return
+  const target = groupedTransactions.value.find(g => g.user.id === userId)
+  if (target)
+    target.loading = loading
 }
 
 // 提交 JSON 替换
@@ -108,12 +127,39 @@ async function handleImportJsonSubmit() {
   }
 }
 
+async function handleAiFixSubmit() {
+  if (!aiFixTargetUser.value)
+    return
+
+  isAiFixSubmitting.value = true
+  try {
+    await apiFetch('/api/admin/transactions/ai-fix', {
+      method: 'POST',
+      body: {
+        userId: aiFixTargetUser.value.id,
+        date: selectedDate.value,
+        model: aiFixModel.value,
+      },
+    })
+    setGroupLoading(aiFixTargetUser.value.id, true)
+    isAiFixModalOpen.value = false
+    refresh()
+  }
+  catch (e: any) {
+    alert(`AI 修正提交失败: ${e.data?.statusMessage || e.message}`)
+  }
+  finally {
+    isAiFixSubmitting.value = false
+  }
+}
+
 // 计算当前列表中是否有待处理的交易
 const hasPendingTransactions = computed(() => {
   return groupedTransactions.value?.some(group =>
     group.txs.some((tx: any) => tx.status === 'pending'),
   ) ?? false
 })
+
 
 async function handleClearPending() {
   if (!confirm(`确定要清空 ${selectedDate.value} 所有 [待处理] 的交易记录吗？\n此操作不可恢复。`))
@@ -149,6 +195,7 @@ watch(groupedTransactions, (groups) => {
   })
   expandedGroups.value = newSet
 }, { immediate: true })
+
 
 function toggleGroup(username: string) {
   if (expandedGroups.value.has(username))
@@ -277,6 +324,18 @@ function getActionLabel(type: string) {
                     <div class="i-carbon-copy" /> <span class="hidden sm:inline">Prompt</span>
                   </button>
 
+                  <!-- AI 修正 -->
+                  <button
+                    v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
+                    class="text-xs text-emerald-600 px-2 py-1 border rounded bg-white flex gap-1 items-center dark:text-emerald-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    :disabled="group.loading"
+                    title="由系统调用 AI 自动生成修正交易"
+                    @click="openAiFixModal({ id: group.user.id, username: group.user.username })"
+                  >
+                    <div class="i-carbon-bot" :class="{ 'animate-pulse': group.loading }" />
+                    <span class="hidden sm:inline">{{ group.loading ? 'AI修正中' : 'AI修正' }}</span>
+                  </button>
+
                   <!-- 修正 -->
                   <button
                     v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
@@ -391,6 +450,45 @@ function getActionLabel(type: string) {
             </button>
             <button class="btn" :disabled="!importJsonContent || isImporting" @click="handleImportJsonSubmit">
               {{ isImporting ? '处理中...' : '确认替换' }}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      <!-- AI 自动修正模态框 -->
+      <Modal v-model="isAiFixModalOpen" :title="`AI 自动修正 - ${aiFixTargetUser?.username} (${selectedDate})`">
+        <div class="space-y-4">
+          <p class="text-sm text-gray-500">
+            系统将根据当前上下文生成交易决策并自动替换该用户当日所有 [待处理] 记录。
+            提交后立即返回，处理期间会显示 “AI修正中”。
+          </p>
+          <div>
+            <label class="text-sm font-medium mb-1 block">选择模型</label>
+            <div class="relative">
+              <select
+                v-model="aiFixModel"
+                class="input-base appearance-none"
+                required
+              >
+                <option
+                  v-for="model in AI_MODELS"
+                  :key="model"
+                  :value="model"
+                >
+                  {{ model }}
+                </option>
+              </select>
+              <div class="text-gray-500 px-3 flex pointer-events-none items-center inset-y-0 right-0 absolute">
+                <div i-carbon-chevron-down />
+              </div>
+            </div>
+          </div>
+          <div class="flex gap-3 justify-end">
+            <button class="px-4 py-2 rounded bg-gray-100 dark:bg-gray-700" @click="isAiFixModalOpen = false">
+              取消
+            </button>
+            <button class="btn" :disabled="isAiFixSubmitting" @click="handleAiFixSubmit">
+              {{ isAiFixSubmitting ? '提交中...' : '开始修正' }}
             </button>
           </div>
         </div>

@@ -6,6 +6,7 @@ import { z } from 'zod'
 import { aiDailyAnalysis, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
+import type { AiModel } from '~~/shared/ai-models'
 import { marketGroups } from '~~/shared/market'
 
 // --- 1. 定义输出结构 Schema ---
@@ -142,6 +143,7 @@ export async function buildAiContext(fullHoldingsData: any[]) {
 interface UserAiConfig {
   availableCash: number
   aiSystemPrompt?: string | null
+  model?: AiModel
 }
 
 // [修改] 返回类型增加日志信息
@@ -271,7 +273,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = 'kimi-k2-thinking'
+  const targetModel = userConfig.model || 'kimi-k2-thinking'
 
   try {
     const openai = new OpenAI({
