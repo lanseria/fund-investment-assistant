@@ -1,11 +1,12 @@
 <!-- app/pages/daily-ops.vue -->
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import type { AiModel } from '~~/shared/ai-models'
 import { useClipboard } from '@vueuse/core'
+import { AI_MODELS } from '~~/shared/ai-models'
 import CalendarWidget from '~/components/CalendarWidget.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
-import { AI_MODELS, type AiModel } from '~~/shared/ai-models'
 
 useHead({
   title: `每日操作 - ${appName}`,
@@ -160,7 +161,6 @@ const hasPendingTransactions = computed(() => {
   ) ?? false
 })
 
-
 async function handleClearPending() {
   if (!confirm(`确定要清空 ${selectedDate.value} 所有 [待处理] 的交易记录吗？\n此操作不可恢复。`))
     return
@@ -195,7 +195,6 @@ watch(groupedTransactions, (groups) => {
   })
   expandedGroups.value = newSet
 }, { immediate: true })
-
 
 function toggleGroup(username: string) {
   if (expandedGroups.value.has(username))
