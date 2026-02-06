@@ -1,9 +1,7 @@
+packages: []
+
 catalogMode: prefer
 
-shellEmulator: true
-
-trustPolicy: no-downgrade
-packages: []
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.6.2
@@ -12,7 +10,7 @@ catalogs:
     drizzle-kit: ^0.31.8
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
-    openai: ^6.17.0
+    openai: ^6.18.0
     pg: ^8.18.0
   build:
     '@nuxt/eslint': ^1.13.0
@@ -48,7 +46,12 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
     zod: ^4.3.6
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
