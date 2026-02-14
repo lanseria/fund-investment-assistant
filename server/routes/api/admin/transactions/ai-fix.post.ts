@@ -1,13 +1,14 @@
 /* eslint-disable no-console */
+import type { AiModel } from '~~/shared/ai-models'
 import { and, eq, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
-import { getUserFromEvent } from '~~/server/utils/auth'
-import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
-import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
-import { useDb } from '~~/server/utils/db'
 import { getAiFixStatus, setAiFixStatus } from '~~/server/utils/aiFixStatus'
-import { AI_MODELS, type AiModel } from '~~/shared/ai-models'
+import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
+import { getUserFromEvent } from '~~/server/utils/auth'
+import { useDb } from '~~/server/utils/db'
+import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
+import { AI_MODELS } from '~~/shared/ai-models'
 
 const AiFixSchema = z.object({
   userId: z.number(),

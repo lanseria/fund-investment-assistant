@@ -273,7 +273,7 @@ function getActionLabel(type: string) {
               @click="toggleGroup(group.user.username)"
             >
               <!-- 左侧：用户信息与资产概览 -->
-              <div class="flex flex-col gap-1 sm:flex-row sm:gap-4 sm:items-center">
+              <div class="flex flex-col gap-1 sm:flex-row sm:items-center">
                 <div class="flex gap-3 items-center">
                   <!-- 头像 -->
                   <div
@@ -313,7 +313,7 @@ function getActionLabel(type: string) {
                 <span v-if="group.txs.length > 0" class="text-xs text-gray-500 hidden sm:inline">({{ group.txs.length }} 笔)</span>
 
                 <!-- 按钮组 -->
-                <div class="flex gap-2" @click.stop>
+                <div class="flex flex-none gap-2" @click.stop>
                   <!-- 复制 Prompt -->
                   <button
                     class="text-xs px-2 py-1 border rounded bg-white flex gap-1 items-center dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"

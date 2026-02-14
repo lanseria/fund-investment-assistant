@@ -1,4 +1,6 @@
+<!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import type { Holding } from '~/types/holding'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName } from '~/constants'
@@ -7,6 +9,12 @@ import { formatCurrency } from '~/utils/format'
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
+
+const holdingStore = useHoldingStore()
+const { holdings } = storeToRefs(holdingStore)
+
+// 获取当前基金的 holding 数据
+const currentHolding = computed(() => holdingStore.holdings.find(h => h.code === code))
 
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
@@ -37,6 +45,62 @@ const selectedTransactionList = ref<any[]>([])
 function openTransactionDetails(txList: any[]) {
   selectedTransactionList.value = txList
   isTransactionModalOpen.value = true
+}
+
+// --- 交易模态框状态 ---
+const isTradeModalOpen = ref(false)
+const isConvertModalOpen = ref(false)
+const tradeTarget = ref<Holding | null>(null)
+const tradeType = ref<'buy' | 'sell'>('buy')
+const availableShares = ref(0)
+const tradeTargetTransactions = ref<any[]>([])
+
+// 辅助函数
+function calculateAvailableShares(holding: Holding) {
+  const currentShares = holding.shares || 0
+  if (!holding.pendingTransactions)
+    return currentShares
+  const frozenShares = holding.pendingTransactions
+    .filter(t => t.type === 'sell' || t.type === 'convert_out')
+    .reduce((sum, t) => sum + (Number(t.orderShares) || 0), 0)
+  return Math.max(0, currentShares - frozenShares)
+}
+
+function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
+  tradeTarget.value = holding
+  availableShares.value = calculateAvailableShares(holding)
+  tradeTargetTransactions.value = holding.recentTransactions || []
+
+  if (type === 'convert') {
+    isConvertModalOpen.value = true
+  }
+  else {
+    tradeType.value = type
+    isTradeModalOpen.value = true
+  }
+}
+
+// 处理转换提交
+async function handleConvertSubmit(payload: any) {
+  try {
+    await holdingStore.submitConversion(payload)
+    isConvertModalOpen.value = false
+    alert('转换申请已提交！\n将在卖出确认后自动处理买入。')
+  }
+  catch (e) {
+    console.error(e)
+  }
+}
+
+async function handleTradeSubmit(payload: any) {
+  try {
+    await holdingStore.submitTrade(payload)
+    isTradeModalOpen.value = false
+    alert('交易请求已记录！将在下一交易日净值更新后生效。')
+  }
+  catch (e) {
+    console.error(e)
+  }
 }
 
 // 辅助函数：获取交易类型的显示文本和颜色
@@ -83,7 +147,6 @@ const { data, pending, error, refresh } = await useAsyncData(
   },
 )
 
-const holdingStore = useHoldingStore()
 const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
 const fundName = computed(() => {
@@ -191,6 +254,18 @@ watch(data, (newData) => {
         返回持仓列表
       </div>
       <div class="flex gap-3">
+        <button v-if="currentHolding" class="btn-primary btn flex items-center" @click="openTradeModal(currentHolding, 'buy')">
+          <div mr-1 />
+          买入
+        </button>
+        <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'sell')">
+          <div mr-1 />
+          卖出
+        </button>
+        <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'convert')">
+          <div i-carbon-arrows-horizontal mr-1 />
+          转换
+        </button>
         <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
           <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
           {{ isRunningStrategies ? '分析中...' : '执行策略分析' }}
@@ -322,6 +397,33 @@ watch(data, (newData) => {
           </div>
         </div>
       </div>
+    </Modal>
+
+    <!-- 交易模态框 -->
+    <Modal v-if="tradeTarget" v-model="isTradeModalOpen" :title="tradeType === 'buy' ? '买入基金' : '卖出基金'">
+      <TradeForm
+        :fund-code="tradeTarget.code"
+        :fund-name="tradeTarget.name"
+        :type="tradeType"
+        :current-shares="availableShares"
+        :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
+        :recent-transactions="tradeTargetTransactions"
+        @submit="handleTradeSubmit"
+        @cancel="isTradeModalOpen = false"
+      />
+    </Modal>
+
+    <!-- 转换模态框 -->
+    <Modal v-if="tradeTarget" v-model="isConvertModalOpen" title="基金转换">
+      <ConvertForm
+        :from-code="tradeTarget.code"
+        :from-name="tradeTarget.name"
+        :current-shares="availableShares"
+        :available-funds="holdings"
+        :recent-transactions="tradeTargetTransactions"
+        @submit="handleConvertSubmit"
+        @cancel="isConvertModalOpen = false"
+      />
     </Modal>
   </div>
 </template>

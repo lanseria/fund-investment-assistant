@@ -2,8 +2,8 @@
 import BigNumber from 'bignumber.js' //
 import { desc, eq } from 'drizzle-orm'
 import { funds, fundTransactions } from '~~/server/database/schemas'
-import { getUserFromEvent } from '~~/server/utils/auth'
 import { getAiFixStatus } from '~~/server/utils/aiFixStatus'
+import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
 export default defineEventHandler(async (event) => {

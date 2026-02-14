@@ -1,3 +1,4 @@
+import type { AiModel } from '~~/shared/ai-models'
 // server/utils/aiTrader.ts
 import dayjs from 'dayjs'
 import { desc, gte } from 'drizzle-orm'
@@ -6,7 +7,6 @@ import { z } from 'zod'
 import { aiDailyAnalysis, newsItems } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
-import type { AiModel } from '~~/shared/ai-models'
 import { marketGroups } from '~~/shared/market'
 
 // --- 1. 定义输出结构 Schema ---
