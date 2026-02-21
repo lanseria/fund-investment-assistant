@@ -6,7 +6,7 @@ trustPolicy: no-downgrade
 packages: []
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.6.4
+    '@nuxtjs/mcp-toolkit': ^0.7.0
     '@types/pg': ^8.16.0
     argon2: ^0.44.0
     drizzle-kit: ^0.31.9
@@ -26,7 +26,7 @@ catalogs:
     unplugin: ^3.0.0
   dev:
     '@antfu/eslint-config': ^7.4.3
-    eslint: ^10.0.0
+    eslint: ^10.0.1
     eslint-plugin-format: ^1.4.0
     typescript: ^5.9.3
     vue-tsc: ^3.2.4
