@@ -2,7 +2,7 @@
   "name": "fund-investment-assistant",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@10.30.1",
+  "packageManager": "pnpm@10.30.2",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -42,7 +42,7 @@
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
-    "nuxt": "catalog:build",
+    "nuxt": "^4.3.1",
     "nuxt-echarts": "catalog:frontend",
     "openai": "catalog:backend",
     "paseto-ts": "catalog:utils",
