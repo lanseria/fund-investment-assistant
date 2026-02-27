@@ -109,10 +109,12 @@ const slicedData = computed(() => {
     </div>
 
     <!-- 底部持仓信息 -->
-    <div v-if="fund.holdingAmount !== null" class="text-xs p-3 border-t flex items-center justify-between dark:border-gray-700">
+    <div class="text-xs p-3 border-t flex items-center justify-between dark:border-gray-700">
       <div class="flex flex-col items-start">
         <span class="text-gray-500 dark:text-gray-400">持仓市值</span>
-        <span class="font-numeric font-semibold">{{ formatCurrency(fund.holdingAmount) }}</span>
+        <span class="font-numeric font-semibold">
+          {{ fund.holdingAmount !== null ? formatCurrency(fund.holdingAmount) : '--' }}
+        </span>
       </div>
       <div class="flex flex-col items-center">
         <span class="text-gray-500 dark:text-gray-400">今日涨跌</span>
@@ -122,14 +124,10 @@ const slicedData = computed(() => {
       </div>
       <div class="flex flex-col items-end">
         <span class="text-gray-500 dark:text-gray-400">预估盈亏</span>
-        <span class="font-numeric font-semibold" :class="getChangeClass(fund.todayEstimateProfitLoss)">
-          {{ formatCurrency(fund.todayEstimateProfitLoss) }}
+        <span class="font-numeric font-semibold" :class="fund.holdingAmount !== null ? getChangeClass(fund.todayEstimateProfitLoss) : ''">
+          {{ fund.holdingAmount !== null ? formatCurrency(fund.todayEstimateProfitLoss) : '--' }}
         </span>
       </div>
-    </div>
-    <!-- 如果是仅关注，则显示提示信息 -->
-    <div v-else class="text-xs text-gray-400 p-3 text-center border-t dark:border-gray-700">
-      仅关注，无持仓信息
     </div>
   </div>
 </template>
