@@ -2,7 +2,7 @@
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
 import { desc, eq } from 'drizzle-orm'
-import { funds, navHistory } from '~~/server/database/schemas'
+import { funds, holdings, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
@@ -91,13 +91,10 @@ export async function syncSingleFundEstimate(code: string) {
 }
 
 /**
- * 同步所有基金的最新估值
+ * 内部辅助：批量同步指定列表的基金
  */
-export async function syncAllFundsEstimates() {
-  const db = useDb()
-  const allFunds = await db.query.funds.findMany()
-
-  if (allFunds.length === 0)
+async function syncFundsList(fundsList: typeof funds.$inferSelect[]) {
+  if (fundsList.length === 0)
     return { total: 0, success: 0, failed: 0 }
 
   let successCount = 0
@@ -106,7 +103,7 @@ export async function syncAllFundsEstimates() {
   // 辅助延时函数
   const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-  for (const [index, fund] of allFunds.entries()) {
+  for (const [index, fund] of fundsList.entries()) {
     try {
       await syncSingleFundEstimate(fund.code)
       successCount++
@@ -116,13 +113,45 @@ export async function syncAllFundsEstimates() {
       console.error(`同步基金 ${fund.code} 估值失败:`, e)
     }
 
-    // 如果不是最后一个，则暂停 2000ms ~ 3000ms，大幅降低服务端频率，主要依赖客户端反向更新
-    if (index < allFunds.length - 1) {
+    // 如果不是最后一个，则暂停 2000ms ~ 3000ms，大幅降低服务端频率
+    if (index < fundsList.length - 1) {
       await sleep(2000 + Math.random() * 1000)
     }
   }
 
-  return { total: allFunds.length, success: successCount, failed: failedCount }
+  return { total: fundsList.length, success: successCount, failed: failedCount }
+}
+
+/**
+ * 同步所有基金的最新估值 (全量)
+ */
+export async function syncAllFundsEstimates() {
+  const db = useDb()
+  const allFunds = await db.query.funds.findMany()
+  return await syncFundsList(allFunds)
+}
+
+/**
+ * 同步指定用户的基金最新估值 (用户级)
+ */
+export async function syncUserFundsEstimates(userId: number) {
+  const db = useDb()
+  const userHoldings = await db.query.holdings.findMany({
+    where: eq(holdings.userId, userId),
+    with: {
+      fund: true,
+    },
+  })
+
+  // 提取基金列表并去重
+  const uniqueFundsMap = new Map<string, typeof funds.$inferSelect>()
+  userHoldings.forEach((h) => {
+    if (h.fund)
+      uniqueFundsMap.set(h.fund.code, h.fund)
+  })
+
+  const fundsList = Array.from(uniqueFundsMap.values())
+  return await syncFundsList(fundsList)
 }
 
 /**

@@ -52,6 +52,10 @@ catalogs:
     unocss:
       specifier: ^66.6.0
       version: 66.6.0
+  default:
+    '@vueuse/components':
+      specifier: ^14.2.1
+      version: 14.2.1
   dev:
     '@antfu/eslint-config':
       specifier: ^7.6.0
@@ -236,6 +240,10 @@ importers:
       zod:
         specifier: catalog:utils
         version: 4.3.6
+    devDependencies:
+      '@vueuse/components':
+        specifier: 'catalog:'
+        version: 14.2.1(vue@3.5.29(typescript@5.9.3))
 
 packages:
 
@@ -2563,6 +2571,11 @@ packages:
 
   '@vue/shared@3.5.29':
     resolution: {integrity: sha512-w7SR0A5zyRByL9XUkCfdLs7t9XOHUyJ67qPGQjOou3p6GvBeBW+AVjUUmlxtZ4PIYaRvE+1LmK44O4uajlZwcg==}
+
+  '@vueuse/components@14.2.1':
+    resolution: {integrity: sha512-wB0SvwJ22mNm1hWCMI1wTWz4x55nDTugT5RIg/KCwlWc1vITWL6ry5VTU3SQzsMD2XcazJK8Be1siIsrBb/Vcw==}
+    peerDependencies:
+      vue: ^3.5.0
 
   '@vueuse/core@14.2.1':
     resolution: {integrity: sha512-3vwDzV+GDUNpdegRY6kzpLm4Igptq+GA0QkJ3W61Iv27YWwW/ufSlOfgQIpN6FZRMG0mkaz4gglJRtq5SeJyIQ==}
@@ -8226,6 +8239,12 @@ snapshots:
       vue: 3.5.29(typescript@5.9.3)
 
   '@vue/shared@3.5.29': {}
+
+  '@vueuse/components@14.2.1(vue@3.5.29(typescript@5.9.3))':
+    dependencies:
+      '@vueuse/core': 14.2.1(vue@3.5.29(typescript@5.9.3))
+      '@vueuse/shared': 14.2.1(vue@3.5.29(typescript@5.9.3))
+      vue: 3.5.29(typescript@5.9.3)
 
   '@vueuse/core@14.2.1(vue@3.5.29(typescript@5.9.3))':
     dependencies:

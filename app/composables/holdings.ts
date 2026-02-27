@@ -147,19 +147,21 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
   /**
-   * 刷新所有基金的实时估值
+   * 刷新基金的实时估值 (后端执行)
+   * scope: 'user' (仅我的基金) | 'all' (全站，需管理员)
    */
-  async function refreshAllEstimates() {
+  async function refreshServerEstimates(scope: 'user' | 'all' = 'user') {
     isRefreshing.value = true
     try {
       await apiFetch('/api/fund/utils/refresh-estimates', {
         method: 'POST',
+        body: { scope },
       })
       await fetchHoldings()
     }
-    catch (error) {
+    catch (error: any) {
       console.error('刷新估值失败:', error)
-      alert('刷新估值失败，请查看控制台！')
+      alert(`刷新失败: ${error.data?.statusMessage || error.message}`)
     }
     finally {
       isRefreshing.value = false
@@ -325,18 +327,11 @@ export const useHoldingStore = defineStore('holding', () => {
   let clientPollingTimer: NodeJS.Timeout | null = null
 
   /**
-   * 启动客户端轮询 (每分钟执行一次)
-   * 1. 遍历当前持仓基金
-   * 2. 在浏览器端请求实时估值
-   * 3. 更新本地 Store 显示
-   * 4. 批量上报给服务器更新数据库
+   * 执行一次客户端估值更新
+   * @param force 是否强制执行（忽略交易时间限制）
    */
-  async function startClientPolling() {
-    // 如果已经有定时器，先清除
-    if (clientPollingTimer)
-      clearInterval(clientPollingTimer)
-
-    const runBatch = async () => {
+  async function triggerClientUpdate(force = false) {
+    if (!force) {
       // 仅在交易时间段执行 (简单判断 9:00 - 15:00)
       const now = new Date()
       const hour = now.getHours()
@@ -347,63 +342,74 @@ export const useHoldingStore = defineStore('holding', () => {
 
       if (!isTradingHours || isWeekend)
         return
-
-      // 提取所有持仓的 code (包括仅关注的)
-      const codes = holdings.value.map(h => h.code)
-      if (codes.length === 0)
-        return
-
-      // console.log('[ClientPolling] Starting batch fetch for', codes.length, 'funds')
-
-      const updates: any[] = []
-      const promises = codes.map(async (code) => {
-        const data = await fetchClientEstimate(code)
-        if (data) {
-          // 1. 收集数据准备上报
-          updates.push({
-            code: data.fundcode,
-            estimate: data.gsz,
-            rate: data.gszzl,
-            time: data.gztime,
-          })
-
-          // 2. 立即更新本地 Store (乐观更新，提升体验)
-          const holding = holdings.value.find(h => h.code === data.fundcode)
-          if (holding) {
-            holding.todayEstimateNav = Number(data.gsz)
-            holding.percentageChange = Number(data.gszzl)
-            holding.todayEstimateUpdateTime = data.gztime
-            // 重新计算关联数据
-            if (holding.holdingAmount !== null && holding.shares !== null) {
-              const estimateAmt = holding.shares * Number(data.gsz)
-              holding.todayEstimateAmount = estimateAmt
-            }
-          }
-        }
-      })
-
-      // 并发执行所有请求
-      await Promise.all(promises)
-
-      // 3. 批量上报服务端
-      if (updates.length > 0) {
-        try {
-          await apiFetch('/api/fund/utils/update-batch', {
-            method: 'POST',
-            body: { updates },
-          })
-          // console.log('[ClientPolling] Reported', updates.length, 'updates to server')
-        }
-        catch (e) {
-          console.error('[ClientPolling] Failed to report updates:', e)
-        }
-      }
     }
 
-    // 立即执行一次
-    runBatch()
+    isRefreshing.value = true // 设置加载状态
+
+    // 提取所有持仓的 code (包括仅关注的)
+    const codes = holdings.value.map(h => h.code)
+    if (codes.length === 0) {
+      isRefreshing.value = false
+      return
+    }
+
+    const updates: any[] = []
+    const promises = codes.map(async (code) => {
+      const data = await fetchClientEstimate(code)
+      if (data) {
+        // 1. 收集数据准备上报
+        updates.push({
+          code: data.fundcode,
+          estimate: data.gsz,
+          rate: data.gszzl,
+          time: data.gztime,
+        })
+
+        // 2. 立即更新本地 Store (乐观更新)
+        const holding = holdings.value.find(h => h.code === data.fundcode)
+        if (holding) {
+          holding.todayEstimateNav = Number(data.gsz)
+          holding.percentageChange = Number(data.gszzl)
+          holding.todayEstimateUpdateTime = data.gztime
+          // 重新计算关联数据
+          if (holding.holdingAmount !== null && holding.shares !== null) {
+            const estimateAmt = holding.shares * Number(data.gsz)
+            holding.todayEstimateAmount = estimateAmt
+          }
+        }
+      }
+    })
+
+    // 并发执行所有请求
+    await Promise.all(promises)
+
+    // 3. 批量上报服务端
+    if (updates.length > 0) {
+      try {
+        await apiFetch('/api/fund/utils/update-batch', {
+          method: 'POST',
+          body: { updates },
+        })
+      }
+      catch (e) {
+        console.error('[ClientPolling] Failed to report updates:', e)
+      }
+    }
+    isRefreshing.value = false
+  }
+
+  /**
+   * 启动客户端轮询 (每分钟执行一次)
+   */
+  async function startClientPolling() {
+    // 如果已经有定时器，先清除
+    if (clientPollingTimer)
+      clearInterval(clientPollingTimer)
+
+    // 立即执行一次 (非强制，遵守交易时间)
+    triggerClientUpdate(false)
     // 启动定时器 (60秒)
-    clientPollingTimer = setInterval(runBatch, 60000)
+    clientPollingTimer = setInterval(() => triggerClientUpdate(false), 60000)
   }
 
   function stopClientPolling() {
@@ -429,7 +435,8 @@ export const useHoldingStore = defineStore('holding', () => {
     clearHoldingPosition,
     exportHoldings,
     importHoldings,
-    refreshAllEstimates,
+    refreshServerEstimates, // 重命名并增强
+    triggerClientUpdate, // 新增：手动触发客户端更新
     syncHistory,
     runStrategiesForFund,
     submitTrade,

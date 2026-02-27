@@ -1,9 +1,10 @@
+packages: []
+
+catalog:
+  '@vueuse/components': ^14.2.1
+
 catalogMode: prefer
 
-shellEmulator: true
-
-trustPolicy: no-downgrade
-packages: []
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.7.0
@@ -48,7 +49,12 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.5
     zod: ^4.3.6
+
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+
+shellEmulator: true
+
+trustPolicy: no-downgrade
