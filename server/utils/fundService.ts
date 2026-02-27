@@ -116,9 +116,9 @@ export async function syncAllFundsEstimates() {
       console.error(`同步基金 ${fund.code} 估值失败:`, e)
     }
 
-    // 如果不是最后一个，则暂停 300ms ~ 600ms
+    // 如果不是最后一个，则暂停 2000ms ~ 3000ms，大幅降低服务端频率，主要依赖客户端反向更新
     if (index < allFunds.length - 1) {
-      await sleep(300 + Math.random() * 300)
+      await sleep(2000 + Math.random() * 1000)
     }
   }
 

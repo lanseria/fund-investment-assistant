@@ -1,6 +1,7 @@
 /* eslint-disable no-alert */
 import type { Holding, HoldingSummary } from '~/types/holding'
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { fetchClientEstimate } from '~/utils/quote'
 
 export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
@@ -320,6 +321,98 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
 
+  // --- 客户端轮询相关 ---
+  let clientPollingTimer: NodeJS.Timeout | null = null
+
+  /**
+   * 启动客户端轮询 (每分钟执行一次)
+   * 1. 遍历当前持仓基金
+   * 2. 在浏览器端请求实时估值
+   * 3. 更新本地 Store 显示
+   * 4. 批量上报给服务器更新数据库
+   */
+  async function startClientPolling() {
+    // 如果已经有定时器，先清除
+    if (clientPollingTimer)
+      clearInterval(clientPollingTimer)
+
+    const runBatch = async () => {
+      // 仅在交易时间段执行 (简单判断 9:00 - 15:00)
+      const now = new Date()
+      const hour = now.getHours()
+      const isTradingHours = (hour >= 9 && hour < 15)
+      // 周末简单判断 (0是周日, 6是周六)
+      const day = now.getDay()
+      const isWeekend = day === 0 || day === 6
+
+      if (!isTradingHours || isWeekend)
+        return
+
+      // 提取所有持仓的 code (包括仅关注的)
+      const codes = holdings.value.map(h => h.code)
+      if (codes.length === 0)
+        return
+
+      // console.log('[ClientPolling] Starting batch fetch for', codes.length, 'funds')
+
+      const updates: any[] = []
+      const promises = codes.map(async (code) => {
+        const data = await fetchClientEstimate(code)
+        if (data) {
+          // 1. 收集数据准备上报
+          updates.push({
+            code: data.fundcode,
+            estimate: data.gsz,
+            rate: data.gszzl,
+            time: data.gztime,
+          })
+
+          // 2. 立即更新本地 Store (乐观更新，提升体验)
+          const holding = holdings.value.find(h => h.code === data.fundcode)
+          if (holding) {
+            holding.todayEstimateNav = Number(data.gsz)
+            holding.percentageChange = Number(data.gszzl)
+            holding.todayEstimateUpdateTime = data.gztime
+            // 重新计算关联数据
+            if (holding.holdingAmount !== null && holding.shares !== null) {
+              const estimateAmt = holding.shares * Number(data.gsz)
+              holding.todayEstimateAmount = estimateAmt
+            }
+          }
+        }
+      })
+
+      // 并发执行所有请求
+      await Promise.all(promises)
+
+      // 3. 批量上报服务端
+      if (updates.length > 0) {
+        try {
+          await apiFetch('/api/fund/utils/update-batch', {
+            method: 'POST',
+            body: { updates },
+          })
+          // console.log('[ClientPolling] Reported', updates.length, 'updates to server')
+        }
+        catch (e) {
+          console.error('[ClientPolling] Failed to report updates:', e)
+        }
+      }
+    }
+
+    // 立即执行一次
+    runBatch()
+    // 启动定时器 (60秒)
+    clientPollingTimer = setInterval(runBatch, 60000)
+  }
+
+  function stopClientPolling() {
+    if (clientPollingTimer) {
+      clearInterval(clientPollingTimer)
+      clientPollingTimer = null
+    }
+  }
+
   return {
     holdings,
     summary,
@@ -342,6 +435,8 @@ export const useHoldingStore = defineStore('holding', () => {
     submitTrade,
     deleteTransaction,
     submitConversion,
+    startClientPolling,
+    stopClientPolling,
   }
 })
 

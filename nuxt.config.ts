@@ -5,7 +5,7 @@ const scheduledTasks: Record<string, string[]> = {}
 
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY ?? '0 2 * * *'
-const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE ?? '* 8-23 * * *'
+const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 9-15 * * *' // 默认改为半小时一次，主要依赖客户端轮询
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
 // AI 自动交易: 工作日 14:30
