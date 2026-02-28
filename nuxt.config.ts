@@ -80,7 +80,6 @@ export default defineNuxtConfig({
   compatibilityDate: '2026-02-04',
 
   nitro: {
-    moduleSideEffects: ['dayjs/plugin/isBetween'],
     esbuild: {
       options: {
         target: 'esnext',
