@@ -1,44 +1,10 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
-import isBetween from 'dayjs/plugin/isBetween.js'
 import { and, eq, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
-
-dayjs.extend(isBetween)
-
-// 2026 年休市日期区间 (包含起止日期)
-// 格式: [开始日期, 结束日期]
-const HOLIDAYS_2026 = [
-  ['2026-01-01', '2026-01-03'], // 元旦
-  ['2026-02-15', '2026-02-23'], // 春节
-  ['2026-04-04', '2026-04-06'], // 清明节
-  ['2026-05-01', '2026-05-05'], // 劳动节
-  ['2026-06-19', '2026-06-21'], // 端午节
-  ['2026-09-25', '2026-09-27'], // 中秋节
-  ['2026-10-01', '2026-10-07'], // 国庆节
-]
-
-/**
- * 检查今天是否为交易日
- * 规则:
- * 1. 周末 (周六、周日) 一律不交易
- * 2. 法定节假日区间内不交易
- */
-function isTradingDay(): { isTrading: boolean, reason?: string } {
-  const today = dayjs()
-
-  // 检查节假日 (目前仅配置了 2026 年)
-  // 实际生产中建议将此配置放入数据库或字典表中动态维护
-  for (const [start, end] of HOLIDAYS_2026) {
-    if (today.isBetween(start, end, 'day', '[]')) {
-      return { isTrading: false, reason: `节假日休市 (${start} ~ ${end})` }
-    }
-  }
-
-  return { isTrading: true }
-}
+import { isTradingDay } from '~~/shared/market'
 
 export default defineTask({
   meta: {

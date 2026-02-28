@@ -1,6 +1,7 @@
 /* eslint-disable no-alert */
 import type { Holding, HoldingSummary } from '~/types/holding'
 import { acceptHMRUpdate, defineStore } from 'pinia'
+import { isTradingDay, isTradingHours } from '~~/shared/market'
 import { fetchClientEstimate } from '~/utils/quote'
 
 export const useHoldingStore = defineStore('holding', () => {
@@ -332,15 +333,11 @@ export const useHoldingStore = defineStore('holding', () => {
    */
   async function triggerClientUpdate(force = false) {
     if (!force) {
-      // 仅在交易时间段执行 (简单判断 9:00 - 15:00)
-      const now = new Date()
-      const hour = now.getHours()
-      const isTradingHours = (hour >= 9 && hour < 15)
-      // 周末简单判断 (0是周日, 6是周六)
-      const day = now.getDay()
-      const isWeekend = day === 0 || day === 6
+      // [重构] 使用共享的、更精确的交易时间判断函数
+      const { isTrading } = isTradingDay()
+      const inTradingHours = isTradingHours()
 
-      if (!isTradingHours || isWeekend)
+      if (!isTrading || !inTradingHours)
         return
     }
 

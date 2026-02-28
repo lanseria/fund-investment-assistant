@@ -11,7 +11,7 @@ const props = defineProps<{
   currentShares?: number
   // 卖出时需要知道当前预估市值(仅做参考)
   currentMarketValue?: number
-  // [新增] 接收交易记录用于计算 FIFO
+  // 接收交易记录用于计算 FIFO
   recentTransactions?: any[]
 }>()
 
@@ -27,7 +27,7 @@ const formData = reactive({
   shares: null as number | null, // 卖出份额
 })
 
-// [新增] 计算安全份额 (持有 > 7天，免赎回费)
+// 计算安全份额 (持有 > 7天，免赎回费)
 const safeShares = computed(() => {
   if (!props.currentShares)
     return 0
@@ -214,7 +214,7 @@ function handleSubmit() {
         >
         <!-- 快捷比例 -->
         <div class="mt-2 flex flex-wrap gap-2">
-          <!-- [新增] 免手续费按钮 -->
+          <!-- 免手续费按钮 -->
           <button
             v-if="safeShares > 0 && safeShares < (currentShares || 0)"
             type="button"

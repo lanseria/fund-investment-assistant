@@ -11,7 +11,7 @@ const props = defineProps<{
   currentShares: number
   // 所有可选的目标基金（必须从已添加的基金中选）
   availableFunds: Holding[]
-  // [新增] 交易记录
+  // 交易记录
   recentTransactions?: any[]
 }>()
 
@@ -38,7 +38,7 @@ const targetOptions = computed(() => {
     }))
 })
 
-// [新增] 安全份额计算
+// 安全份额计算
 const safeShares = computed(() => {
   if (!props.currentShares)
     return 0
@@ -59,7 +59,7 @@ const safeShares = computed(() => {
   return Math.max(0, props.currentShares - recentBuysWithin7Days)
 })
 
-// [修改] 计算 FIFO 惩罚
+// 计算 FIFO 惩罚
 const penaltyAnalysis = computed(() => {
   if (!formData.date || !formData.shares)
     return { isShortTerm: false, penaltyShares: 0 }
@@ -79,7 +79,7 @@ const ratios = [
   { label: '全部', value: 1 },
 ]
 
-// [修改] 支持 safe 模式
+// 支持 safe 模式
 function setShares(ratio: number | 'safe') {
   let val = 0
   if (ratio === 'safe') {
@@ -103,7 +103,7 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
-    // [修改] 7天惩罚二次确认
+    // 7天惩罚二次确认
     if (penaltyAnalysis.value.isShortTerm) {
       if (!confirm(`⚠️ 警告：检测到转出份额中有 ${penaltyAnalysis.value.penaltyShares.toFixed(2)} 份持有不足 7 天！\n\n转出将扣除 1.5% 的惩罚性手续费。\n\n确定要继续转换吗？`))
         return
@@ -133,7 +133,7 @@ function handleSubmit() {
         </p>
       </div>
 
-      <!-- [修改] 7天惩罚提示 -->
+      <!-- 7天惩罚提示 -->
       <div
         v-if="penaltyAnalysis.isShortTerm"
         class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
@@ -196,7 +196,7 @@ function handleSubmit() {
           placeholder="请输入转出份额"
         >
         <div class="mt-2 flex flex-wrap gap-2">
-          <!-- [新增] 免手续费按钮 -->
+          <!-- 免手续费按钮 -->
           <button
             v-if="safeShares > 0 && safeShares < currentShares"
             type="button"
