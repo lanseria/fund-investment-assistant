@@ -88,12 +88,13 @@ export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeD
 }
 
 export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundRealtimeData | null> {
-  const url = `http://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${Date.now()}`
+  const url = `https://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${Date.now()}`
 
   try {
     const responseText = await $fetch<string>(url, {
       responseType: 'text',
       headers: { Referer: 'http://fund.eastmoney.com/' },
+      mode: 'no-cors',
     })
 
     const jsonStr = responseText.replace('jsonpgz(', '').replace(');', '')

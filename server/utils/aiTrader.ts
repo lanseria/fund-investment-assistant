@@ -1,5 +1,5 @@
-import type { AiModel } from '~~/shared/ai-models'
 // server/utils/aiTrader.ts
+import type { AiModel } from '~~/shared/ai-models'
 import dayjs from 'dayjs'
 import { desc, gte } from 'drizzle-orm'
 import OpenAI from 'openai'
@@ -146,7 +146,7 @@ interface UserAiConfig {
   model?: AiModel
 }
 
-// [修改] 返回类型增加日志信息
+// 返回类型增加日志信息
 interface AiTradeResult {
   decisions: TradeDecision[]
   fullPrompt: string
@@ -154,7 +154,7 @@ interface AiTradeResult {
 }
 
 /**
- * [新增] 仅生成 Prompt 内容，不执行 AI 调用
+ * 仅生成 Prompt 内容，不执行 AI 调用
  * 用于前端“复制 Prompt”功能
  */
 export async function generateAiPrompt(fullHoldingsData: any[], userConfig: UserAiConfig) {
@@ -269,7 +269,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
     throw new Error('系统未配置 OpenRouter API Key')
   }
 
-  // [修改] 调用抽离的逻辑生成 Prompt
+  // 调用抽离的逻辑生成 Prompt
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
@@ -341,7 +341,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
       }
     }
 
-    // [修改] 返回详细结果对象
+    // 返回详细结果对象
     return {
       decisions: validActions,
       fullPrompt: fullPromptLog,

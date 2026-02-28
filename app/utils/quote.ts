@@ -18,17 +18,12 @@ interface ClientEstimateData {
  */
 export async function fetchClientEstimate(fundCode: string): Promise<ClientEstimateData | null> {
   const timestamp = Date.now()
-  const url = `http://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${timestamp}`
+  const url = `https://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${timestamp}`
 
   try {
-    // 尝试使用 fetch 获取文本
-    // 注意：如果浏览器强制 CORS 且服务器不支持，这里可能会失败。
-    // 但通常 fundgz 接口比较宽松，或者用户可能安装了 Allow CORS 插件，
-    // 或者在开发环境下配置了 Proxy。如果是纯客户端环境，且无 Proxy，JSONP 是兜底方案。
-    // 这里简单实现 fetch + 解析文本。
     const response = await fetch(url, {
       method: 'GET',
-      // mode: 'no-cors' // 注意：no-cors 无法获取 response body，必须要是 cors 或非严格模式
+      mode: 'no-cors',
     })
 
     if (!response.ok)
