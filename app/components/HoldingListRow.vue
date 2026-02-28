@@ -308,7 +308,21 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
     <!-- 5. 更新时间 -->
     <td class="text-sm text-gray-500 font-numeric p-4 text-right">
-      {{ holding.todayEstimateUpdateTime ? dayjs(holding.todayEstimateUpdateTime).format('HH:mm:ss') : '-' }}
+      <template v-if="holding.todayEstimateUpdateTime">
+        <div>
+          {{ dayjs(holding.todayEstimateUpdateTime).format('HH:mm:ss') }}
+        </div>
+        <div
+          class="text-10px"
+          :class="!dayjs(holding.todayEstimateUpdateTime).isSame(dayjs(), 'day') ? 'text-orange-500 font-medium' : 'opacity-60'"
+        >
+          {{ dayjs(holding.todayEstimateUpdateTime).format('YYYY-MM-DD') }}
+        </div>
+      </template>
+
+      <template v-else>
+        <span>-</span>
+      </template>
     </td>
 
     <!-- 6. 操作 -->
