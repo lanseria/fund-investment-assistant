@@ -33,7 +33,6 @@ export async function syncSectorStats(dateStr?: string) {
   for (const dict of dictSectors) {
     const sectorValue = dict.value
     const mapping = SECTOR_PLATFORM_MAPPING[sectorValue] || { eastMoney: [], tongHuaShun: [] }
-
     // 匹配平台数据
     const matchedEm = emSectors.filter(s => mapping.eastMoney.includes(s.name))
     const matchedThs = thsSectors.filter(s => mapping.tongHuaShun.includes(s.name))
