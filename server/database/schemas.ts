@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, boolean, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, boolean, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')
@@ -293,3 +293,36 @@ export const dictionaryDataRelations = relations(dictionaryData, ({ one }) => ({
     references: [dictionaryTypes.type],
   }),
 }))
+
+/**
+ * 板块每日分析数据表 (sector_daily_stats)
+ * 存储每日各板块的涨跌、换手率、资金流入等分析数据
+ */
+export const sectorDailyStats = fundSchema.table('sector_daily_stats', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 分析日期 */
+  date: date('date').notNull(),
+  /** 板块英文代码，对应字典表的 value */
+  sector: text('sector').notNull(),
+  /** 涨跌幅 (%) */
+  changeRate: numeric('change_rate', { precision: 10, scale: 4 }),
+  /** 换手率 (%) */
+  turnoverRate: numeric('turnover_rate', { precision: 10, scale: 4 }),
+  /** 成交额占比 (%) */
+  volumeRatio: numeric('volume_ratio', { precision: 10, scale: 4 }),
+  /** 总市值 */
+  totalMarketCap: numeric('total_market_cap', { precision: 20, scale: 4 }),
+  /** 净流入 (亿元) */
+  netInflow: numeric('net_inflow', { precision: 18, scale: 4 }),
+  /** 上涨家数 */
+  upCount: integer('up_count'),
+  /** 下跌家数 */
+  downCount: integer('down_count'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => {
+  return {
+    // 确保同一天同一个板块只有一条记录
+    unqDateSector: unique('unq_date_sector').on(table.date, table.sector),
+  }
+})
