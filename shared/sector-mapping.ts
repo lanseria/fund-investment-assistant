@@ -64,15 +64,15 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['通信设备'],
   },
   cpo_concept: {
-    eastMoney: ['光学光电子'],
-    tongHuaShun: ['光学光电子'],
+    eastMoney: ['CPO概念'],
+    tongHuaShun: [],
   },
   artificial_intelligence: {
     eastMoney: ['人工智能'],
     tongHuaShun: [],
   },
   ai_applications: {
-    eastMoney: ['AI应用', '营销代理', '广告营销'],
+    eastMoney: ['AI应用'],
     tongHuaShun: [],
   },
   software_services: {
@@ -147,7 +147,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
   },
   new_retail: {
     eastMoney: ['新零售'],
-    tongHuaShun: ['零售', '互联网电商'],
+    tongHuaShun: ['零售'],
   },
   baijiu_concept: {
     eastMoney: ['白酒'],
@@ -158,7 +158,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['医药商业'],
   },
   ip_economy: {
-    eastMoney: ['IP经济', '文化用品', '娱乐用品', '文娱用品'],
+    eastMoney: ['文化用品'],
     tongHuaShun: [],
   },
   gaming: {

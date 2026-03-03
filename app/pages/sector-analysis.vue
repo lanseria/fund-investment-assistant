@@ -14,6 +14,8 @@ const holdingStore = useHoldingStore()
 // 状态管理
 const selectedDate = ref(dayjs().format('YYYY-MM-DD'))
 const activeTab = ref<'all' | 'my_all' | 'held' | 'watched'>('all')
+const isSyncing = ref(false)
+const isHelpModalOpen = ref(false) // 帮助模态框状态
 
 // 确保基础数据已加载
 onMounted(async () => {
@@ -22,7 +24,7 @@ onMounted(async () => {
   }
 })
 
-const isSyncing = ref(false)
+// 请求板块统计数据
 const { data: statsData, pending, refresh: refreshStats } = useAsyncData(
   `sector-stats-${selectedDate.value}`,
   () => apiFetch<any[]>('/api/sectors/stats', { params: { date: selectedDate.value } }),
@@ -44,18 +46,8 @@ async function handleSync() {
   }
 }
 
-// 修改原有的辅助格式化函数，增加市值转亿的函数
-function formatMarketCap(val: number | null) {
-  if (val === null)
-    return '-'
-  if (val >= 100000000)
-    return `${(val / 100000000).toFixed(2)} 亿`
-  return formatCurrency(val) // 兜底降级处理
-}
-
 // --- 数据计算逻辑 ---
 
-// 获取用户持仓和关注的板块集合
 const holdingSectors = computed(() => {
   const s = new Set<string>()
   holdingStore.holdings.forEach((h) => {
@@ -75,11 +67,8 @@ const watchingSectors = computed(() => {
 })
 
 const myAllSectors = computed(() => new Set([...holdingSectors.value, ...watchingSectors.value]))
-
-// 获取字典中配置的所有板块
 const allSectors = computed(() => dictStore.getDictData(SECTOR_DICT_TYPE) || [])
 
-// 根据选中的 Tab 过滤展示的板块
 const displaySectors = computed(() => {
   let list = allSectors.value
   if (activeTab.value === 'my_all') {
@@ -94,7 +83,6 @@ const displaySectors = computed(() => {
   return list
 })
 
-// 组合字典数据与当日统计数据
 const tableData = computed(() => {
   const statsMap = new Map()
   if (statsData.value) {
@@ -110,12 +98,18 @@ const tableData = computed(() => {
       turnoverRate: stat.turnoverRate !== undefined ? Number(stat.turnoverRate) : null,
       volumeRatio: stat.volumeRatio !== undefined ? Number(stat.volumeRatio) : null,
       totalMarketCap: stat.totalMarketCap !== undefined ? Number(stat.totalMarketCap) : null,
-      netInflow: stat.netInflow !== undefined ? Number(stat.netInflow) : null,
+      // 对比数据
+      diffVolumeRatio: stat.diffVolumeRatio !== undefined ? Number(stat.diffVolumeRatio) : 0,
+      diffTurnoverRate: stat.diffTurnoverRate !== undefined ? Number(stat.diffTurnoverRate) : 0,
+      // 决策数据
+      signal: stat.signal || '-',
+      signalCode: stat.signalCode || 'neutral',
+      action: stat.action || '-',
+
       upCount: stat.upCount ?? null,
       downCount: stat.downCount ?? null,
     }
   }).sort((a, b) => {
-    // 默认按照涨跌幅降序排列
     return (b.changeRate || -9999) - (a.changeRate || -9999)
   })
 })
@@ -131,8 +125,35 @@ function getColorClass(val: number | null) {
   return 'text-gray-500 dark:text-gray-400'
 }
 
+function getDiffColorClass(val: number) {
+  if (val > 0)
+    return 'text-red-500 dark:text-red-400'
+  if (val < 0)
+    return 'text-green-500 dark:text-green-400'
+  return 'text-gray-400'
+}
+
 function formatPercent(val: number | null) {
   return val !== null ? `${val > 0 ? '+' : ''}${val.toFixed(2)}%` : '-'
+}
+
+function formatMarketCap(val: number | null) {
+  if (val === null)
+    return '-'
+  if (val >= 100000000)
+    return `${(val / 100000000).toFixed(2)} 亿`
+  return formatCurrency(val)
+}
+
+// 信号样式
+function getSignalClass(code: string) {
+  switch (code) {
+    case 'top': return 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-900/30 dark:text-purple-300 dark:border-purple-800'
+    case 'up': return 'bg-red-100 text-red-700 border-red-200 dark:bg-red-900/30 dark:text-red-300 dark:border-red-800'
+    case 'bottom': return 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-900/30 dark:text-blue-300 dark:border-blue-800'
+    case 'down': return 'bg-green-100 text-green-700 border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-800'
+    default: return 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-gray-700 dark:text-gray-400 dark:border-gray-600'
+  }
 }
 </script>
 
@@ -144,7 +165,7 @@ function formatPercent(val: number | null) {
           板块分析
         </h1>
         <p class="text-gray-500 mt-1 dark:text-gray-400">
-          每日各板块资金流向、涨跌与换手率追踪
+          基于量化四象限的每日资金流向与决策追踪
         </p>
       </div>
       <div class="flex gap-4 items-center">
@@ -169,7 +190,7 @@ function formatPercent(val: number | null) {
         :class="activeTab === 'my_all' ? 'bg-white text-primary shadow-sm dark:bg-gray-700 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
         @click="activeTab = 'my_all'"
       >
-        全部自选 (持有+关注)
+        全部自选
       </button>
       <button
         class="text-sm font-medium px-4 py-1.5 rounded-md transition-all"
@@ -208,15 +229,22 @@ function formatPercent(val: number | null) {
               </th>
               <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
                 换手率
+                <span class="text-[10px] text-gray-400 font-normal block">(vs 昨日)</span>
               </th>
               <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
                 成交额占比
+                <span class="text-[10px] text-gray-400 font-normal block">(vs 昨日)</span>
               </th>
+
+              <th class="text-sm text-gray-600 font-semibold p-4 text-center dark:text-gray-300">
+                <div class="flex gap-1 cursor-help items-center justify-center hover:text-primary" @click="isHelpModalOpen = true">
+                  AI 决策
+                  <div i-carbon-information />
+                </div>
+              </th>
+
               <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
                 总市值
-              </th>
-              <th class="text-sm text-gray-600 font-semibold p-4 text-right dark:text-gray-300">
-                净流入(亿)
               </th>
               <th class="text-sm text-gray-600 font-semibold p-4 text-center dark:text-gray-300">
                 涨跌家数
@@ -236,18 +264,44 @@ function formatPercent(val: number | null) {
               <td class="font-numeric font-semibold p-4 text-right" :class="getColorClass(row.changeRate)">
                 {{ formatPercent(row.changeRate) }}
               </td>
-              <td class="text-gray-600 font-numeric p-4 text-right dark:text-gray-300">
-                {{ row.turnoverRate !== null ? `${row.turnoverRate.toFixed(2)}%` : '-' }}
+              <!-- 换手率 -->
+              <td class="p-4 text-right">
+                <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
+                  {{ row.turnoverRate !== null ? `${row.turnoverRate.toFixed(2)}%` : '-' }}
+                </div>
+                <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffTurnoverRate)">
+                  {{ row.diffTurnoverRate > 0 ? '▲' : (row.diffTurnoverRate < 0 ? '▼' : '') }}
+                  {{ Math.abs(row.diffTurnoverRate).toFixed(2) }}%
+                </div>
               </td>
-              <td class="text-gray-600 font-numeric p-4 text-right dark:text-gray-300">
-                {{ row.volumeRatio !== null ? `${row.volumeRatio.toFixed(2)}%` : '-' }}
+              <!-- 成交额占比 -->
+              <td class="p-4 text-right">
+                <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
+                  {{ row.volumeRatio !== null ? `${row.volumeRatio.toFixed(2)}%` : '-' }}
+                </div>
+                <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffVolumeRatio)">
+                  {{ row.diffVolumeRatio > 0 ? '▲' : (row.diffVolumeRatio < 0 ? '▼' : '') }}
+                  {{ Math.abs(row.diffVolumeRatio).toFixed(2) }}%
+                </div>
               </td>
+
+              <!-- 决策信号 -->
+              <td class="p-4 text-center">
+                <div class="inline-flex flex-col items-center">
+                  <span
+                    class="text-xs font-bold mb-1 px-2 py-0.5 border rounded"
+                    :class="getSignalClass(row.signalCode)"
+                  >
+                    {{ row.signal }}
+                  </span>
+                  <span class="text-[10px] text-gray-500 font-bold dark:text-gray-400">{{ row.action }}</span>
+                </div>
+              </td>
+
               <td class="text-gray-600 font-numeric p-4 text-right dark:text-gray-300">
                 {{ formatMarketCap(row.totalMarketCap) }}
               </td>
-              <td class="font-numeric font-semibold p-4 text-right" :class="getColorClass(row.netInflow)">
-                {{ row.netInflow !== null ? (row.netInflow > 0 ? '+' : '') + row.netInflow.toFixed(2) : '-' }}
-              </td>
+
               <td class="text-xs p-4 text-center">
                 <span v-if="row.upCount !== null || row.downCount !== null" class="flex gap-1.5 items-center justify-center">
                   <span class="text-red-500 font-numeric">{{ row.upCount ?? 0 }}</span>
@@ -261,5 +315,94 @@ function formatPercent(val: number | null) {
         </table>
       </div>
     </div>
+
+    <!-- 决策系统说明模态框 -->
+    <Modal v-model="isHelpModalOpen" title="四象限决策系统说明">
+      <div class="text-sm p-2 max-w-none prose dark:prose-invert">
+        <p class="text-gray-500 mb-4">
+          本系统通过结合<b>成交额占比</b>与<b>换手率</b>两大资金指标，构建无视K线的量化决策模型。
+        </p>
+        <table class="text-xs text-left w-full border-collapse sm:text-sm">
+          <thead>
+            <tr class="bg-gray-100 dark:bg-gray-700">
+              <th class="p-2 border dark:border-gray-600">
+                象限/状态
+              </th>
+              <th class="p-2 border dark:border-gray-600">
+                指标特征
+              </th>
+              <th class="p-2 border dark:border-gray-600">
+                市场含义
+              </th>
+              <th class="p-2 border dark:border-gray-600">
+                指令
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="text-red-600 font-bold p-2 border bg-red-50 dark:border-gray-600 dark:bg-red-900/20">
+                一：主升浪
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                占比与换手<br><b>稳步双升</b>
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                资金持续流入，共识形成
+              </td>
+              <td class="font-bold p-2 border dark:border-gray-600">
+                满仓持有
+              </td>
+            </tr>
+            <tr>
+              <td class="text-purple-600 font-bold p-2 border bg-purple-50 dark:border-gray-600 dark:bg-purple-900/20">
+                二：见顶/高潮
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                占比 > 10%<br>换手 > 5%
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                情绪极度狂热，多空分歧
+              </td>
+              <td class="font-bold p-2 border dark:border-gray-600">
+                清仓
+              </td>
+            </tr>
+            <tr>
+              <td class="text-green-600 font-bold p-2 border bg-green-50 dark:border-gray-600 dark:bg-green-900/20">
+                三：阴跌/退潮
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                占比与换手<br><b>持续双降</b>
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                资金撤离，抵抗无效
+              </td>
+              <td class="font-bold p-2 border dark:border-gray-600">
+                空仓观望
+              </td>
+            </tr>
+            <tr>
+              <td class="text-blue-600 font-bold p-2 border bg-blue-50 dark:border-gray-600 dark:bg-blue-900/20">
+                四：冰点/筑底
+              </td>
+              <td v-pre class="p-2 border dark:border-gray-600">
+                <!-- eslint-disable-next-line vue/no-parsing-error -->
+                占比 < 3%<br>换手 < 1%
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                抛压枯竭，无人问津
+              </td>
+              <td class="font-bold p-2 border dark:border-gray-600">
+                左侧建仓
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="text-xs text-gray-400 mt-4">
+          * 注：若未满足上述条件，则显示为“震荡/分歧”，建议观望。
+        </div>
+      </div>
+    </Modal>
   </div>
 </template>
