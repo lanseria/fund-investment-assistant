@@ -42,7 +42,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['半导体'],
   },
   chip_design: {
-    eastMoney: ['半导体芯片设计'],
+    eastMoney: ['数字芯片设计'],
     tongHuaShun: ['半导体'],
   },
   memory_chips: {
@@ -76,7 +76,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: [],
   },
   software_services: {
-    eastMoney: ['软件服务'],
+    eastMoney: ['软件开发'],
     tongHuaShun: ['软件开发'],
   },
   cloud_services: {
@@ -94,7 +94,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['电网设备'],
   },
   motor_manufacturing: {
-    eastMoney: ['电机制造'],
+    eastMoney: ['电机Ⅲ'],
     tongHuaShun: ['电机'],
   },
   humanoid_robots: {
@@ -106,7 +106,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['工程机械'],
   },
   photovoltaics: {
-    eastMoney: ['光伏'],
+    eastMoney: ['光伏概念'],
     tongHuaShun: ['光伏设备'],
   },
   batteries: {
@@ -132,7 +132,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['银行'],
   },
   securities: {
-    eastMoney: ['证券'],
+    eastMoney: ['证券Ⅲ'],
     tongHuaShun: ['证券'],
   },
   real_estate: {
@@ -142,7 +142,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
 
   // --- 大消费与医疗 ---
   consumer: {
-    eastMoney: ['消费'],
+    eastMoney: ['食品饮料'],
     tongHuaShun: ['食品加工制造'],
   },
   new_retail: {
@@ -154,7 +154,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['白酒'],
   },
   pharmaceuticals: {
-    eastMoney: ['医药'],
+    eastMoney: ['医药生物'],
     tongHuaShun: ['医药商业'],
   },
   ip_economy: {
@@ -162,7 +162,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: [],
   },
   gaming: {
-    eastMoney: ['游戏'],
+    eastMoney: ['游戏Ⅲ'],
     tongHuaShun: ['游戏'],
   },
   media: {
@@ -176,7 +176,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['军工装备'],
   },
   aerospace: {
-    eastMoney: ['航天'],
+    eastMoney: ['航天航空'],
     tongHuaShun: ['机场航运'],
   },
 
@@ -186,7 +186,7 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     tongHuaShun: ['电力'],
   },
   carbon_neutrality: {
-    eastMoney: ['碳中和'],
+    eastMoney: ['环保'],
     tongHuaShun: ['环境治理'],
   },
   shanghai_composite: { eastMoney: ['上证指数'], tongHuaShun: [] },
