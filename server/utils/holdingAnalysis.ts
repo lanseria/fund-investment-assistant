@@ -1,7 +1,7 @@
 // server/utils/holdingAnalysis.ts
 import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { fundTransactions, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
+import { fundTransactions, holdings, navHistory, sectorDailyStats, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -176,11 +176,52 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   const signalsMap = new Map<string, Record<string, string>>()
   for (const s of latestSignalsRaw) {
+    if (s.strategyName === 'macd')
+      continue // 彻底忽略历史残留的 MACD 信号
     if (!signalsMap.has(s.fundCode))
       signalsMap.set(s.fundCode, {})
     signalsMap.get(s.fundCode)![s.strategyName] = s.signal
   }
   const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
+
+  // --- 新增：获取最近两天的板块数据以计算 AI 决策 ---
+  const recentSectorStats = await db.query.sectorDailyStats.findMany({
+    orderBy: [desc(sectorDailyStats.date)],
+    limit: 300, // 足够覆盖所有板块近几天的数据
+  })
+
+  const dates = [...new Set(recentSectorStats.map(s => s.date))].sort().reverse()
+  const latestDate = dates[0]
+  const prevDate = dates[1]
+  const sectorSignalMap = new Map<string, string>()
+
+  if (latestDate) {
+    const currentStats = recentSectorStats.filter(s => s.date === latestDate)
+    const prevStatsMap = new Map()
+    if (prevDate) {
+      recentSectorStats.filter(s => s.date === prevDate).forEach(p => prevStatsMap.set(p.sector, p))
+    }
+
+    currentStats.forEach((curr) => {
+      const prev = prevStatsMap.get(curr.sector)
+      const curVol = Number(curr.volumeRatio || 0)
+      const curTurn = Number(curr.turnoverRate || 0)
+      const diffVol = prev ? curVol - Number(prev.volumeRatio || 0) : 0
+      const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
+
+      let action = '观望'
+      if (curVol > 10 && curTurn > 5)
+        action = '清仓'
+      else if (curVol < 3 && curTurn < 1)
+        action = '建仓'
+      else if (diffVol > 0 && diffTurn > 0)
+        action = '满仓'
+      else if (diffVol < 0 && diffTurn < 0)
+        action = '空仓'
+
+      sectorSignalMap.set(curr.sector, action)
+    })
+  }
 
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
@@ -223,6 +264,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
+      sectorSignal: fundInfo.sector ? sectorSignalMap.get(fundInfo.sector) || '未知' : '无板块', // 注入板块 AI 决策
       bias20,
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
       recentTransactions: historyTxMap.get(fundInfo.code) || [],

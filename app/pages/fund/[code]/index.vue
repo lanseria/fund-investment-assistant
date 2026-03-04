@@ -129,10 +129,9 @@ const { data, pending, error, refresh } = await useAsyncData(
     // [新增] 获取区间涨跌幅数据
     const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
 
-    const [baseData, rsiData, macData, bollingerData, performanceData] = await Promise.all([
+    const [baseData, rsiData, bollingerData, performanceData] = await Promise.all([
       fetchGenericStrategy(''),
       fetchRsiStrategy(),
-      fetchGenericStrategy('macd'),
       fetchGenericStrategy('bollinger_bands'),
       fetchPerformance(), // [新增]
     ])
@@ -140,7 +139,6 @@ const { data, pending, error, refresh } = await useAsyncData(
     return {
       base: baseData,
       rsi: rsiData,
-      macd: macData,
       bollingerBands: bollingerData,
       performance: performanceData, // [新增]
     }
@@ -336,15 +334,6 @@ watch(data, (newData) => {
         :title="`基金 ${fundName} - RSI 策略`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
-      />
-
-      <GenericStrategyChart
-        :history="data.macd.history"
-        :signals="data.macd.signals"
-        :title="`基金 ${fundName} - MACD 策略`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
-        @signal-click="openSignalDetails"
       />
 
       <GenericStrategyChart

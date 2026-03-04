@@ -111,6 +111,7 @@ export async function buildAiContext(fullHoldingsData: any[]) {
         : {}),
       percentageChange: h.percentageChange ? `${h.percentageChange.toFixed(2)}%` : '0%',
       signals: h.signals,
+      sectorSignal: h.sectorSignal, // 加入板块决策供 AI 参考
       bias20: h.bias20,
       recentTransactions: h.recentTransactions?.slice(0, 3).map((t: any) => ({
         type: t.type,
@@ -182,8 +183,8 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   1. **daily_analysis (重点)**: 每日宏观热点深度分析，包含核心主线和微观领域动态。请以此定调今日整体策略（进攻/防御）。
   2. market_indices: 实时市场指数。
   3. market_events: 近30天新闻事件时间线。
-  4. holdings: 当前持仓。
-  5. watchlist: 关注列表。
+  4. holdings: 当前持仓 (包含 sectorSignal 板块量化决策，极为重要)。
+  5. watchlist: 关注列表 (同样包含 sectorSignal 板块量化决策)。
 `
 
   const fixedOutputRules = `

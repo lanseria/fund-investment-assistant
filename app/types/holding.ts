@@ -36,6 +36,7 @@ export interface Holding {
   percentageChange: number | null
   todayEstimateUpdateTime: string | null
   signals: Record<string, string>
+  sectorSignal?: string // 板块 AI 决策
   bias20: number | null
   // 该基金关联的待确认交易列表
   pendingTransactions?: PendingTransaction[]
