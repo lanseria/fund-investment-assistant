@@ -189,6 +189,10 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     eastMoney: ['环保'],
     tongHuaShun: ['环境治理'],
   },
+  internet_finance: {
+    eastMoney: ['互联网金融'],
+    tongHuaShun: ['多元金融'],
+  },
   shanghai_composite: { eastMoney: ['上证指数'], tongHuaShun: [] },
   star_market_50: { eastMoney: ['科创50'], tongHuaShun: [] },
   beijing_exchange_50: { eastMoney: ['北证50'], tongHuaShun: [] },
