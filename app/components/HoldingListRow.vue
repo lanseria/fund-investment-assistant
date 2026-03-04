@@ -231,15 +231,16 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
       <!-- 策略信号与板块决策 -->
       <div v-if="holding.signals" class="mt-2 flex flex-wrap gap-1.5 items-center">
-        <!-- 新增: 板块决策标签 -->
+        <!-- 板块决策标签 -->
         <span
           v-if="holding.sectorSignal && holding.sectorSignal !== '无板块'"
-          class="text-xs font-medium px-2 py-0.5 rounded-full"
+          class="text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
           :class="{
             'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300': holding.sectorSignal === '满仓' || holding.sectorSignal === '建仓',
             'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': holding.sectorSignal === '空仓' || holding.sectorSignal === '清仓',
             'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300': holding.sectorSignal === '观望' || holding.sectorSignal === '未知',
           }"
+          :title="holding.sectorStats ? `成交额占比: ${holding.sectorStats.volumeRatio.toFixed(2)}%\n换手率: ${holding.sectorStats.turnoverRate.toFixed(2)}%` : ''"
         >
           板块: {{ holding.sectorSignal }}
         </span>

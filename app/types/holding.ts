@@ -1,7 +1,7 @@
 // 待确认交易的类型定义
 export interface PendingTransaction {
   id: number
-  // [修改] 增加转出转入类型
+  // 增加转出转入类型
   type: 'buy' | 'sell' | 'convert_out' | 'convert_in'
   orderAmount: number | null
   orderShares: number | null
@@ -37,6 +37,7 @@ export interface Holding {
   todayEstimateUpdateTime: string | null
   signals: Record<string, string>
   sectorSignal?: string // 板块 AI 决策
+  sectorStats?: { volumeRatio: number, turnoverRate: number } | null // 板块数据详情
   bias20: number | null
   // 该基金关联的待确认交易列表
   pendingTransactions?: PendingTransaction[]

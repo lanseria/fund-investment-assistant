@@ -184,7 +184,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
   }
   const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
 
-  // --- 新增：获取最近两天的板块数据以计算 AI 决策 ---
+  // --- 获取最近两天的板块数据以计算 AI 决策 ---
   const recentSectorStats = await db.query.sectorDailyStats.findMany({
     orderBy: [desc(sectorDailyStats.date)],
     limit: 300, // 足够覆盖所有板块近几天的数据
@@ -193,7 +193,9 @@ export async function getUserHoldingsAndSummary(userId: number) {
   const dates = [...new Set(recentSectorStats.map(s => s.date))].sort().reverse()
   const latestDate = dates[0]
   const prevDate = dates[1]
-  const sectorSignalMap = new Map<string, string>()
+
+  // 扩展 Map 以存储更多信息
+  const sectorSignalMap = new Map<string, { action: string, volumeRatio: number, turnoverRate: number }>()
 
   if (latestDate) {
     const currentStats = recentSectorStats.filter(s => s.date === latestDate)
@@ -219,7 +221,8 @@ export async function getUserHoldingsAndSummary(userId: number) {
       else if (diffVol < 0 && diffTurn < 0)
         action = '空仓'
 
-      sectorSignalMap.set(curr.sector, action)
+      // 存储完整数据
+      sectorSignalMap.set(curr.sector, { action, volumeRatio: curVol, turnoverRate: curTurn })
     })
   }
 
@@ -264,7 +267,14 @@ export async function getUserHoldingsAndSummary(userId: number) {
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
-      sectorSignal: fundInfo.sector ? sectorSignalMap.get(fundInfo.sector) || '未知' : '无板块', // 注入板块 AI 决策
+      // 注入板块 AI 决策和统计数据
+      sectorSignal: fundInfo.sector && sectorSignalMap.has(fundInfo.sector) ? sectorSignalMap.get(fundInfo.sector)!.action : '无板块',
+      sectorStats: fundInfo.sector && sectorSignalMap.has(fundInfo.sector)
+        ? {
+            volumeRatio: sectorSignalMap.get(fundInfo.sector)!.volumeRatio,
+            turnoverRate: sectorSignalMap.get(fundInfo.sector)!.turnoverRate,
+          }
+        : null,
       bias20,
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
       recentTransactions: historyTxMap.get(fundInfo.code) || [],
