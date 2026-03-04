@@ -208,18 +208,27 @@ export async function getUserHoldingsAndSummary(userId: number) {
       const prev = prevStatsMap.get(curr.sector)
       const curVol = Number(curr.volumeRatio || 0)
       const curTurn = Number(curr.turnoverRate || 0)
-      const diffVol = prev ? curVol - Number(prev.volumeRatio || 0) : 0
+      const curChangeRate = Number(curr.changeRate || 0) // 新增：读取当日涨跌幅
       const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
 
       let action = '观望'
-      if (curVol > 10 && curTurn > 5)
-        action = '清仓'
-      else if (curVol < 3 && curTurn < 1)
-        action = '建仓'
-      else if (diffVol > 0 && diffTurn > 0)
-        action = '满仓'
-      else if (diffVol < 0 && diffTurn < 0)
-        action = '空仓'
+      if (curChangeRate < -2.0 && diffTurn > 1.0) {
+        action = '坚决清仓'
+      }
+      else if (curVol > 10) {
+        if (curChangeRate > 0)
+          action = '持有/停买'
+        else action = '减仓/防守'
+      }
+      else if (curTurn < 1.0) {
+        action = '左侧建仓'
+      }
+      else if (curChangeRate < -2.0 && curTurn >= 1.0 && curTurn < 2.0) {
+        action = '空仓观望'
+      }
+      else if (curChangeRate > 0 && curVol >= 3 && curVol <= 8 && curTurn > 2 && diffTurn > 0) {
+        action = '持仓/加仓'
+      }
 
       // 存储完整数据
       sectorSignalMap.set(curr.sector, { action, volumeRatio: curVol, turnoverRate: curTurn })

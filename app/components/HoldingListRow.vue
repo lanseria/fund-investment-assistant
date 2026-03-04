@@ -236,9 +236,9 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           v-if="holding.sectorSignal && holding.sectorSignal !== '无板块'"
           class="text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
           :class="{
-            'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300': holding.sectorSignal === '满仓' || holding.sectorSignal === '建仓',
-            'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': holding.sectorSignal === '空仓' || holding.sectorSignal === '清仓',
-            'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300': holding.sectorSignal === '观望' || holding.sectorSignal === '未知',
+            'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300': holding.sectorSignal.includes('建仓') || holding.sectorSignal.includes('加仓') || holding.sectorSignal.includes('持仓'),
+            'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': holding.sectorSignal.includes('空仓') || holding.sectorSignal.includes('清仓') || holding.sectorSignal.includes('减仓'),
+            'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300': holding.sectorSignal.includes('观望') || holding.sectorSignal.includes('停买') || holding.sectorSignal === '未知',
           }"
           :title="holding.sectorStats ? `成交额占比: ${holding.sectorStats.volumeRatio.toFixed(2)}%\n换手率: ${holding.sectorStats.turnoverRate.toFixed(2)}%` : ''"
         >

@@ -317,16 +317,16 @@ function getSignalClass(code: string) {
     </div>
 
     <!-- 决策系统说明模态框 -->
-    <Modal v-model="isHelpModalOpen" title="四象限决策系统说明">
+    <Modal v-model="isHelpModalOpen" title="量化决策系统说明">
       <div class="text-sm p-2 max-w-none prose dark:prose-invert">
         <p class="text-gray-500 mb-4">
-          本系统通过结合<b>成交额占比</b>与<b>换手率</b>两大资金指标，构建无视K线的量化决策模型。
+          本系统通过结合<b>成交额占比</b>、<b>换手率</b>以及<b>量价配合</b>，构建三维交叉判定的风控模型。
         </p>
         <table class="text-xs text-left w-full border-collapse sm:text-sm">
           <thead>
             <tr class="bg-gray-100 dark:bg-gray-700">
               <th class="p-2 border dark:border-gray-600">
-                象限/状态
+                状态信号
               </th>
               <th class="p-2 border dark:border-gray-600">
                 指标特征
@@ -342,53 +342,53 @@ function getSignalClass(code: string) {
           <tbody>
             <tr>
               <td class="text-red-600 font-bold p-2 border bg-red-50 dark:border-gray-600 dark:bg-red-900/20">
-                一：主升浪
+                主升浪
               </td>
               <td class="p-2 border dark:border-gray-600">
-                占比与换手<br><b>稳步双升</b>
+                收涨 且 水位健康(3~8%)<br>换手率 > 2% 且 稳步放大
               </td>
               <td class="p-2 border dark:border-gray-600">
-                资金持续流入，共识形成
+                量价齐升，资金持续流入
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                满仓持有
+                持仓 / 加仓
               </td>
             </tr>
             <tr>
               <td class="text-purple-600 font-bold p-2 border bg-purple-50 dark:border-gray-600 dark:bg-purple-900/20">
-                二：见顶/高潮
+                极度拥挤 / 高位震荡
               </td>
               <td class="p-2 border dark:border-gray-600">
-                占比 > 10%<br>换手 > 5%
+                成交额占比 > 10%<br>无论涨跌
               </td>
               <td class="p-2 border dark:border-gray-600">
-                情绪极度狂热，多空分歧
+                板块严重吸血，随时瓦解
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                清仓
+                减仓防守 / 停止买入
               </td>
             </tr>
             <tr>
               <td class="text-green-600 font-bold p-2 border bg-green-50 dark:border-gray-600 dark:bg-green-900/20">
-                三：阴跌/退潮
+                放量大跌 / 无量阴跌
               </td>
               <td class="p-2 border dark:border-gray-600">
-                占比与换手<br><b>持续双降</b>
+                跌幅 > 2%<br>伴随 换手急剧放大 或 极度萎缩
               </td>
               <td class="p-2 border dark:border-gray-600">
-                资金撤离，抵抗无效
+                恐慌性出逃 或 多头躺平
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                空仓观望
+                坚决清仓 / 空仓观望
               </td>
             </tr>
             <tr>
               <td class="text-blue-600 font-bold p-2 border bg-blue-50 dark:border-gray-600 dark:bg-blue-900/20">
-                四：冰点/筑底
+                冰点筑底
               </td>
               <td v-pre class="p-2 border dark:border-gray-600">
                 <!-- eslint-disable-next-line vue/no-parsing-error -->
-                占比 < 3%<br>换手 < 1%
+                换手率 < 1%
               </td>
               <td class="p-2 border dark:border-gray-600">
                 抛压枯竭，无人问津

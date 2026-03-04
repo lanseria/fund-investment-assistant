@@ -43,37 +43,53 @@ export default defineEventHandler(async (event) => {
     // 转换为数字，处理 null
     const curVol = Number(curr.volumeRatio || 0)
     const curTurn = Number(curr.turnoverRate || 0)
+    const curChangeRate = Number(curr.changeRate || 0) // 新增：读取当日涨跌幅
 
     // 计算与昨日的差值
     const diffVol = prev ? curVol - Number(prev.volumeRatio || 0) : 0
     const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
 
-    // --- 四象限决策系统逻辑 ---
+    // --- 升级版多维交叉决策系统逻辑 ---
     let signal = '震荡/分歧'
     let signalCode = 'neutral' // 用于前端配色
     let action = '观望'
 
-    // 优先级 1: 极端值判断 (象限二 & 象限四)
-    if (curVol > 10 && curTurn > 5) {
-      signal = '见顶/高潮'
-      signalCode = 'top' // 极热
-      action = '清仓'
+    // 规则 1: 量价配合判定（防飞刀，最高优先级）
+    if (curChangeRate < -2.0 && diffTurn > 1.0) {
+      signal = '放量大跌'
+      signalCode = 'down'
+      action = '坚决清仓'
     }
-    else if (curVol < 3 && curTurn < 1) {
-      signal = '冰点/筑底'
-      signalCode = 'bottom' // 极冷
-      action = '建仓'
+    // 规则 2: 拥挤度一票否决权（防崩盘）
+    else if (curVol > 10) {
+      if (curChangeRate > 0) {
+        signal = '高位震荡'
+        signalCode = 'top'
+        action = '持有/停买'
+      }
+      else {
+        signal = '极度拥挤'
+        signalCode = 'top'
+        action = '减仓/防守'
+      }
     }
-    // 优先级 2: 趋势判断 (象限一 & 象限三)
-    else if (diffVol > 0 && diffTurn > 0) {
+    // 规则 3: 冰点底部的确认（抓潜伏）
+    else if (curTurn < 1.0) {
+      signal = '冰点筑底'
+      signalCode = 'bottom'
+      action = '左侧建仓'
+    }
+    // 补充规则: 无量阴跌
+    else if (curChangeRate < -2.0 && curTurn >= 1.0 && curTurn < 2.0) {
+      signal = '无量阴跌'
+      signalCode = 'down'
+      action = '空仓观望'
+    }
+    // 规则 4: 真正的主升浪定义（找主线）
+    else if (curChangeRate > 0 && curVol >= 3 && curVol <= 8 && curTurn > 2 && diffTurn > 0) {
       signal = '主升浪'
-      signalCode = 'up' // 上升
-      action = '满仓'
-    }
-    else if (diffVol < 0 && diffTurn < 0) {
-      signal = '阴跌/退潮'
-      signalCode = 'down' // 下降
-      action = '空仓'
+      signalCode = 'up'
+      action = '持仓/加仓'
     }
 
     return {
