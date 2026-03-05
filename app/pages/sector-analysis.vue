@@ -48,6 +48,77 @@ async function handleSync() {
 
 // --- 数据计算逻辑 ---
 
+// --- 展开基金卡片逻辑 ---
+interface SectorChartCardData {
+  code: string
+  name: string
+  strategy: string
+  data: any
+  sector: string | null
+  holdingAmount: number | null
+  percentageChange: number | null
+  todayEstimateProfitLoss: number | null
+}
+
+const expandedSectors = ref<Set<string>>(new Set())
+const sectorChartData = ref<Record<string, SectorChartCardData[]>>({})
+const sectorLoading = ref<Record<string, boolean>>({})
+
+async function toggleExpand(sectorValue: string) {
+  if (expandedSectors.value.has(sectorValue)) {
+    expandedSectors.value.delete(sectorValue)
+  }
+  else {
+    expandedSectors.value.add(sectorValue)
+    if (!sectorChartData.value[sectorValue]) {
+      await loadChartDataForSector(sectorValue)
+    }
+  }
+}
+
+async function loadChartDataForSector(sectorValue: string) {
+  // 在持仓列表中找出属于该板块的基金
+  const sectorFunds = holdingStore.holdings.filter(h => h.sector === sectorValue)
+  if (sectorFunds.length === 0) {
+    sectorChartData.value[sectorValue] = []
+    return
+  }
+
+  sectorLoading.value[sectorValue] = true
+  try {
+    const promises = sectorFunds.map(async (fund) => {
+      try {
+        // 请求单个基金的历史走势用于渲染卡片（复用基础走势配置）
+        const chartApiData = await apiFetch(`/api/fund/holdings/${fund.code}/history`, {
+          params: { ma: [5, 10, 20, 120] },
+        })
+        return {
+          code: fund.code,
+          name: fund.name,
+          strategy: '', // 默认使用基础走势
+          data: chartApiData,
+          sector: fund.sector,
+          holdingAmount: fund.holdingAmount,
+          percentageChange: fund.percentageChange,
+          todayEstimateProfitLoss: (fund.todayEstimateAmount !== null && fund.holdingAmount !== null)
+            ? fund.todayEstimateAmount - fund.holdingAmount
+            : null,
+        } as SectorChartCardData
+      }
+      catch (e) {
+        console.error(`加载基金 ${fund.code} 数据失败:`, e)
+        return null
+      }
+    })
+
+    const results = await Promise.all(promises)
+    sectorChartData.value[sectorValue] = results.filter(Boolean) as SectorChartCardData[]
+  }
+  finally {
+    sectorLoading.value[sectorValue] = false
+  }
+}
+
 const holdingSectors = computed(() => {
   const s = new Set<string>()
   holdingStore.holdings.forEach((h) => {
@@ -252,65 +323,92 @@ function getSignalClass(code: string) {
             </tr>
           </thead>
           <tbody class="divide-gray-100 divide-y dark:divide-gray-700/50">
-            <tr v-for="row in tableData" :key="row.value" class="transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/30">
-              <td class="p-4">
-                <div class="text-gray-800 font-medium dark:text-gray-200">
-                  {{ row.label }}
-                </div>
-                <div class="text-[10px] text-gray-400 font-mono mt-0.5">
-                  {{ row.value }}
-                </div>
-              </td>
-              <td class="font-numeric font-semibold p-4 text-right" :class="getColorClass(row.changeRate)">
-                {{ formatPercent(row.changeRate) }}
-              </td>
-              <!-- 换手率 -->
-              <td class="p-4 text-right">
-                <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
-                  {{ row.turnoverRate !== null ? `${row.turnoverRate.toFixed(2)}%` : '-' }}
-                </div>
-                <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffTurnoverRate)">
-                  {{ row.diffTurnoverRate > 0 ? '▲' : (row.diffTurnoverRate < 0 ? '▼' : '') }}
-                  {{ Math.abs(row.diffTurnoverRate).toFixed(2) }}%
-                </div>
-              </td>
-              <!-- 成交额占比 -->
-              <td class="p-4 text-right">
-                <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
-                  {{ row.volumeRatio !== null ? `${row.volumeRatio.toFixed(2)}%` : '-' }}
-                </div>
-                <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffVolumeRatio)">
-                  {{ row.diffVolumeRatio > 0 ? '▲' : (row.diffVolumeRatio < 0 ? '▼' : '') }}
-                  {{ Math.abs(row.diffVolumeRatio).toFixed(2) }}%
-                </div>
-              </td>
+            <template v-for="row in tableData" :key="row.value">
+              <tr class="cursor-pointer transition-colors hover:bg-gray-50/50 dark:hover:bg-gray-800/30" @click="toggleExpand(row.value)">
+                <td class="p-4">
+                  <div class="flex gap-2 items-center">
+                    <div
+                      class="i-carbon-chevron-right text-gray-400 shrink-0 transition-transform"
+                      :class="{ 'rotate-90': expandedSectors.has(row.value) }"
+                    />
+                    <div>
+                      <div class="text-gray-800 font-medium dark:text-gray-200">
+                        {{ row.label }}
+                      </div>
+                      <div class="text-[10px] text-gray-400 font-mono mt-0.5">
+                        {{ row.value }}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td class="font-numeric font-semibold p-4 text-right" :class="getColorClass(row.changeRate)">
+                  {{ formatPercent(row.changeRate) }}
+                </td>
+                <!-- 换手率 -->
+                <td class="p-4 text-right">
+                  <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
+                    {{ row.turnoverRate !== null ? `${row.turnoverRate.toFixed(2)}%` : '-' }}
+                  </div>
+                  <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffTurnoverRate)">
+                    {{ row.diffTurnoverRate > 0 ? '▲' : (row.diffTurnoverRate < 0 ? '▼' : '') }}
+                    {{ Math.abs(row.diffTurnoverRate).toFixed(2) }}%
+                  </div>
+                </td>
+                <!-- 成交额占比 -->
+                <td class="p-4 text-right">
+                  <div class="text-gray-800 font-medium font-numeric dark:text-gray-200">
+                    {{ row.volumeRatio !== null ? `${row.volumeRatio.toFixed(2)}%` : '-' }}
+                  </div>
+                  <div class="text-[10px] font-numeric mt-0.5" :class="getDiffColorClass(row.diffVolumeRatio)">
+                    {{ row.diffVolumeRatio > 0 ? '▲' : (row.diffVolumeRatio < 0 ? '▼' : '') }}
+                    {{ Math.abs(row.diffVolumeRatio).toFixed(2) }}%
+                  </div>
+                </td>
 
-              <!-- 决策信号 -->
-              <td class="p-4 text-center">
-                <div class="inline-flex flex-col items-center">
-                  <span
-                    class="text-xs font-bold mb-1 px-2 py-0.5 border rounded"
-                    :class="getSignalClass(row.signalCode)"
-                  >
-                    {{ row.signal }}
+                <!-- 决策信号 -->
+                <td class="p-4 text-center">
+                  <div class="inline-flex flex-col items-center">
+                    <span
+                      class="text-xs font-bold mb-1 px-2 py-0.5 border rounded"
+                      :class="getSignalClass(row.signalCode)"
+                    >
+                      {{ row.signal }}
+                    </span>
+                    <span class="text-[10px] text-gray-500 font-bold dark:text-gray-400">{{ row.action }}</span>
+                  </div>
+                </td>
+
+                <td class="text-gray-600 font-numeric p-4 text-right dark:text-gray-300">
+                  {{ formatMarketCap(row.totalMarketCap) }}
+                </td>
+
+                <td class="text-xs p-4 text-center">
+                  <span v-if="row.upCount !== null || row.downCount !== null" class="flex gap-1.5 items-center justify-center">
+                    <span class="text-red-500 font-numeric">{{ row.upCount ?? 0 }}</span>
+                    <span class="text-gray-400">/</span>
+                    <span class="text-green-500 font-numeric">{{ row.downCount ?? 0 }}</span>
                   </span>
-                  <span class="text-[10px] text-gray-500 font-bold dark:text-gray-400">{{ row.action }}</span>
-                </div>
-              </td>
+                  <span v-else class="text-gray-400">-</span>
+                </td>
+              </tr>
 
-              <td class="text-gray-600 font-numeric p-4 text-right dark:text-gray-300">
-                {{ formatMarketCap(row.totalMarketCap) }}
-              </td>
-
-              <td class="text-xs p-4 text-center">
-                <span v-if="row.upCount !== null || row.downCount !== null" class="flex gap-1.5 items-center justify-center">
-                  <span class="text-red-500 font-numeric">{{ row.upCount ?? 0 }}</span>
-                  <span class="text-gray-400">/</span>
-                  <span class="text-green-500 font-numeric">{{ row.downCount ?? 0 }}</span>
-                </span>
-                <span v-else class="text-gray-400">-</span>
-              </td>
-            </tr>
+              <!-- 展开的内容区域 -->
+              <tr v-if="expandedSectors.has(row.value)" class="bg-gray-50/40 shadow-inner dark:bg-gray-800/40">
+                <td colspan="7" class="p-0 border-b dark:border-gray-700/50">
+                  <div v-if="sectorLoading[row.value]" class="p-8 flex justify-center">
+                    <div class="i-carbon-circle-dash text-3xl text-primary animate-spin" />
+                  </div>
+                  <div v-else-if="!sectorChartData[row.value] || sectorChartData[row.value]!.length === 0" class="text-sm text-gray-500 p-6 text-center">
+                    暂无属于该板块的持仓或关注基金
+                  </div>
+                  <div v-else class="p-4 flex gap-4 overflow-x-auto">
+                    <div v-for="fund in sectorChartData[row.value]" :key="fund.code" class="shrink-0 w-80">
+                      <OverviewChartCard :fund="fund" active-date-filter="3m" />
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>

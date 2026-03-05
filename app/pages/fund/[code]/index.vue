@@ -3,7 +3,7 @@
 import type { Holding } from '~/types/holding'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
-import { appName } from '~/constants'
+import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 const dayjs = useDayjs()
@@ -15,6 +15,20 @@ const { holdings } = storeToRefs(holdingStore)
 
 // 获取当前基金的 holding 数据
 const currentHolding = computed(() => holdingStore.holdings.find(h => h.code === code))
+const { getLabel } = useDictStore()
+
+// 请求新的基金详情接口
+const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
+  `fund-detail-${code}`,
+  () => apiFetch<any>(`/api/fund/holdings/${code}/detail`),
+)
+
+onMounted(async () => {
+  // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
+  if (holdingStore.holdings.length === 0) {
+    await holdingStore.fetchHoldings()
+  }
+})
 
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
@@ -126,21 +140,26 @@ const { data, pending, error, refresh } = await useAsyncData(
       })
     const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
 
-    // [新增] 获取区间涨跌幅数据
+    // 获取区间涨跌幅数据
     const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
 
-    const [baseData, rsiData, bollingerData, performanceData] = await Promise.all([
+    // [新增] 获取板块历史量化决策信号
+    const fetchSectorSignals = () => apiFetch<any[]>(`/api/fund/holdings/${code}/sector-signals`)
+
+    const [baseData, rsiData, bollingerData, performanceData, sectorSignalsData] = await Promise.all([
       fetchGenericStrategy(''),
       fetchRsiStrategy(),
       fetchGenericStrategy('bollinger_bands'),
-      fetchPerformance(), // [新增]
+      fetchPerformance(),
+      fetchSectorSignals(), // [新增]
     ])
 
     return {
       base: baseData,
       rsi: rsiData,
       bollingerBands: bollingerData,
-      performance: performanceData, // [新增]
+      performance: performanceData,
+      sectorSignals: sectorSignalsData, // [新增]
     }
   },
 )
@@ -162,6 +181,7 @@ async function handleSyncHistory() {
   try {
     await triggerSyncHistory(code)
     await refresh()
+    await refreshDetail() // 同步历史数据后，刷新详情面板
   }
   finally {
     isSyncing.value = false
@@ -275,6 +295,56 @@ watch(data, (newData) => {
       </div>
     </header>
 
+    <!-- [新增] 基金当日核心详情面板 -->
+    <div v-if="fundDetail" class="mb-8 p-5 card flex flex-col gap-6 items-center justify-between from-white to-gray-50 bg-gradient-to-br md:flex-row dark:from-gray-800 dark:to-gray-800/80">
+      <!-- 基本信息 -->
+      <div class="flex flex-1 flex-col">
+        <div class="flex gap-3 items-center">
+          <span class="text-xl font-bold">{{ fundDetail.name }}</span>
+          <span class="text-sm text-gray-500 font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{{ fundDetail.code }}</span>
+          <span class="text-xs text-blue-600 px-2 py-0.5 border border-blue-100 rounded bg-blue-50 dark:text-blue-300 dark:border-blue-800 dark:bg-blue-900/30">
+            {{ getLabel(SECTOR_DICT_TYPE, fundDetail.sector) || '未设置板块' }}
+          </span>
+        </div>
+        <div class="text-xs text-gray-400 mt-2 flex gap-4">
+          <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
+          <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? dayjs(fundDetail.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}</span>
+        </div>
+      </div>
+
+      <!-- 核心指标统计 -->
+      <div class="flex flex-wrap gap-6 md:flex-nowrap">
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-500 mb-1">最新净值</span>
+          <span class="text-xl font-bold font-numeric">{{ fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-' }}</span>
+        </div>
+
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-500 mb-1">估算涨跌</span>
+          <span class="text-xl font-bold font-numeric" :class="fundDetail.percentageChange > 0 ? 'text-red-500' : (fundDetail.percentageChange < 0 ? 'text-green-500' : 'text-gray-500')">
+            {{ fundDetail.percentageChange !== null ? `${(fundDetail.percentageChange > 0 ? '+' : '') + fundDetail.percentageChange.toFixed(2)}%` : '-' }}
+          </span>
+        </div>
+
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-500 mb-1">持仓市值</span>
+          <span class="text-xl font-bold font-numeric">{{ fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--' }}</span>
+        </div>
+
+        <div class="flex flex-col">
+          <span class="text-xs text-gray-500 mb-1">持仓收益</span>
+          <div class="flex gap-1 items-baseline">
+            <span class="text-xl font-bold font-numeric" :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500' : 'text-gray-500')">
+              {{ fundDetail.holdingProfitAmount !== null ? (fundDetail.holdingProfitAmount > 0 ? '+' : '') + formatCurrency(fundDetail.holdingProfitAmount) : '--' }}
+            </span>
+            <span v-if="fundDetail.holdingProfitRate !== null" class="text-sm font-numeric" :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500' : 'text-gray-500')">
+              ({{ fundDetail.holdingProfitRate > 0 ? '+' : '' }}{{ fundDetail.holdingProfitRate.toFixed(2) }}%)
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- [修改] 顶部数据卡片区域 -->
     <div class="mb-8 p-4 card">
       <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
@@ -340,6 +410,16 @@ watch(data, (newData) => {
         :history="data.bollingerBands.history"
         :signals="data.bollingerBands.signals"
         :title="`基金 ${fundName} - 布林带策略`"
+        :data-zoom-start="dataZoomStart"
+        :data-zoom-end="dataZoomEnd"
+        @signal-click="openSignalDetails"
+      />
+
+      <!-- [新增] 板块量化决策历史图表 -->
+      <GenericStrategyChart
+        :history="data.base.history"
+        :signals="data.sectorSignals || []"
+        :title="`基金 ${fundName} - 板块量化决策`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
