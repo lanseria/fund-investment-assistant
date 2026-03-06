@@ -24,10 +24,10 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| username | string | 是 | 用户名 |
-| password | string | 是 | 密码 |
+| 字段     | 类型   | 必填 | 说明   |
+| -------- | ------ | ---- | ------ |
+| username | string | 是   | 用户名 |
+| password | string | 是   | 密码   |
 
 ```json
 {
@@ -55,6 +55,7 @@ Content-Type: application/json
 ```
 
 **同时设置以下 Cookie:**
+
 - `auth-token`: 访问令牌 (HttpOnly, 15天有效期)
 - `auth-refresh-token`: 刷新令牌 (HttpOnly, 1个月有效期)
 
@@ -122,6 +123,7 @@ POST /api/auth/logout
 ```
 
 **同时清除以下 Cookie:**
+
 - `auth-token`
 - `auth-refresh-token`
 
@@ -149,6 +151,7 @@ Cookie: auth-refresh-token=xxx
 ```
 
 **同时更新 Cookie:**
+
 - `auth-token`: 新的访问令牌
 
 **失败 (401 Unauthorized)**
@@ -159,11 +162,12 @@ Cookie: auth-refresh-token=xxx
 
 ## 用户角色说明
 
-| 角色 | 说明 |
-|------|------|
-| `admin` | 管理员，拥有所有权限 |
-| `user` | 普通用户，只能操作自己的数据 |
+| 角色    | 说明                         |
+| ------- | ---------------------------- |
+| `admin` | 管理员，拥有所有权限         |
+| `user`  | 普通用户，只能操作自己的数据 |
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

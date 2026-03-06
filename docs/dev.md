@@ -7,6 +7,7 @@
 - [GET /dev/init-admin](#get-devinit-admin) - 初始化管理员账户
 - [POST /dev/process-transactions](#post-devprocess-transactions) - 手动触发交易处理
 - [POST /dev/trigger-ai](#post-devtrigger-ai) - 手动触发 AI 任务
+- [POST /dev/sync-sectors](#post-devsync-sectors) - 同步板块数据
 
 ---
 
@@ -60,10 +61,10 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| date | string | 否 | 处理指定日期的交易，默认为昨天 |
-| userId | number | 否 | 只处理指定用户的交易 |
+| 字段   | 类型   | 必填 | 说明                           |
+| ------ | ------ | ---- | ------------------------------ |
+| date   | string | 否   | 处理指定日期的交易，默认为昨天 |
+| userId | number | 否   | 只处理指定用户的交易           |
 
 ```json
 {
@@ -112,11 +113,11 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| type | string | 是 | 任务类型: `market_analysis`, `portfolio_rebalance`, `trade_decision` |
-| userId | number | 否 | 指定用户ID，不指定则处理所有启用 AI 的用户 |
-| params | object | 否 | 额外参数 |
+| 字段   | 类型   | 必填 | 说明                                                                 |
+| ------ | ------ | ---- | -------------------------------------------------------------------- |
+| type   | string | 是   | 任务类型: `market_analysis`, `portfolio_rebalance`, `trade_decision` |
+| userId | number | 否   | 指定用户ID，不指定则处理所有启用 AI 的用户                           |
+| params | object | 否   | 额外参数                                                             |
 
 ```json
 {
@@ -144,4 +145,36 @@ Content-Type: application/json
 
 ---
 
-*文档版本: 1.0.0*
+## POST /dev/sync-sectors
+
+手动同步板块统计数据。
+
+### 请求
+
+```http
+POST /api/dev/sync-sectors
+```
+
+### 响应
+
+**成功 (200 OK)**
+
+```json
+{
+  "message": "同步成功，更新了 15 个板块数据。"
+}
+```
+
+**失败 (500 Internal Server Error)**
+
+```json
+{
+  "statusCode": 500,
+  "statusText": "错误信息"
+}
+```
+
+---
+
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

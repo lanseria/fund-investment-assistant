@@ -22,9 +22,9 @@ X-Webhook-Secret: your-webhook-secret
 
 ### 请求头
 
-| 字段 | 必填 | 说明 |
-|------|------|------|
-| X-Webhook-Secret | 是 | Webhook 密钥，用于验证请求来源 |
+| 字段             | 必填 | 说明                           |
+| ---------------- | ---- | ------------------------------ |
+| X-Webhook-Secret | 是   | Webhook 密钥，用于验证请求来源 |
 
 ### 请求体
 
@@ -47,11 +47,11 @@ X-Webhook-Secret: your-webhook-secret
 
 ### 事件类型
 
-| 事件名 | 说明 |
-|--------|------|
-| trend_alert | 趋势告警 |
-| breakout | 突破信号 |
-| reversal | 反转信号 |
+| 事件名       | 说明       |
+| ------------ | ---------- |
+| trend_alert  | 趋势告警   |
+| breakout     | 突破信号   |
+| reversal     | 反转信号   |
 | volume_spike | 成交量异常 |
 
 ### 响应
@@ -77,4 +77,5 @@ X-Webhook-Secret: your-webhook-secret
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

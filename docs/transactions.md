@@ -24,13 +24,13 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| fundCode | string | 是 | 基金代码 |
-| type | string | 是 | 交易类型: `buy` (买入) 或 `sell` (卖出) |
-| amount | number | 条件 | 买入金额，买入时必填 |
-| shares | number | 条件 | 卖出份额，卖出时必填 |
-| date | string | 是 | 交易日期 (YYYY-MM-DD) |
+| 字段     | 类型   | 必填 | 说明                                    |
+| -------- | ------ | ---- | --------------------------------------- |
+| fundCode | string | 是   | 基金代码                                |
+| type     | string | 是   | 交易类型: `buy` (买入) 或 `sell` (卖出) |
+| amount   | number | 条件 | 买入金额，买入时必填                    |
+| shares   | number | 条件 | 卖出份额，卖出时必填                    |
+| date     | string | 是   | 交易日期 (YYYY-MM-DD)                   |
 
 **买入示例:**
 
@@ -98,9 +98,9 @@ DELETE /api/fund/transactions/1
 
 ### 路径参数
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| id | number | 交易记录ID |
+| 参数 | 类型   | 说明       |
+| ---- | ------ | ---------- |
+| id   | number | 交易记录ID |
 
 ### 响应
 
@@ -135,9 +135,9 @@ GET /api/transactions/daily?date=2024-01-15
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| date | string | 是 | 日期 (YYYY-MM-DD) |
+| 参数 | 类型   | 必填 | 说明              |
+| ---- | ------ | ---- | ----------------- |
+| date | string | 是   | 日期 (YYYY-MM-DD) |
 
 ### 响应
 
@@ -182,9 +182,9 @@ DELETE /api/transactions/daily?date=2024-01-15
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| date | string | 是 | 日期 (YYYY-MM-DD) |
+| 参数 | 类型   | 必填 | 说明              |
+| ---- | ------ | ---- | ----------------- |
+| date | string | 是   | 日期 (YYYY-MM-DD) |
 
 ### 响应
 
@@ -199,4 +199,5 @@ DELETE /api/transactions/daily?date=2024-01-15
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

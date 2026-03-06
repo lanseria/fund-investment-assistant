@@ -24,23 +24,23 @@ Content-Type: multipart/form-data
 
 ### 请求参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| file | File | 是 | 导入文件 (Excel 或 CSV) |
-| skipHeader | boolean | 否 | 是否跳过表头，默认 true |
-| overwrite | boolean | 否 | 是否覆盖已有持仓，默认 false |
+| 参数       | 类型    | 必填 | 说明                         |
+| ---------- | ------- | ---- | ---------------------------- |
+| file       | File    | 是   | 导入文件 (Excel 或 CSV)      |
+| skipHeader | boolean | 否   | 是否跳过表头，默认 true      |
+| overwrite  | boolean | 否   | 是否覆盖已有持仓，默认 false |
 
 ### 文件格式要求
 
 **Excel/CSV 列定义:**
 
-| 列名 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| code | string | 是 | 基金代码 |
-| name | string | 否 | 基金名称 |
-| shares | number | 条件 | 持有份额 |
-| costPrice | number | 条件 | 成本价 |
-| fundType | string | 是 | 基金类型 (open/qdii_lof) |
+| 列名      | 类型   | 必填 | 说明                     |
+| --------- | ------ | ---- | ------------------------ |
+| code      | string | 是   | 基金代码                 |
+| name      | string | 否   | 基金名称                 |
+| shares    | number | 条件 | 持有份额                 |
+| costPrice | number | 条件 | 成本价                   |
+| fundType  | string | 是   | 基金类型 (open/qdii_lof) |
 
 ### 响应
 
@@ -86,10 +86,10 @@ GET /api/fund/utils/export
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| format | string | 否 | 导出格式: `excel` (默认), `csv`, `json` |
-| includeHistory | boolean | 否 | 是否包含历史数据，默认 false |
+| 参数           | 类型    | 必填 | 说明                                    |
+| -------------- | ------- | ---- | --------------------------------------- |
+| format         | string  | 否   | 导出格式: `excel` (默认), `csv`, `json` |
+| includeHistory | boolean | 否   | 是否包含历史数据，默认 false            |
 
 ### 响应
 
@@ -98,6 +98,7 @@ GET /api/fund/utils/export
 返回文件下载。
 
 **Content-Type:**
+
 - Excel: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
 - CSV: `text/csv`
 - JSON: `application/json`
@@ -197,4 +198,5 @@ POST /api/fund/utils/refresh-estimates
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

@@ -6,14 +6,14 @@
 
 ### 字典类型数据结构
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| code | string | 字典类型编码 (唯一) |
-| name | string | 字典类型名称 |
-| description | string | 描述说明 |
-| sort | number | 排序顺序 |
-| createdAt | string | 创建时间 |
-| updatedAt | string | 更新时间 |
+| 字段        | 类型   | 说明                |
+| ----------- | ------ | ------------------- |
+| code        | string | 字典类型编码 (唯一) |
+| name        | string | 字典类型名称        |
+| description | string | 描述说明            |
+| sort        | number | 排序顺序            |
+| createdAt   | string | 创建时间            |
+| updatedAt   | string | 更新时间            |
 
 ### GET /admin/dict-types
 
@@ -54,6 +54,7 @@
 更新字典类型信息。
 
 **路径参数:**
+
 - `type`: 字典类型编码
 
 **请求体:**
@@ -76,18 +77,18 @@
 
 ### 字典数据数据结构
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | number | 字典数据ID |
-| typeCode | string | 所属字典类型编码 |
-| value | string | 字典值 (唯一) |
-| label | string | 显示标签 |
-| sort | number | 排序顺序 |
-| isDefault | boolean | 是否默认选中 |
-| status | string | 状态: `enabled`, `disabled` |
-| remark | string | 备注说明 |
-| createdAt | string | 创建时间 |
-| updatedAt | string | 更新时间 |
+| 字段      | 类型    | 说明                        |
+| --------- | ------- | --------------------------- |
+| id        | number  | 字典数据ID                  |
+| typeCode  | string  | 所属字典类型编码            |
+| value     | string  | 字典值 (唯一)               |
+| label     | string  | 显示标签                    |
+| sort      | number  | 排序顺序                    |
+| isDefault | boolean | 是否默认选中                |
+| status    | string  | 状态: `enabled`, `disabled` |
+| remark    | string  | 备注说明                    |
+| createdAt | string  | 创建时间                    |
+| updatedAt | string  | 更新时间                    |
 
 ### GET /admin/dict-data/:id
 
@@ -200,4 +201,5 @@
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

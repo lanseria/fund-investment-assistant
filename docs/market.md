@@ -82,15 +82,15 @@ GET /api/market
 
 **Index 对象**
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| name | string | 指数名称 |
-| code | string | 指数代码 |
-| price | number | 当前点位 |
-| change | number | 涨跌点数 |
+| 字段          | 类型   | 说明       |
+| ------------- | ------ | ---------- |
+| name          | string | 指数名称   |
+| code          | string | 指数代码   |
+| price         | number | 当前点位   |
+| change        | number | 涨跌点数   |
 | changePercent | number | 涨跌幅 (%) |
-| volume | number | 成交量 |
-| turnover | number | 成交额 |
+| volume        | number | 成交量     |
+| turnover      | number | 成交额     |
 
 ---
 
@@ -119,12 +119,12 @@ data: {"type": "sector", "data": {"semiconductor": {"changePercent": 3.52}}}
 
 ### 事件类型
 
-| 事件名 | 说明 |
-|--------|------|
-| `index` | 指数数据更新 |
-| `sector` | 板块数据更新 |
-| `overview` | 市场概况更新 |
-| `heartbeat` | 心跳保活 |
+| 事件名      | 说明         |
+| ----------- | ------------ |
+| `index`     | 指数数据更新 |
+| `sector`    | 板块数据更新 |
+| `overview`  | 市场概况更新 |
+| `heartbeat` | 心跳保活     |
 
 ---
 
@@ -156,13 +156,13 @@ data: {"type": "sync_complete", "data": {"code": "000001", "count": 1}}
 
 ### 事件类型
 
-| 事件名 | 说明 |
-|--------|------|
-| `estimate` | 实时估值更新 |
-| `nav` | 净值更新 |
-| `sync_complete` | 历史数据同步完成 |
-| `strategy_complete` | 策略分析完成 |
-| `heartbeat` | 心跳保活 |
+| 事件名              | 说明             |
+| ------------------- | ---------------- |
+| `estimate`          | 实时估值更新     |
+| `nav`               | 净值更新         |
+| `sync_complete`     | 历史数据同步完成 |
+| `strategy_complete` | 策略分析完成     |
+| `heartbeat`         | 心跳保活         |
 
 ### 客户端使用示例
 
@@ -181,4 +181,5 @@ eventSource.onerror = (error) => {
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

@@ -13,8 +13,10 @@
 
 ### 持仓明细
 
+- [GET /fund/holdings/:code/detail](#get-fundholdingscodedetail) - 获取持仓详细信息
 - [GET /fund/holdings/:code/history](#get-fundholdingscodehistory) - 获取持仓历史净值
 - [GET /fund/holdings/:code/performance](#get-fundholdingscodeperformance) - 获取持仓业绩分析
+- [GET /fund/holdings/:code/sector-signals](#get-fundholdingscodesector-signals) - 获取板块信号历史
 
 ### 持仓操作
 
@@ -490,4 +492,97 @@ POST /api/fund/holdings/000001/clear-position
 
 ---
 
-_文档版本: 1.0.0_
+## GET /fund/holdings/:code/detail
+
+获取指定基金的详细信息，包括基金基础信息和用户持仓数据。
+
+### 请求
+
+```http
+GET /api/fund/holdings/000001/detail
+```
+
+### 路径参数
+
+| 参数 | 类型   | 说明     |
+| ---- | ------ | -------- |
+| code | string | 基金代码 |
+
+### 响应
+
+**成功 (200 OK)**
+
+```json
+{
+  "code": "000001",
+  "name": "华夏成长混合",
+  "sector": "科技",
+  "fundType": "open",
+  "yesterdayNav": 1.5234,
+  "todayEstimateNav": 1.5312,
+  "percentageChange": 0.51,
+  "todayEstimateUpdateTime": "2024-01-15T15:00:00Z",
+  "shares": 10000,
+  "costPrice": 1.5,
+  "holdingAmount": 15312,
+  "holdingProfitAmount": 312,
+  "holdingProfitRate": 2.08
+}
+```
+
+**失败 (404 Not Found)**
+
+```json
+{
+  "statusCode": 404,
+  "statusText": "未找到该基金"
+}
+```
+
+---
+
+## GET /fund/holdings/:code/sector-signals
+
+获取指定基金所属板块的历史量化决策信号。
+
+### 请求
+
+```http
+GET /api/fund/holdings/000001/sector-signals
+```
+
+### 路径参数
+
+| 参数 | 类型   | 说明     |
+| ---- | ------ | -------- |
+| code | string | 基金代码 |
+
+### 响应
+
+**成功 (200 OK)**
+
+```json
+[
+  {
+    "id": 1,
+    "strategyName": "sector_quant",
+    "signal": "买入",
+    "reason": "[板块决策: 左侧建仓] 状态: 冰点筑底\n换手率: 0.85% (日差: +0.12%)\n成交额占比: 2.34%\n涨跌幅: -0.52%",
+    "latestDate": "2024-01-10",
+    "latestClose": 1.5123,
+    "metrics": {
+      "turnoverRate": 0.85,
+      "volumeRatio": 2.34,
+      "changeRate": -0.52,
+      "diffTurnoverRate": 0.12
+    }
+  }
+]
+```
+
+**说明**：如果基金未绑定板块，则返回空数组 `[]`。
+
+---
+
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

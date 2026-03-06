@@ -5,6 +5,7 @@
 ## 目录
 
 ### 用户管理
+
 - [GET /admin/users](#get-adminusers) - 获取用户列表
 - [POST /admin/users](#post-adminusers) - 创建用户
 - [PUT /admin/users/:id](#put-adminusersid) - 更新用户
@@ -13,6 +14,7 @@
 - [POST /admin/users/merge-holdings](#post-adminusersmerge-holdings) - 合并用户持仓
 
 ### 字典管理
+
 - [GET /admin/dict-types](#get-admindict-types) - 获取字典类型列表
 - [POST /admin/dict-types](#post-admindict-types) - 创建字典类型
 - [PUT /admin/dict-types/:type](#put-admindict-typestype) - 更新字典类型
@@ -23,9 +25,11 @@
 - [DELETE /admin/dict-data/:id](#delete-admindict-dataid) - 删除字典数据
 
 ### AI 日志
+
 - [GET /admin/ai-logs](#get-adminai-logs) - 获取 AI 执行日志
 
 ### 交易管理
+
 - [POST /admin/transactions/batch-replace](#post-admintransactionsbatch-replace) - 批量替换交易记录
 - [POST /admin/transactions/ai-fix](#post-admintransactionsai-fix) - AI 修复交易记录
 
@@ -93,12 +97,12 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| username | string | 是 | 用户名 |
-| password | string | 是 | 密码 |
-| role | string | 否 | 角色: `user` (默认) 或 `admin` |
-| availableCash | number | 否 | 初始可用现金，默认 0 |
+| 字段          | 类型   | 必填 | 说明                           |
+| ------------- | ------ | ---- | ------------------------------ |
+| username      | string | 是   | 用户名                         |
+| password      | string | 是   | 密码                           |
+| role          | string | 否   | 角色: `user` (默认) 或 `admin` |
+| availableCash | number | 否   | 初始可用现金，默认 0           |
 
 ```json
 {
@@ -140,13 +144,13 @@ GET /api/admin/ai-logs
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| startDate | string | 否 | 开始日期 |
-| endDate | string | 否 | 结束日期 |
-| userId | number | 否 | 用户ID筛选 |
-| type | string | 否 | 日志类型: `trade`, `analysis`, `rebalance` |
-| limit | number | 否 | 返回数量，默认 50 |
+| 参数      | 类型   | 必填 | 说明                                       |
+| --------- | ------ | ---- | ------------------------------------------ |
+| startDate | string | 否   | 开始日期                                   |
+| endDate   | string | 否   | 结束日期                                   |
+| userId    | number | 否   | 用户ID筛选                                 |
+| type      | string | 否   | 日志类型: `trade`, `analysis`, `rebalance` |
+| limit     | number | 否   | 返回数量，默认 50                          |
 
 ### 响应
 
@@ -181,4 +185,5 @@ GET /api/admin/ai-logs
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

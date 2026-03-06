@@ -23,17 +23,17 @@ GET /api/charts/rsi/000001?period=14&startDate=2024-01-01&endDate=2024-01-15
 
 ### 路径参数
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
+| 参数 | 类型   | 说明     |
+| ---- | ------ | -------- |
 | code | string | 基金代码 |
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| period | number | 否 | RSI 计算周期，默认 14 |
-| startDate | string | 否 | 开始日期 (YYYY-MM-DD) |
-| endDate | string | 否 | 结束日期 (YYYY-MM-DD) |
+| 参数      | 类型   | 必填 | 说明                  |
+| --------- | ------ | ---- | --------------------- |
+| period    | number | 否   | RSI 计算周期，默认 14 |
+| startDate | string | 否   | 开始日期 (YYYY-MM-DD) |
+| endDate   | string | 否   | 结束日期 (YYYY-MM-DD) |
 
 ### 响应
 
@@ -91,11 +91,11 @@ GET /api/charts/rsi/000001?period=14&startDate=2024-01-01&endDate=2024-01-15
 
 **Signal 值**
 
-| 值 | 说明 |
-|----|------|
-| `null` | 无信号 |
+| 值           | 说明                |
+| ------------ | ------------------- |
+| `null`       | 无信号              |
 | `overbought` | 超买信号 (RSI > 70) |
-| `oversold` | 超卖信号 (RSI < 30) |
+| `oversold`   | 超卖信号 (RSI < 30) |
 
 ---
 
@@ -111,19 +111,19 @@ GET /api/charts/macd/000001?fast=12&slow=26&signal=9
 
 ### 路径参数
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
+| 参数 | 类型   | 说明     |
+| ---- | ------ | -------- |
 | code | string | 基金代码 |
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| fast | number | 否 | 快线周期 (EMA)，默认 12 |
-| slow | number | 否 | 慢线周期 (EMA)，默认 26 |
-| signal | number | 否 | 信号线周期 (EMA)，默认 9 |
-| startDate | string | 否 | 开始日期 |
-| endDate | string | 否 | 结束日期 |
+| 参数      | 类型   | 必填 | 说明                     |
+| --------- | ------ | ---- | ------------------------ |
+| fast      | number | 否   | 快线周期 (EMA)，默认 12  |
+| slow      | number | 否   | 慢线周期 (EMA)，默认 26  |
+| signal    | number | 否   | 信号线周期 (EMA)，默认 9 |
+| startDate | string | 否   | 开始日期                 |
+| endDate   | string | 否   | 结束日期                 |
 
 ### 响应
 
@@ -189,14 +189,15 @@ GET /api/charts/macd/000001?fast=12&slow=26&signal=9
 
 **MACD Data 对象**
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| date | string | 日期 |
-| macd | number | MACD 线值 (DIF) |
-| signal | number | 信号线值 (DEA) |
-| histogram | number | 柱状图值 (MACD - Signal) |
+| 字段        | 类型   | 说明                                                          |
+| ----------- | ------ | ------------------------------------------------------------- |
+| date        | string | 日期                                                          |
+| macd        | number | MACD 线值 (DIF)                                               |
+| signal      | number | 信号线值 (DEA)                                                |
+| histogram   | number | 柱状图值 (MACD - Signal)                                      |
 | signal_type | string | 信号类型: `golden_cross` (金叉), `death_cross` (死叉), `null` |
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

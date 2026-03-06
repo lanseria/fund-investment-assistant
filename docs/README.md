@@ -15,6 +15,10 @@
 | 市场行情   | [market.md](./market.md)                 | 市场数据、实时推送         |
 | 新闻分析   | [news.md](./news.md)                     | 新闻获取、AI 分析          |
 | 策略图表   | [charts.md](./charts.md)                 | RSI、MACD 等技术指标       |
+| 板块数据   | [sectors.md](./sectors.md)               | 板块统计和信号分析         |
+| 排行榜     | [leaderboard.md](./leaderboard.md)       | 投资收益排行榜             |
+| AI 交易    | [ai-trader.md](./ai-trader.md)           | AI 自动交易代理            |
+| AI 代理    | [agent.md](./agent.md)                   | MCP Agent 集成开发         |
 | 公共字典   | [dicts.md](./dicts.md)                   | 公共字典数据接口           |
 | 管理员     | [admin.md](./admin.md)                   | 用户管理、字典管理、日志   |
 | 管理员详情 | [admin-detail.md](./admin-detail.md)     | 管理员接口详细说明         |
@@ -89,5 +93,5 @@ http://localhost:3000/api
 
 ---
 
-_文档版本: 1.0.0_
-_最后更新: 2026-02-28_
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

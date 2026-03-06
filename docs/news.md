@@ -22,8 +22,8 @@ GET /api/news/2024-01-15
 
 ### 路径参数
 
-| 参数 | 类型 | 说明 |
-|------|------|------|
+| 参数 | 类型   | 说明              |
+| ---- | ------ | ----------------- |
 | date | string | 日期 (YYYY-MM-DD) |
 
 ### 响应
@@ -67,17 +67,17 @@ GET /api/news/2024-01-15
 
 **News Item 对象**
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| id | number | 新闻ID |
-| date | string | 日期 |
-| title | string | 标题 |
-| content | string | 内容摘要 |
-| source | string | 来源 |
-| url | string | 原文链接 |
-| category | string | 分类 |
+| 字段      | 类型   | 说明                                        |
+| --------- | ------ | ------------------------------------------- |
+| id        | number | 新闻ID                                      |
+| date      | string | 日期                                        |
+| title     | string | 标题                                        |
+| content   | string | 内容摘要                                    |
+| source    | string | 来源                                        |
+| url       | string | 原文链接                                    |
+| category  | string | 分类                                        |
 | sentiment | string | 情感倾向: `positive`, `neutral`, `negative` |
-| createdAt | string | 创建时间 |
+| createdAt | string | 创建时间                                    |
 
 ---
 
@@ -94,11 +94,11 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| content | string | 是 | 新闻内容 |
-| title | string | 否 | 新闻标题 |
-| holdings | array | 否 | 当前持仓基金代码列表 |
+| 字段     | 类型   | 必填 | 说明                 |
+| -------- | ------ | ---- | -------------------- |
+| content  | string | 是   | 新闻内容             |
+| title    | string | 否   | 新闻标题             |
+| holdings | array  | 否   | 当前持仓基金代码列表 |
 
 ```json
 {
@@ -146,9 +146,9 @@ GET /api/ai/prompt-preview
 
 ### 查询参数
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| type | string | 否 | 提示词类型: `market` (市场分析), `portfolio` (持仓分析), `news` (新闻分析) |
+| 参数 | 类型   | 必填 | 说明                                                                       |
+| ---- | ------ | ---- | -------------------------------------------------------------------------- |
+| type | string | 否   | 提示词类型: `market` (市场分析), `portfolio` (持仓分析), `news` (新闻分析) |
 
 ### 响应
 
@@ -175,4 +175,5 @@ GET /api/ai/prompt-preview
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_

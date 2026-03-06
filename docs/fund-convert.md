@@ -21,13 +21,13 @@ Content-Type: application/json
 
 ### 请求体
 
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| fromCode | string | 是 | 转出基金代码 |
-| toCode | string | 是 | 转入基金代码 |
-| shares | number | 条件 | 转出份额，与 `amount` 二选一 |
-| amount | number | 条件 | 转出金额，与 `shares` 二选一 |
-| date | string | 是 | 转换日期 (YYYY-MM-DD) |
+| 字段     | 类型   | 必填 | 说明                         |
+| -------- | ------ | ---- | ---------------------------- |
+| fromCode | string | 是   | 转出基金代码                 |
+| toCode   | string | 是   | 转入基金代码                 |
+| shares   | number | 条件 | 转出份额，与 `amount` 二选一 |
+| amount   | number | 条件 | 转出金额，与 `shares` 二选一 |
+| date     | string | 是   | 转换日期 (YYYY-MM-DD)        |
 
 ### 转换方式
 
@@ -110,4 +110,5 @@ Content-Type: application/json
 
 ---
 
-*文档版本: 1.0.0*
+_文档版本: 1.1.0_
+_最后更新: 2026-03-06_
