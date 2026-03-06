@@ -29,6 +29,7 @@
     "@types/pg": "catalog:backend",
     "@unocss/eslint-config": "catalog:build",
     "@unocss/nuxt": "catalog:build",
+    "@vueuse/components": "catalog:frontend",
     "@vueuse/core": "catalog:frontend",
     "@vueuse/nuxt": "catalog:build",
     "argon2": "catalog:backend",
@@ -42,7 +43,7 @@
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
-    "nuxt": "^4.3.1",
+    "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
     "openai": "catalog:backend",
     "paseto-ts": "catalog:utils",
@@ -61,8 +62,5 @@
     "semver": "^7.7.4",
     "unplugin": "catalog:build",
     "vite": "^7.3.1"
-  },
-  "devDependencies": {
-    "@vueuse/components": "catalog:"
   }
 }
