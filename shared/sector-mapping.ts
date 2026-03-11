@@ -109,10 +109,10 @@ export const SECTOR_PLATFORM_MAPPING: Record<string, { eastMoney: string[], tong
     eastMoney: ['光伏概念'],
     tongHuaShun: ['光伏设备'],
   },
-  batteries: {
-    eastMoney: ['电池'],
-    tongHuaShun: ['电池'],
-  },
+  // batteries: {
+  //   eastMoney: ['电池'],
+  //   tongHuaShun: ['电池'],
+  // },
   solid_state_battery: {
     eastMoney: ['固态电池'],
     tongHuaShun: [],
