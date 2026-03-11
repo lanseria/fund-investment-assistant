@@ -36,7 +36,7 @@ function toggleDetails(userId: number) {
 }
 
 // --- 异步获取持仓详情 ---
-const { data: userHoldings, pending: holdingsPending, error: holdingsError } = useAsyncData(
+const { data: userHoldings, pending: holdingsPending, error: holdingsError, refresh: refreshHoldings } = useAsyncData(
   'leaderboard-details',
   () => {
     if (expandedUserId.value === null)
@@ -45,6 +45,22 @@ const { data: userHoldings, pending: holdingsPending, error: holdingsError } = u
   },
   { watch: [expandedUserId] },
 )
+
+// --- Sector Edit Modal ---
+const isSectorModalOpen = ref(false)
+const editingHoldingForSector = ref<Holding | null>(null)
+
+function openSectorModal(holding: Holding) {
+  editingHoldingForSector.value = holding
+  isSectorModalOpen.value = true
+}
+
+async function onSectorUpdateSuccess() {
+  isSectorModalOpen.value = false
+  if (expandedUserId.value) {
+    await refreshHoldings()
+  }
+}
 
 // --- 辅助函数 ---
 function getProfitRateClass(rate: number) {
@@ -242,7 +258,9 @@ function getPeriodLabel(period: LeaderboardPeriod) {
                 :sort-key="null"
                 sort-order="desc"
                 :show-actions="false"
+                :target-user-id="expandedUserId ?? undefined"
                 class="bg-transparent !border-0 !rounded-none !shadow-none"
+                @edit-sector="openSectorModal"
               />
             </div>
           </div>
@@ -255,6 +273,16 @@ function getPeriodLabel(period: LeaderboardPeriod) {
       <div i-carbon-trophy class="text-5xl mx-auto mb-4 opacity-30" />
       <p>暂无排行数据</p>
     </div>
+    <!-- Sector Modal -->
+    <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
+      <SectorEditModal
+        :fund-code="editingHoldingForSector.code"
+        :fund-name="editingHoldingForSector.name"
+        :current-sector="editingHoldingForSector.sector"
+        @success="onSectorUpdateSuccess"
+        @cancel="isSectorModalOpen = false"
+      />
+    </Modal>
   </div>
 </template>
 

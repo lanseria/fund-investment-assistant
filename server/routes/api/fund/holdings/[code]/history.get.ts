@@ -9,6 +9,7 @@ const querySchema = z.object({
   end_date: z.string().optional(),
   ma: z.union([z.string(), z.array(z.string())]).optional(),
   strategy: z.string().optional(),
+  userId: z.string().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +19,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ status: 400, statusText: 'Fund code is required.' })
 
   const query = getQuery(event)
-  const { start_date, end_date, ma, strategy } = await querySchema.parseAsync(query)
+  const { start_date, end_date, ma, strategy, userId } = await querySchema.parseAsync(query)
+  const targetUserId = userId ? Number(userId) : user.id
 
   const maOptions = (Array.isArray(ma) ? ma : (ma ? [ma] : [])).map(Number).filter(n => !Number.isNaN(n) && n > 0)
 
@@ -31,7 +33,7 @@ export default defineEventHandler(async (event) => {
   const transactions = await db.query.fundTransactions.findMany({
     where: and(
       eq(fundTransactions.fundCode, code),
-      eq(fundTransactions.userId, user.id),
+      eq(fundTransactions.userId, targetUserId),
       eq(fundTransactions.status, 'confirmed'),
       start_date ? gte(fundTransactions.orderDate, start_date) : undefined,
       end_date ? lte(fundTransactions.orderDate, end_date) : undefined,

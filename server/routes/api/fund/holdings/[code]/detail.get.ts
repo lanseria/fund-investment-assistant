@@ -10,6 +10,9 @@ export default defineEventHandler(async (event) => {
   if (!code)
     throw createError({ status: 400, statusText: '基金代码不能为空' })
 
+  const query = getQuery(event)
+  const targetUserId = query.userId ? Number(query.userId) : user.id
+
   const db = useDb()
   const fundInfo = await db.query.funds.findFirst({
     where: eq(funds.code, code),
@@ -20,7 +23,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const holdingInfo = await db.query.holdings.findFirst({
-    where: and(eq(holdings.userId, user.id), eq(holdings.fundCode, code)),
+    where: and(eq(holdings.userId, targetUserId), eq(holdings.fundCode, code)),
   })
 
   let holdingAmount = null

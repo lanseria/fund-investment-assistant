@@ -10,6 +10,7 @@ withDefaults(defineProps<{
   sortKey: SortableKey | null
   sortOrder: 'asc' | 'desc'
   showActions?: boolean
+  targetUserId?: number
 }>(), {
   showActions: true,
 })
@@ -126,6 +127,7 @@ function handleHideTooltip() {
             :key="h.code"
             :holding="h"
             :show-actions="showActions"
+            :target-user-id="targetUserId"
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
             @clear-position="emit('clear-position', $event)"
@@ -169,6 +171,7 @@ function handleHideTooltip() {
               :key="h.code"
               :holding="h"
               :show-actions="showActions"
+              :target-user-id="targetUserId"
               @edit="emit('edit', $event)"
               @delete="emit('delete', $event)"
               @clear-position="emit('clear-position', $event)"

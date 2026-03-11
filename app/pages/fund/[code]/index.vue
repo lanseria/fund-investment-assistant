@@ -9,6 +9,7 @@ import { formatCurrency } from '~/utils/format'
 const dayjs = useDayjs()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
+const targetUserId = route.query.userId ? Number(route.query.userId) : null
 
 const holdingStore = useHoldingStore()
 const { holdings } = storeToRefs(holdingStore)
@@ -19,8 +20,10 @@ const { getLabel } = useDictStore()
 
 // 请求新的基金详情接口
 const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
-  `fund-detail-${code}`,
-  () => apiFetch<any>(`/api/fund/holdings/${code}/detail`),
+  `fund-detail-${code}-${targetUserId || 'me'}`,
+  () => apiFetch<any>(`/api/fund/holdings/${code}/detail`, {
+    params: targetUserId ? { userId: targetUserId } : undefined,
+  }),
 )
 
 onMounted(async () => {
@@ -131,13 +134,15 @@ function getTransactionTypeInfo(type: string) {
 const { data, pending, error, refresh } = await useAsyncData(
   `fund-all-strategies-structured-${code}`,
   async () => {
-    const fetchGenericStrategy = (strategy: string = '') =>
-      apiFetch(`/api/fund/holdings/${code}/history`, {
-        params: {
-          ma: [5, 10, 20, 120],
-          strategy: strategy || undefined,
-        },
-      })
+    const fetchGenericStrategy = (strategy: string = '') => {
+      const params: any = { ma: [5, 10, 20, 120] }
+      if (strategy)
+        params.strategy = strategy
+      if (targetUserId)
+        params.userId = targetUserId
+
+      return apiFetch(`/api/fund/holdings/${code}/history`, { params })
+    }
     const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
 
     // 获取区间涨跌幅数据
@@ -168,7 +173,7 @@ const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
-  return holding ? holding.name : code
+  return holding ? holding.name : (fundDetail.value?.name || code)
 })
 
 useHead({
@@ -272,26 +277,34 @@ watch(data, (newData) => {
         返回持仓列表
       </div>
       <div class="flex gap-3">
-        <button v-if="currentHolding" class="btn-primary btn flex items-center" @click="openTradeModal(currentHolding, 'buy')">
-          <div mr-1 />
-          买入
-        </button>
-        <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'sell')">
-          <div mr-1 />
-          卖出
-        </button>
-        <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'convert')">
-          <div i-carbon-arrows-horizontal mr-1 />
-          转换
-        </button>
-        <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
-          <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
-          {{ isRunningStrategies ? '分析中...' : '执行策略分析' }}
-        </button>
-        <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
-          <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
-          {{ isSyncing ? '同步中...' : '同步历史数据' }}
-        </button>
+        <template v-if="!targetUserId">
+          <button v-if="currentHolding" class="btn-primary btn flex items-center" @click="openTradeModal(currentHolding, 'buy')">
+            <div mr-1 />
+            买入
+          </button>
+          <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'sell')">
+            <div mr-1 />
+            卖出
+          </button>
+          <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'convert')">
+            <div i-carbon-arrows-horizontal mr-1 />
+            转换
+          </button>
+          <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
+            <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
+            {{ isRunningStrategies ? '分析中...' : '执行策略分析' }}
+          </button>
+          <button class="btn flex items-center" :disabled="isSyncing" @click="handleSyncHistory">
+            <div i-carbon-update-now :class="{ 'animate-spin': isSyncing }" mr-1 />
+            {{ isSyncing ? '同步中...' : '同步历史数据' }}
+          </button>
+        </template>
+        <template v-else>
+          <div class="text-sm text-blue-600 font-medium px-3 py-1.5 border border-blue-100 rounded-md bg-blue-50 flex gap-2 items-center dark:text-blue-300 dark:border-blue-800 dark:bg-blue-900/30">
+            <div i-carbon-view />
+            正在查看他人持仓详情
+          </div>
+        </template>
       </div>
     </header>
 

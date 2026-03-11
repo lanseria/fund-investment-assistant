@@ -6,6 +6,7 @@ import { formatCurrency } from '~/utils/format'
 const props = defineProps<{
   holding: Holding
   showActions: boolean
+  targetUserId?: number
 }>()
 
 const emit = defineEmits([
@@ -131,7 +132,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full flex-none transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
           {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
         </button>
-        <NuxtLink :to="`/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
+        <NuxtLink :to="targetUserId ? `/fund/${holding.code}?userId=${targetUserId}` : `/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
           {{ holding.name }}
         </NuxtLink>
       </div>
