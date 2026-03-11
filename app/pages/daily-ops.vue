@@ -41,7 +41,7 @@ const importJsonContent = ref('')
 const isImporting = ref(false)
 const isAiFixModalOpen = ref(false)
 const aiFixTargetUser = ref<{ id: number, username: string } | null>(null)
-const aiFixModel = ref<AiModel>('kimi-k2-thinking')
+const aiFixModel = ref<AiModel>('doubao-seed-2.0-pro')
 const isAiFixSubmitting = ref(false)
 
 // 动态获取 Prompt，不再依赖日志表
@@ -74,7 +74,7 @@ function openImportModal(user: { id: number, username: string }) {
 
 function openAiFixModal(user: { id: number, username: string }) {
   aiFixTargetUser.value = { ...user, id: Number(user.id) }
-  aiFixModel.value = 'kimi-k2-thinking'
+  aiFixModel.value = 'doubao-seed-2.0-pro'
   isAiFixModalOpen.value = true
 }
 

@@ -274,7 +274,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = userConfig.model || 'kimi-k2-thinking'
+  const targetModel = userConfig.model || 'doubao-seed-2.0-pro'
 
   try {
     const openai = new OpenAI({
@@ -295,7 +295,9 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
     // 清洗 Markdown 代码块标记
     const jsonString = rawContent
+      // eslint-disable-next-line e18e/prefer-static-regex
       .replace(/```json/g, '')
+      // eslint-disable-next-line e18e/prefer-static-regex
       .replace(/```/g, '')
       .trim()
 
