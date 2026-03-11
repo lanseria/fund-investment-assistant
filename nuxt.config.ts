@@ -45,6 +45,7 @@ export default defineNuxtConfig({
     '@nuxtjs/mcp-toolkit',
   ],
   ssr: false,
+
   app: {
     head: {
       link: [

@@ -1,7 +1,5 @@
 <script setup lang="ts">
-import type { Holding } from '~/types/holding'
 import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
-import HoldingList from '~/components/HoldingList.vue'
 import { appName } from '~/constants'
 import { formatCurrency as formatCurrencyUtil } from '~/utils/format'
 
@@ -16,7 +14,14 @@ const periods: { label: string, value: LeaderboardPeriod }[] = [
   { label: '年榜 (Year)', value: '1y' },
 ]
 
-const activePeriod = ref<LeaderboardPeriod>('1d')
+const route = useRoute()
+const router = useRouter()
+
+// 使用 computed 实现双向绑定同步到 URL Query
+const activePeriod = computed<LeaderboardPeriod>({
+  get: () => (route.query.period as LeaderboardPeriod) || '1d',
+  set: val => router.replace({ query: { ...route.query, period: val } }),
+})
 
 // 切换周期时自动重新请求
 const { data: leaderboardData, pending, error } = useAsyncData(
@@ -28,39 +33,6 @@ const { data: leaderboardData, pending, error } = useAsyncData(
     watch: [activePeriod],
   },
 )
-
-// --- 展开/折叠逻辑 ---
-const expandedUserId = ref<number | null>(null)
-function toggleDetails(userId: number) {
-  expandedUserId.value = expandedUserId.value === userId ? null : userId
-}
-
-// --- 异步获取持仓详情 ---
-const { data: userHoldings, pending: holdingsPending, error: holdingsError, refresh: refreshHoldings } = useAsyncData(
-  'leaderboard-details',
-  () => {
-    if (expandedUserId.value === null)
-      return Promise.resolve(null)
-    return apiFetch<Holding[]>(`/api/leaderboard/${expandedUserId.value}`)
-  },
-  { watch: [expandedUserId] },
-)
-
-// --- Sector Edit Modal ---
-const isSectorModalOpen = ref(false)
-const editingHoldingForSector = ref<Holding | null>(null)
-
-function openSectorModal(holding: Holding) {
-  editingHoldingForSector.value = holding
-  isSectorModalOpen.value = true
-}
-
-async function onSectorUpdateSuccess() {
-  isSectorModalOpen.value = false
-  if (expandedUserId.value) {
-    await refreshHoldings()
-  }
-}
 
 // --- 辅助函数 ---
 function getProfitRateClass(rate: number) {
@@ -162,8 +134,7 @@ function getPeriodLabel(period: LeaderboardPeriod) {
       <div v-for="user in leaderboardData" :key="user.id" class="border-b last:border-b-0 dark:border-gray-700">
         <div
           class="px-4 py-3 flex cursor-pointer transition-colors items-center hover:bg-gray-50 dark:hover:bg-gray-700/30"
-          :class="{ 'bg-blue-50/30 dark:bg-blue-900/10': expandedUserId === user.id }"
-          @click="toggleDetails(user.id)"
+          @click="router.push(`/leaderboard/${user.id}`)"
         >
           <!-- Rank -->
           <div class="text-center flex flex-shrink-0 w-12 justify-center">
@@ -235,36 +206,9 @@ function getPeriodLabel(period: LeaderboardPeriod) {
 
           <!-- Chevron -->
           <div class="text-right flex-shrink-0 w-8">
-            <div
-              class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
-              :class="{ 'rotate-180': expandedUserId === user.id }"
-            />
+            <div class="i-carbon-chevron-right text-gray-400 transition-transform duration-200" />
           </div>
         </div>
-
-        <!-- Expanded Details (保持不变) -->
-        <Transition name="slide">
-          <div v-if="expandedUserId === user.id" class="border-t bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
-            <div v-if="holdingsPending" class="text-primary py-6 flex justify-center">
-              <div i-carbon-circle-dash class="text-xl animate-spin" />
-            </div>
-            <div v-else-if="holdingsError" class="text-sm text-red-500 py-6 text-center">
-              无法加载持仓详情
-            </div>
-            <div v-else-if="userHoldings" class="p-0">
-              <HoldingList
-                :data="userHoldings"
-                :is-grouped="false"
-                :sort-key="null"
-                sort-order="desc"
-                :show-actions="false"
-                :target-user-id="expandedUserId ?? undefined"
-                class="bg-transparent !border-0 !rounded-none !shadow-none"
-                @edit-sector="openSectorModal"
-              />
-            </div>
-          </div>
-        </Transition>
       </div>
     </div>
 
@@ -273,32 +217,5 @@ function getPeriodLabel(period: LeaderboardPeriod) {
       <div i-carbon-trophy class="text-5xl mx-auto mb-4 opacity-30" />
       <p>暂无排行数据</p>
     </div>
-    <!-- Sector Modal -->
-    <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
-      <SectorEditModal
-        :fund-code="editingHoldingForSector.code"
-        :fund-name="editingHoldingForSector.name"
-        :current-sector="editingHoldingForSector.sector"
-        @success="onSectorUpdateSuccess"
-        @cancel="isSectorModalOpen = false"
-      />
-    </Modal>
   </div>
 </template>
-
-<style scoped>
-.slide-enter-active,
-.slide-leave-active {
-  transition:
-    max-height 0.3s ease-out,
-    opacity 0.3s ease-out;
-  max-height: 500px;
-  overflow: hidden;
-}
-
-.slide-enter-from,
-.slide-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-</style>
