@@ -5,7 +5,7 @@ import type { AiModel } from '~~/shared/ai-models'
 import { useClipboard } from '@vueuse/core'
 import { AI_MODELS } from '~~/shared/ai-models'
 import CalendarWidget from '~/components/CalendarWidget.vue'
-import { appName, SECTOR_DICT_TYPE } from '~/constants'
+import { appName } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 useHead({
@@ -14,12 +14,10 @@ useHead({
 
 const dayjs = useDayjs()
 const authStore = useAuthStore() // 获取当前用户信息用于权限控制
-const { getLabel } = useDictStore()
 // --- 状态管理 ---
 const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期
 
-// 展开/折叠的用户组集合
-const expandedGroups = ref<Set<string>>(new Set())
+// 移除 expandedGroups 状态
 
 // --- 获取数据 ---
 // 后端现在返回结构化的 { user, txs } 数组
@@ -156,9 +154,7 @@ async function handleAiFixSubmit() {
 
 // 计算当前列表中是否有待处理的交易
 const hasPendingTransactions = computed(() => {
-  return groupedTransactions.value?.some(group =>
-    group.txs.some((tx: any) => tx.status === 'pending'),
-  ) ?? false
+  return groupedTransactions.value?.some(group => group.counts.pending > 0) ?? false
 })
 
 async function handleClearPending() {
@@ -180,48 +176,6 @@ async function handleClearPending() {
   finally {
     isClearing.value = false
   }
-}
-
-// 当数据更新时，默认展开所有有数据的组
-watch(groupedTransactions, (groups) => {
-  if (!groups)
-    return
-  const newSet = new Set<string>()
-  groups.forEach((g) => {
-    // 默认只展开有交易的用户，避免列表过长
-    if (g.txs.length > 0) {
-      newSet.add(g.user.username)
-    }
-  })
-  expandedGroups.value = newSet
-}, { immediate: true })
-
-function toggleGroup(username: string) {
-  if (expandedGroups.value.has(username))
-    expandedGroups.value.delete(username)
-  else
-    expandedGroups.value.add(username)
-}
-
-// --- 辅助显示函数 ---
-function getActionStyle(type: string) {
-  switch (type) {
-    case 'buy': return 'text-red-600 bg-red-50 border-red-100 dark:text-red-400 dark:bg-red-900/20 dark:border-red-800'
-    case 'sell': return 'text-green-600 bg-green-50 border-green-100 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800'
-    case 'convert_in': return 'text-purple-600 bg-purple-50 border-purple-100 dark:text-purple-400 dark:bg-purple-900/20 dark:border-purple-800'
-    case 'convert_out': return 'text-blue-600 bg-blue-50 border-blue-100 dark:text-blue-400 dark:bg-blue-900/20 dark:border-blue-800'
-    default: return 'text-gray-600 bg-gray-50 border-gray-100'
-  }
-}
-
-function getActionLabel(type: string) {
-  const map: Record<string, string> = {
-    buy: '买入',
-    sell: '卖出',
-    convert_in: '转入',
-    convert_out: '转出',
-  }
-  return map[type] || type
 }
 </script>
 
@@ -267,66 +221,82 @@ function getActionLabel(type: string) {
         <!-- 列表 -->
         <div v-else class="space-y-4">
           <div v-for="group in groupedTransactions" :key="group.user.username" class="border rounded-lg bg-white shadow-sm overflow-hidden dark:border-gray-700 dark:bg-gray-800">
-            <!-- 组头部：点击展开/折叠 -->
-            <div
-              class="px-4 py-3 bg-gray-50 flex cursor-pointer transition-colors items-center justify-between dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700"
-              @click="toggleGroup(group.user.username)"
-            >
+            <!-- 组头部 -->
+            <div class="p-4 flex flex-col gap-4 transition-colors hover:bg-gray-50 sm:flex-row sm:items-center sm:justify-between dark:hover:bg-gray-700/50">
               <!-- 左侧：用户信息与资产概览 -->
-              <div class="flex flex-col gap-1 sm:flex-row sm:items-center">
+              <div class="flex flex-grow flex-col gap-2">
                 <div class="flex gap-3 items-center">
                   <!-- 头像 -->
                   <div
-                    class="text-sm font-bold border rounded-full flex h-8 w-8 shadow-sm items-center justify-center dark:border-gray-500"
-                    :class="group.txs.length > 0 ? 'bg-white text-primary dark:bg-gray-600 dark:text-gray-200' : 'bg-gray-200 text-gray-400 dark:bg-gray-700'"
+                    class="text-sm font-bold border rounded-full flex h-10 w-10 shadow-sm items-center justify-center dark:border-gray-500"
+                    :class="group.counts.total > 0 ? 'bg-white text-primary dark:bg-gray-600 dark:text-gray-200' : 'bg-gray-100 text-gray-400 dark:bg-gray-700'"
                   >
                     {{ group.user.username.charAt(0).toUpperCase() }}
                   </div>
-                  <!-- 用户名 -->
-                  <div class="flex gap-2 items-center">
-                    <span class="text-gray-800 font-bold dark:text-gray-200" :class="{ 'text-gray-400': group.txs.length === 0 }">
-                      {{ group.user.username }}
-                    </span>
-                    <AiAgentBadge v-if="group.user.isAiAgent" />
+                  <!-- 用户名与资产信息 -->
+                  <div>
+                    <div class="flex gap-2 items-center">
+                      <span class="text-lg text-gray-900 font-bold dark:text-gray-100" :class="{ 'text-gray-400': group.counts.total === 0 }">
+                        {{ group.user.username }}
+                      </span>
+                      <AiAgentBadge v-if="group.user.isAiAgent" />
+                    </div>
+                    <!--  资产统计条 -->
+                    <div class="text-xs text-gray-500 mt-1 flex flex-col flex-wrap gap-y-1">
+                      <span title="总资产">
+                        <span class="text-gray-400">总额:</span>
+                        <span class="text-gray-700 font-medium font-numeric ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.totalAssets) }}</span>
+                      </span>
+                      <span title="持仓市值">
+                        <span class="text-gray-400">持仓:</span>
+                        <span class="text-gray-700 font-medium font-numeric ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.fundValue) }}</span>
+                      </span>
+                      <span title="可用现金">
+                        <span class="text-gray-400">现金:</span>
+                        <span class="text-gray-700 font-medium font-numeric ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.cash) }}</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-
-                <!--  资产统计条 -->
-                <div class="text-xs text-gray-500 flex flex-wrap gap-x-3 gap-y-1 sm:ml-2">
-                  <span title="总资产">
-                    <span class="i-carbon-wallet mr-0.5 align-text-bottom opacity-70 inline-block" />
-                    <span class="text-gray-700 font-medium dark:text-gray-300">{{ formatCurrency(group.user.stats.totalAssets) }}</span>
-                  </span>
-                  <span title="持仓市值">
-                    <span class="i-carbon-chart-pie mr-0.5 align-text-bottom opacity-70 inline-block" />
-                    {{ formatCurrency(group.user.stats.fundValue) }}
-                  </span>
-                  <span title="可用现金">
-                    <span class="i-carbon-money mr-0.5 align-text-bottom opacity-70 inline-block" />
-                    {{ formatCurrency(group.user.stats.cash) }}
-                  </span>
                 </div>
               </div>
 
-              <!-- 右侧：按钮与折叠图标 -->
-              <div class="flex gap-3 items-center">
-                <span v-if="group.txs.length > 0" class="text-xs text-gray-500 hidden sm:inline">({{ group.txs.length }} 笔)</span>
+              <!-- 右侧：交易统计与操作 -->
+              <div class="flex flex-col gap-3 sm:items-end">
+                <!-- 交易统计 badges -->
+                <div v-if="group.counts.total > 0" class="text-xs flex flex-wrap gap-2">
+                  <span v-if="group.counts.buy > 0" class="text-red-600 px-2 py-0.5 border border-red-100 rounded-full bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20">
+                    买入: {{ group.counts.buy }}
+                  </span>
+                  <span v-if="group.counts.sell > 0" class="text-green-600 px-2 py-0.5 border border-green-100 rounded-full bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20">
+                    卖出: {{ group.counts.sell }}
+                  </span>
+                  <span v-if="group.counts.convert_in > 0" class="text-purple-600 px-2 py-0.5 border border-purple-100 rounded-full bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:bg-purple-900/20">
+                    转入: {{ group.counts.convert_in }}
+                  </span>
+                  <span v-if="group.counts.convert_out > 0" class="text-blue-600 px-2 py-0.5 border border-blue-100 rounded-full bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:bg-blue-900/20">
+                    转出: {{ group.counts.convert_out }}
+                  </span>
+                  <span v-if="group.counts.pending > 0" class="text-yellow-600 px-2 py-0.5 border border-yellow-100 rounded-full bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:bg-yellow-900/20">
+                    待处理: {{ group.counts.pending }}
+                  </span>
+                </div>
+                <div v-else class="text-sm text-gray-400">
+                  今日无操作
+                </div>
 
                 <!-- 按钮组 -->
-                <div class="flex flex-none gap-2" @click.stop>
-                  <!-- 复制 Prompt -->
+                <div class="flex gap-2">
                   <button
-                    class="text-xs px-2 py-1 border rounded bg-white flex gap-1 items-center dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    class="text-xs px-2 py-1.5 border rounded bg-white flex gap-1 items-center dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
                     title="生成并复制当前上下文的 Prompt"
                     @click="handleCopyPrompt(group.user.id, group.user.username)"
                   >
                     <div class="i-carbon-copy" /> <span class="hidden sm:inline">提示词</span>
                   </button>
 
-                  <!-- AI 修正 -->
                   <button
                     v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
-                    class="text-xs text-emerald-600 px-2 py-1 border rounded bg-white flex gap-1 items-center dark:text-emerald-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    class="text-xs text-emerald-600 px-2 py-1.5 border rounded bg-white flex gap-1 items-center dark:text-emerald-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
                     :disabled="group.loading"
                     title="由系统调用 AI 自动生成修正交易"
                     @click="openAiFixModal({ id: group.user.id, username: group.user.username })"
@@ -335,90 +305,22 @@ function getActionLabel(type: string) {
                     <span class="hidden sm:inline">{{ group.loading ? 'AI修正中' : 'AI修正' }}</span>
                   </button>
 
-                  <!-- 修正 -->
                   <button
                     v-if="authStore.isAdmin || authStore.user?.id === group.user.id"
-                    class="text-xs text-blue-600 px-2 py-1 border rounded bg-white flex gap-1 items-center dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    class="text-xs text-blue-600 px-2 py-1.5 border rounded bg-white flex gap-1 items-center dark:text-blue-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
                     title="人工修正 (Import JSON)"
                     @click="openImportModal({ id: group.user.id, username: group.user.username })"
                   >
                     <div class="i-carbon-edit" />
                   </button>
-                </div>
-              </div>
-            </div>
 
-            <!-- 交易列表 -->
-            <div v-show="expandedGroups.has(group.user.username)" class="border-t divide-y dark:border-gray-700 dark:divide-gray-700">
-              <!-- 空状态 -->
-              <div v-if="group.txs.length === 0" class="text-sm text-gray-400 p-4 text-center bg-gray-50/50 dark:bg-gray-800/50">
-                该用户当日无任何交易操作
-              </div>
-
-              <div
-                v-for="tx in group.txs"
-                :key="tx.id"
-                class="group text-sm px-4 py-3 flex flex-col gap-2 transition-colors hover:bg-blue-50/30 sm:flex-row sm:gap-4 sm:items-center dark:hover:bg-gray-700/30"
-                :class="{ 'opacity-60 grayscale': tx.status === 'failed' }"
-              >
-                <!-- 1. 时间 & 状态图标 -->
-                <div class="text-xs text-gray-400 font-mono flex flex-shrink-0 gap-2 items-center sm:w-24">
-                  <span>{{ dayjs(tx.createdAt).format('HH:mm:ss') }}</span>
-                  <div v-if="tx.status === 'pending'" class="i-carbon-hourglass text-yellow-500" title="待确认" />
-                  <div v-else-if="tx.status === 'failed'" class="i-carbon-close-filled text-red-500" title="失败" />
-                  <div v-else class="i-carbon-checkmark-filled text-green-500" title="已确认" />
-                </div>
-
-                <!-- 2. 类型标签 -->
-                <div class="flex-shrink-0 sm:w-16">
-                  <span class="text-xs font-medium px-2 py-0.5 border rounded whitespace-nowrap" :class="getActionStyle(tx.type)">
-                    {{ getActionLabel(tx.type) }}
-                  </span>
-                </div>
-
-                <!-- 3.  基金名称、代码与板块 -->
-                <div class="flex flex-grow flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:items-center">
-                  <!--  板块 Badge -->
-                  <span
-                    v-if="tx.fundSector"
-                    class="text-[10px] text-gray-500 px-1.5 py-0.5 border border-gray-200 rounded bg-gray-100 flex-shrink-0 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700"
+                  <NuxtLink
+                    v-if="group.counts.total > 0 || authStore.isAdmin || authStore.user?.id === group.user.id"
+                    :to="`/daily-ops/${selectedDate}/${group.user.id}`"
+                    class="text-xs text-primary px-3 py-1.5 border border-primary/20 rounded bg-primary/5 flex gap-1 transition-colors items-center hover:bg-primary/10"
                   >
-                    {{ getLabel(SECTOR_DICT_TYPE, tx.fundSector) }}
-                  </span>
-                  <div class="flex gap-2 truncate items-baseline">
-                    <span class="text-gray-900 font-medium truncate dark:text-gray-100" :title="tx.fundName">
-                      {{ tx.fundName || '未知基金' }}
-                    </span>
-                    <span class="text-xs text-gray-500 font-mono flex-shrink-0">
-                      {{ tx.fundCode }}
-                    </span>
-                  </div>
-                </div>
-
-                <!-- 4. 申报详情 -->
-                <div class="flex flex-shrink-0 gap-1 items-center sm:text-right sm:w-32 sm:justify-end">
-                  <span class="text-xs text-gray-400 sm:hidden">申报:</span>
-                  <span class="text-gray-700 font-medium font-mono dark:text-gray-300">
-                    <span v-if="tx.orderAmount">{{ formatCurrency(tx.orderAmount) }}</span>
-                    <span v-else>{{ Number(tx.orderShares).toFixed(4) }} 份</span>
-                  </span>
-                </div>
-
-                <!-- 5. 确认详情 / 备注 -->
-                <div class="flex flex-shrink-0 gap-1 min-h-[20px] items-center sm:text-right sm:w-40 sm:justify-end">
-                  <template v-if="tx.status === 'confirmed'">
-                    <span class="text-xs text-gray-400 sm:hidden">成交:</span>
-                    <span class="text-gray-900 font-mono font-semibold dark:text-gray-100">
-                      <span v-if="tx.confirmedAmount">{{ formatCurrency(tx.confirmedAmount) }}</span>
-                      <span v-else>-</span>
-                    </span>
-                  </template>
-                  <template v-else-if="tx.note">
-                    <span class="text-xs text-gray-400 max-w-[150px] truncate italic" :title="tx.note">
-                      {{ tx.note }}
-                    </span>
-                  </template>
-                  <span v-else class="text-gray-300">-</span>
+                    详情 <div class="i-carbon-chevron-right" />
+                  </NuxtLink>
                 </div>
               </div>
             </div>

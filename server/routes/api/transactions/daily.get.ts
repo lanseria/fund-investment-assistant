@@ -97,6 +97,18 @@ export default defineEventHandler(async (event) => {
     const cash = Number(user.availableCash || 0)
     const totalAssets = cash + stats.fundValue
 
+    // 将具体的交易列表转换为统计数据
+    const counts = {
+      total: userTxs.length,
+      buy: userTxs.filter(t => t.type === 'buy').length,
+      sell: userTxs.filter(t => t.type === 'sell').length,
+      convert_in: userTxs.filter(t => t.type === 'convert_in').length,
+      convert_out: userTxs.filter(t => t.type === 'convert_out').length,
+      pending: userTxs.filter(t => t.status === 'pending').length,
+      failed: userTxs.filter(t => t.status === 'failed').length,
+      confirmed: userTxs.filter(t => t.status === 'confirmed').length,
+    }
+
     return {
       user: {
         ...user,
@@ -106,15 +118,15 @@ export default defineEventHandler(async (event) => {
           totalAssets,
         },
       },
-      txs: userTxs,
+      counts, // 使用 counts 替代 txs
       loading: loadingMap.get(user.id) ?? false,
     }
   })
 
   // 排序：有交易的在前，无交易的在后
   return result.sort((a, b) => {
-    const countA = a.txs.length
-    const countB = b.txs.length
+    const countA = a.counts.total
+    const countB = b.counts.total
     if (countA > 0 && countB === 0)
       return -1
     if (countA === 0 && countB > 0)
