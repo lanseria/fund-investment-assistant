@@ -320,7 +320,7 @@ function getActionLabel(type: string) {
                     title="生成并复制当前上下文的 Prompt"
                     @click="handleCopyPrompt(group.user.id, group.user.username)"
                   >
-                    <div class="i-carbon-copy" /> <span class="hidden sm:inline">Prompt</span>
+                    <div class="i-carbon-copy" /> <span class="hidden sm:inline">提示词</span>
                   </button>
 
                   <!-- AI 修正 -->
@@ -342,15 +342,9 @@ function getActionLabel(type: string) {
                     title="人工修正 (Import JSON)"
                     @click="openImportModal({ id: group.user.id, username: group.user.username })"
                   >
-                    <div class="i-carbon-edit" /> <span class="hidden sm:inline">修正</span>
+                    <div class="i-carbon-edit" />
                   </button>
                 </div>
-
-                <!-- 折叠图标 -->
-                <div
-                  class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
-                  :class="{ 'rotate-180': expandedGroups.has(group.user.username) }"
-                />
               </div>
             </div>
 
