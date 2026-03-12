@@ -6,8 +6,9 @@
 
 - [POST /fund/transactions](#post-fundtransactions) - 创建交易记录
 - [DELETE /fund/transactions/:id](#delete-fundtransactionsid) - 删除交易记录
-- [GET /transactions/daily](#get-transactionsdaily) - 获取每日交易汇总
-- [DELETE /transactions/daily](#delete-transactionsdaily) - 删除每日交易记录
+- [GET /transactions/daily](#get-transactionsdaily) - 获取每日交易汇总（所有用户）
+- [GET /transactions/daily/:date/:userId](#get-transactionsdailydateuserid) - 获取指定用户每日交易详情
+- [DELETE /transactions/daily](#delete-transactionsdaily) - 删除每日 AI 待处理交易
 
 ---
 
@@ -125,7 +126,7 @@ DELETE /api/fund/transactions/1
 
 ## GET /transactions/daily
 
-获取指定日期的交易记录汇总。
+获取指定日期的所有用户交易汇总（用于每日操作列表页）。
 
 ### 请求
 
@@ -144,25 +145,89 @@ GET /api/transactions/daily?date=2024-01-15
 **成功 (200 OK)**
 
 ```json
+[
+  {
+    "user": {
+      "id": 1,
+      "username": "admin",
+      "isAiAgent": false,
+      "availableCash": 50000,
+      "stats": {
+        "cash": 50000,
+        "fundValue": 150000,
+        "totalAssets": 200000
+      }
+    },
+    "counts": {
+      "total": 3,
+      "buy": 2,
+      "sell": 1,
+      "convert_in": 0,
+      "convert_out": 0,
+      "pending": 1,
+      "failed": 0,
+      "confirmed": 2
+    },
+    "loading": false
+  }
+]
+```
+
+### 字段说明
+
+| 字段       | 类型    | 说明                     |
+| ---------- | ------- | ------------------------ |
+| user       | object  | 用户信息                 |
+| user.stats | object  | 用户资产统计             |
+| counts     | object  | 交易统计                 |
+| loading    | boolean | 是否正在进行 AI 修正处理 |
+
+---
+
+## GET /transactions/daily/:date/:userId
+
+获取指定用户在指定日期的交易详情（用于每日操作详情页）。
+
+### 请求
+
+```http
+GET /api/transactions/daily/2024-01-15/1
+```
+
+### 路径参数
+
+| 参数   | 类型   | 必填 | 说明              |
+| ------ | ------ | ---- | ----------------- |
+| date   | string | 是   | 日期 (YYYY-MM-DD) |
+| userId | number | 是   | 用户 ID           |
+
+### 响应
+
+**成功 (200 OK)**
+
+```json
 {
-  "date": "2024-01-15",
-  "summary": {
-    "totalBuyAmount": 50000,
-    "totalSellShares": 0,
-    "totalBuyCount": 3,
-    "totalSellCount": 0
+  "user": {
+    "id": 1,
+    "username": "admin",
+    "isAiAgent": false
   },
-  "transactions": [
+  "txs": [
     {
       "id": 1,
+      "userId": 1,
+      "type": "buy",
+      "status": "pending",
       "fundCode": "000001",
       "fundName": "华夏成长混合",
-      "type": "buy",
-      "status": "confirmed",
+      "fundSector": "equity",
       "orderAmount": "10000",
-      "confirmedAmount": "9950",
-      "confirmedShares": "6500",
-      "orderDate": "2024-01-15"
+      "orderShares": null,
+      "confirmedAmount": null,
+      "confirmedShares": null,
+      "confirmedNav": null,
+      "createdAt": "2024-01-15T10:00:00Z",
+      "note": null
     }
   ]
 }
@@ -172,7 +237,7 @@ GET /api/transactions/daily?date=2024-01-15
 
 ## DELETE /transactions/daily
 
-删除指定日期的所有交易记录。
+删除指定日期的 AI 待处理交易记录（仅删除 `isAiAgent=true` 用户的 `pending` 状态交易）。
 
 ### 请求
 
@@ -186,18 +251,23 @@ DELETE /api/transactions/daily?date=2024-01-15
 | ---- | ------ | ---- | ----------------- |
 | date | string | 是   | 日期 (YYYY-MM-DD) |
 
+### 权限说明
+
+- **管理员**：可以删除所有 AI 用户的待处理交易
+- **普通用户**：只能删除自己的待处理交易
+
 ### 响应
 
 **成功 (200 OK)**
 
 ```json
 {
-  "message": "已删除 3 条交易记录",
-  "deletedCount": 3
+  "message": "Pending AI transactions cleared",
+  "count": 3
 }
 ```
 
 ---
 
-_文档版本: 1.1.0_
-_最后更新: 2026-03-06_
+_文档版本: 1.2.0_
+_最后更新: 2026-03-12_

@@ -284,12 +284,12 @@ DELETE /api/fund/holdings/000001
 
 ## GET /fund/holdings/:code/history
 
-获取指定基金的历史净值数据。
+获取指定基金的历史净值数据、交易记录和策略信号。
 
 ### 请求
 
 ```http
-GET /api/fund/holdings/000001/history
+GET /api/fund/holdings/000001/history?start_date=2024-01-01&end_date=2024-01-31&ma=20&ma=60&strategy=RSI&userId=2
 ```
 
 ### 路径参数
@@ -300,10 +300,13 @@ GET /api/fund/holdings/000001/history
 
 ### 查询参数
 
-| 参数      | 类型   | 必填 | 说明                  |
-| --------- | ------ | ---- | --------------------- |
-| startDate | string | 否   | 开始日期 (YYYY-MM-DD) |
-| endDate   | string | 否   | 结束日期 (YYYY-MM-DD) |
+| 参数       | 类型            | 必填 | 说明                  |
+| ---------- | --------------- | ---- | --------------------- |
+| start_date | string          | 否   | 开始日期 (YYYY-MM-DD) |
+| end_date   | string          | 否   | 结束日期 (YYYY-MM-DD) |
+| ma         | string \| array | 否   | 移动平均线周期 (如 20, 60) |
+| strategy   | string          | 否   | 策略名称，获取对应信号 |
+| userId     | string          | 否   | 目标用户 ID，用于查看他人持仓 |
 
 ### 响应
 
@@ -311,14 +314,34 @@ GET /api/fund/holdings/000001/history
 
 ```json
 {
-  "code": "000001",
-  "name": "华夏成长混合",
   "history": [
     {
       "date": "2024-01-01",
       "nav": 1.5234,
       "accNav": 2.1234,
-      "dailyGrowth": 0.52
+      "dailyGrowth": 0.52,
+      "ma20": 1.51,
+      "ma60": 1.48
+    }
+  ],
+  "signals": [
+    {
+      "id": 1,
+      "strategyName": "RSI",
+      "signal": "buy",
+      "latestDate": "2024-01-15",
+      "latestClose": 1.5234
+    }
+  ],
+  "transactions": [
+    {
+      "id": 1,
+      "type": "buy",
+      "status": "confirmed",
+      "orderDate": "2024-01-10",
+      "confirmedNav": 1.5,
+      "confirmedShares": 10000,
+      "confirmedAmount": 15000
     }
   ]
 }
@@ -499,7 +522,7 @@ POST /api/fund/holdings/000001/clear-position
 ### 请求
 
 ```http
-GET /api/fund/holdings/000001/detail
+GET /api/fund/holdings/000001/detail?userId=2
 ```
 
 ### 路径参数
@@ -507,6 +530,12 @@ GET /api/fund/holdings/000001/detail
 | 参数 | 类型   | 说明     |
 | ---- | ------ | -------- |
 | code | string | 基金代码 |
+
+### 查询参数
+
+| 参数   | 类型   | 必填 | 说明                        |
+| ------ | ------ | ---- | --------------------------- |
+| userId | string | 否   | 目标用户 ID，用于查看他人持仓 |
 
 ### 响应
 
@@ -584,5 +613,5 @@ GET /api/fund/holdings/000001/sector-signals
 
 ---
 
-_文档版本: 1.1.0_
-_最后更新: 2026-03-06_
+_文档版本: 1.2.0_
+_最后更新: 2026-03-12_
