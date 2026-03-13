@@ -53,6 +53,7 @@ export default defineEventHandler(async (event) => {
 
     // [核心修改] 使用针对性优化的正则进行分割
     // 匹配逻辑：找行首的 "# ✨ AI 热点分析" 或类似变体，并捕获其后所有内容
+    // eslint-disable-next-line e18e/prefer-static-regex
     const aiAnalysisRegex = /((?:^|\n)#+\s*(?:(?:🤖|✨)\s*)?AI\s*(?:热点|深度)?(?:分析|汇总|报告)[\s\S]*)/i
     const match = incomingText.match(aiAnalysisRegex)
 
