@@ -88,26 +88,45 @@ export default defineEventHandler(async (event) => {
     }
 
     // --- 3. 触发 AI 清洗 (News Items) ---
-    // (保持原有逻辑)
     try {
-      // ... (此处保持不变，省略以节省空间) ...
-      // 如果您需要这部分代码也请告诉我，通常这部分不需要变动
       console.log(`[Webhook] 开始 AI 清洗 (Structured Items)...`)
       const structuredItems = await processNewsWithAi(incomingText)
 
       if (structuredItems.length > 0) {
         await db.transaction(async (tx) => {
-          await tx.delete(newsItems).where(eq(newsItems.date, todayStr))
-          const rowsToInsert = structuredItems.map(item => ({
-            date: todayStr,
-            title: item.title,
-            content: item.content,
-            url: item.url,
-            tag: item.tag,
-          }))
-          await tx.insert(newsItems).values(rowsToInsert)
+          // 查询当日已存在的新闻
+          const existingItems = await tx.query.newsItems.findMany({
+            where: eq(newsItems.date, todayStr),
+            columns: { title: true, content: true },
+          })
+
+          // 构建已存在新闻的 key 集合（用于快速去重）
+          const existingKeys = new Set(
+            existingItems.map(item => `${item.title}|${item.content || ''}`),
+          )
+
+          // 筛选出新增的新闻
+          const newItems = structuredItems.filter((item) => {
+            const key = `${item.title}|${item.content || ''}`
+            return !existingKeys.has(key)
+          })
+
+          // 只插入新增的新闻
+          if (newItems.length > 0) {
+            const rowsToInsert = newItems.map(item => ({
+              date: todayStr,
+              title: item.title,
+              content: item.content,
+              url: item.url,
+              tag: item.tag,
+            }))
+            await tx.insert(newsItems).values(rowsToInsert)
+            console.log(`[Webhook] AI 清洗完成，已新增 ${newItems.length} 条结构化新闻 (跳过 ${structuredItems.length - newItems.length} 条重复)。`)
+          }
+          else {
+            console.log(`[Webhook] AI 清洗完成，${structuredItems.length} 条新闻均已存在，无新增。`)
+          }
         })
-        console.log(`[Webhook] AI 清洗完成，已覆盖存入 ${structuredItems.length} 条结构化新闻。`)
       }
     }
     catch (aiError) {
