@@ -139,7 +139,7 @@ function getPeriodLabel(period: LeaderboardPeriod) {
           <!-- Rank -->
           <div class="text-center flex flex-shrink-0 w-12 justify-center">
             <div v-if="getRankIcon(user.rank)" :class="getRankIcon(user.rank)" />
-            <span v-else class="text-lg text-gray-500 font-bold font-numeric">{{ user.rank }}</span>
+            <span v-else class="text-lg text-gray-500 font-bold font-mono tabular-nums">{{ user.rank }}</span>
           </div>
 
           <!-- User Info & Assets Breakdown -->
@@ -193,12 +193,12 @@ function getPeriodLabel(period: LeaderboardPeriod) {
           <!-- Stats -->
           <div class="flex flex-shrink-0 gap-4 w-64 justify-end md:gap-8">
             <div class="flex flex-col w-24 items-end justify-center">
-              <span class="font-numeric font-semibold" :class="getProfitRateClass(user.periodProfit)">
+              <span class="font-mono tabular-nums font-semibold" :class="getProfitRateClass(user.periodProfit)">
                 {{ formatCurrency(user.periodProfit) }}
               </span>
             </div>
             <div class="flex flex-col w-24 items-end justify-center">
-              <span class="text-lg font-bold font-numeric" :class="getProfitRateClass(user.periodProfitRate)">
+              <span class="text-lg font-bold font-mono tabular-nums" :class="getProfitRateClass(user.periodProfitRate)">
                 {{ user.periodProfitRate > 0 ? '+' : '' }}{{ user.periodProfitRate.toFixed(2) }}%
               </span>
             </div>

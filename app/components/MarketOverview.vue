@@ -71,7 +71,7 @@ function getGroupButtonClass(summary: typeof groupSummaries.value[0]) {
         <!-- 分组名称 -->
         <span class="text-base">{{ summary.label }}</span>
         <!-- 涨跌统计 -->
-        <div class="text-xs font-numeric mt-1 flex gap-2 items-center">
+        <div class="text-xs font-mono tabular-nums mt-1 flex gap-2 items-center">
           <span class="text-red-500 flex items-center dark:text-red-400">
             <div i-carbon-arrow-up class="mr-0.5" /> {{ summary.risers }}
           </span>

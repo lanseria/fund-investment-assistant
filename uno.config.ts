@@ -22,7 +22,6 @@ export default defineConfig({
     ['icon-btn', 'inline-block cursor-pointer op-80 hover:op-100 hover:text-primary disabled:cursor-default disabled:op-50'],
     ['card', 'bg-white dark:bg-gray-800 rounded-lg shadow-md'],
     ['input-base', 'block w-full px-3 py-2 bg-transparent border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary'],
-    ['font-numeric', 'font-mono tabular-nums'],
   ],
   presets: [
     presetWind4({

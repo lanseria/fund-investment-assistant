@@ -112,19 +112,19 @@ const slicedData = computed(() => {
     <div class="text-xs p-3 border-t flex items-center justify-between dark:border-gray-700">
       <div class="flex flex-col items-start">
         <span class="text-gray-500 dark:text-gray-400">持仓市值</span>
-        <span class="font-numeric font-semibold">
+        <span class="font-mono tabular-nums font-semibold">
           {{ fund.holdingAmount !== null ? formatCurrency(fund.holdingAmount) : '--' }}
         </span>
       </div>
       <div class="flex flex-col items-center">
         <span class="text-gray-500 dark:text-gray-400">今日涨跌</span>
-        <span class="font-numeric font-semibold" :class="getChangeClass(fund.percentageChange)">
+        <span class="font-mono tabular-nums font-semibold" :class="getChangeClass(fund.percentageChange)">
           {{ fund.percentageChange !== null ? `${fund.percentageChange > 0 ? '+' : ''}${fund.percentageChange.toFixed(2)}%` : '-' }}
         </span>
       </div>
       <div class="flex flex-col items-end">
         <span class="text-gray-500 dark:text-gray-400">预估盈亏</span>
-        <span class="font-numeric font-semibold" :class="fund.holdingAmount !== null ? getChangeClass(fund.todayEstimateProfitLoss) : ''">
+        <span class="font-mono tabular-nums font-semibold" :class="fund.holdingAmount !== null ? getChangeClass(fund.todayEstimateProfitLoss) : ''">
           {{ fund.holdingAmount !== null ? formatCurrency(fund.todayEstimateProfitLoss) : '--' }}
         </span>
       </div>

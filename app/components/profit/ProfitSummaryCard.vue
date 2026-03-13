@@ -22,13 +22,13 @@ function getColor(val: number) {
     <!-- 总资产 -->
     <div class="p-2 flex flex-col gap-1">
       <span class="text-xs text-gray-500 dark:text-gray-400">当前总资产</span>
-      <span class="text-xl font-bold font-numeric">{{ formatCurrency(totalAssets) }}</span>
+      <span class="text-xl font-bold font-mono tabular-nums">{{ formatCurrency(totalAssets) }}</span>
     </div>
 
     <!-- 昨日收益 -->
     <div class="p-2 flex flex-col gap-1">
       <span class="text-xs text-gray-500 dark:text-gray-400">昨日收益</span>
-      <span class="text-xl font-bold font-numeric" :class="getColor(yesterdayProfit)">
+      <span class="text-xl font-bold font-mono tabular-nums" :class="getColor(yesterdayProfit)">
         {{ yesterdayProfit > 0 ? '+' : '' }}{{ formatCurrency(yesterdayProfit) }}
       </span>
     </div>
@@ -36,7 +36,7 @@ function getColor(val: number) {
     <!-- 本年收益 -->
     <div class="p-2 flex flex-col gap-1">
       <span class="text-xs text-gray-500 dark:text-gray-400">本年收益</span>
-      <span class="text-xl font-bold font-numeric" :class="getColor(yearProfit)">
+      <span class="text-xl font-bold font-mono tabular-nums" :class="getColor(yearProfit)">
         {{ yearProfit > 0 ? '+' : '' }}{{ formatCurrency(yearProfit) }}
       </span>
     </div>
@@ -44,7 +44,7 @@ function getColor(val: number) {
     <!-- 累计收益率 -->
     <div class="p-2 flex flex-col gap-1">
       <span class="text-xs text-gray-500 dark:text-gray-400">累计收益率</span>
-      <span class="text-xl font-bold font-numeric" :class="getColor(totalProfitRate)">
+      <span class="text-xl font-bold font-mono tabular-nums" :class="getColor(totalProfitRate)">
         {{ totalProfitRate > 0 ? '+' : '' }}{{ totalProfitRate.toFixed(2) }}%
       </span>
     </div>

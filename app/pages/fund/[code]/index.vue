@@ -329,28 +329,28 @@ watch(data, (newData) => {
       <div class="flex flex-wrap gap-6 md:flex-nowrap">
         <div class="flex flex-col">
           <span class="text-xs text-gray-500 mb-1">最新净值</span>
-          <span class="text-xl font-bold font-numeric">{{ fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-' }}</span>
+          <span class="text-xl font-bold font-mono tabular-nums">{{ fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-' }}</span>
         </div>
 
         <div class="flex flex-col">
           <span class="text-xs text-gray-500 mb-1">估算涨跌</span>
-          <span class="text-xl font-bold font-numeric" :class="fundDetail.percentageChange > 0 ? 'text-red-500' : (fundDetail.percentageChange < 0 ? 'text-green-500' : 'text-gray-500')">
+          <span class="text-xl font-bold font-mono tabular-nums" :class="fundDetail.percentageChange > 0 ? 'text-red-500' : (fundDetail.percentageChange < 0 ? 'text-green-500' : 'text-gray-500')">
             {{ fundDetail.percentageChange !== null ? `${(fundDetail.percentageChange > 0 ? '+' : '') + fundDetail.percentageChange.toFixed(2)}%` : '-' }}
           </span>
         </div>
 
         <div class="flex flex-col">
           <span class="text-xs text-gray-500 mb-1">持仓市值</span>
-          <span class="text-xl font-bold font-numeric">{{ fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--' }}</span>
+          <span class="text-xl font-bold font-mono tabular-nums">{{ fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--' }}</span>
         </div>
 
         <div class="flex flex-col">
           <span class="text-xs text-gray-500 mb-1">持仓收益</span>
           <div class="flex gap-1 items-baseline">
-            <span class="text-xl font-bold font-numeric" :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500' : 'text-gray-500')">
+            <span class="text-xl font-bold font-mono tabular-nums" :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500' : 'text-gray-500')">
               {{ fundDetail.holdingProfitAmount !== null ? (fundDetail.holdingProfitAmount > 0 ? '+' : '') + formatCurrency(fundDetail.holdingProfitAmount) : '--' }}
             </span>
-            <span v-if="fundDetail.holdingProfitRate !== null" class="text-sm font-numeric" :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500' : 'text-gray-500')">
+            <span v-if="fundDetail.holdingProfitRate !== null" class="text-sm font-mono tabular-nums" :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500' : 'text-gray-500')">
               ({{ fundDetail.holdingProfitRate > 0 ? '+' : '' }}{{ fundDetail.holdingProfitRate.toFixed(2) }}%)
             </span>
           </div>
@@ -383,7 +383,7 @@ watch(data, (newData) => {
           <!-- 数值 -->
           <div class="flex h-6 items-center justify-center">
             <span v-if="!data && pending" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
-            <span v-else class="text-sm font-bold font-numeric" :class="getPerformanceClass(filter.value)">
+            <span v-else class="text-sm font-bold font-mono tabular-nums" :class="getPerformanceClass(filter.value)">
               {{ formatPerformance(filter.value) }}
             </span>
           </div>

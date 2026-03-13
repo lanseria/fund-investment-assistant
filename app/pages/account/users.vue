@@ -299,7 +299,7 @@ async function handleCloneUser() {
                 <!-- 总资产标题 -->
                 <div class="flex items-baseline justify-between">
                   <span class="text-xs text-gray-500 dark:text-gray-400">总资产</span>
-                  <span class="text-lg text-gray-900 font-bold font-numeric dark:text-white">
+                  <span class="text-lg text-gray-900 font-bold font-mono tabular-nums dark:text-white">
                     {{ formatCurrency(user.totalAssets) }}
                   </span>
                 </div>
@@ -330,12 +330,12 @@ async function handleCloneUser() {
                   <div class="flex gap-1.5 items-center" title="已买入基金的市值">
                     <span class="rounded-full bg-blue-500 h-2 w-2" />
                     <span class="text-gray-500 dark:text-gray-400">基金市值:</span>
-                    <span class="text-gray-700 font-medium font-numeric dark:text-gray-200">{{ formatCurrency(user.fundValue) }}</span>
+                    <span class="text-gray-700 font-medium font-mono tabular-nums dark:text-gray-200">{{ formatCurrency(user.fundValue) }}</span>
                   </div>
                   <div class="flex gap-1.5 items-center" title="账户内可用余额">
                     <span class="rounded-full bg-emerald-400 h-2 w-2" />
                     <span class="text-gray-500 dark:text-gray-400">可用现金:</span>
-                    <span class="text-gray-700 font-medium font-numeric dark:text-gray-200">{{ formatCurrency(user.cash) }}</span>
+                    <span class="text-gray-700 font-medium font-mono tabular-nums dark:text-gray-200">{{ formatCurrency(user.cash) }}</span>
                   </div>
                 </div>
               </div>
@@ -346,11 +346,11 @@ async function handleCloneUser() {
               <div class="flex flex-col gap-2 h-full items-center justify-center">
                 <div class="px-3 py-1.5 border border-blue-100 rounded-md bg-blue-50/50 flex w-24 items-center justify-between dark:border-blue-800/30 dark:bg-blue-900/10">
                   <span class="text-xs text-blue-600/80 dark:text-blue-300/80">持仓</span>
-                  <span class="text-sm text-blue-700 font-bold font-numeric dark:text-blue-300">{{ user.holdingCount }}</span>
+                  <span class="text-sm text-blue-700 font-bold font-mono tabular-nums dark:text-blue-300">{{ user.holdingCount }}</span>
                 </div>
                 <div class="px-3 py-1.5 border border-gray-100 rounded-md bg-gray-50 flex w-24 items-center justify-between dark:border-gray-700/50 dark:bg-gray-800/50">
                   <span class="text-xs text-gray-500">关注</span>
-                  <span class="text-sm text-gray-600 font-bold font-numeric dark:text-gray-400">{{ user.watchingCount }}</span>
+                  <span class="text-sm text-gray-600 font-bold font-mono tabular-nums dark:text-gray-400">{{ user.watchingCount }}</span>
                 </div>
               </div>
             </td>

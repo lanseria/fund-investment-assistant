@@ -126,7 +126,7 @@ async function handleSaveConfig() {
 
           <!-- 查看模式 -->
           <div v-if="!isEditingCash" class="group flex gap-3 items-center">
-            <span class="text-lg text-gray-800 font-bold font-numeric dark:text-gray-200">
+            <span class="text-lg text-gray-800 font-bold font-mono tabular-nums dark:text-gray-200">
               {{ formatCurrency(authStore.user.availableCash) }}
             </span>
             <button

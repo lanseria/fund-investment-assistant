@@ -56,7 +56,7 @@ function getChangeClass(value: number | undefined) {
         <p class="text-sm text-gray-500 dark:text-gray-400">
           持仓总成本
         </p>
-        <p class="text-lg font-numeric font-semibold sm:text-xl">
+        <p class="text-lg font-mono tabular-nums font-semibold sm:text-xl">
           {{ formatCurrency(summary.totalHoldingAmount) }}
         </p>
       </div>
@@ -65,7 +65,7 @@ function getChangeClass(value: number | undefined) {
         <p class="text-sm text-gray-500 dark:text-gray-400">
           预估总市值
         </p>
-        <p class="text-lg font-numeric font-semibold sm:text-xl">
+        <p class="text-lg font-mono tabular-nums font-semibold sm:text-xl">
           {{ formatCurrency(summary.totalEstimateAmount) }}
         </p>
       </div>
@@ -74,7 +74,7 @@ function getChangeClass(value: number | undefined) {
         <p class="text-sm text-gray-500 dark:text-gray-400">
           预估总盈亏
         </p>
-        <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
+        <p class="text-lg font-mono tabular-nums font-semibold sm:text-xl" :class="getChangeClass(summary.totalProfitLoss)">
           {{ summary.totalProfitLoss.toFixed(2) }}
         </p>
       </div>
@@ -83,7 +83,7 @@ function getChangeClass(value: number | undefined) {
         <p class="text-sm text-gray-500 dark:text-gray-400">
           预估涨跌幅
         </p>
-        <p class="text-lg font-numeric font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
+        <p class="text-lg font-mono tabular-nums font-semibold sm:text-xl" :class="getChangeClass(summary.totalPercentageChange)">
           {{ summary.totalPercentageChange.toFixed(2) }}%
         </p>
       </div>
