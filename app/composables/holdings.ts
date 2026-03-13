@@ -181,8 +181,6 @@ export const useHoldingStore = defineStore('holding', () => {
         responseType: 'blob',
       })
 
-      // eslint-disable-next-line ts/ban-ts-comment
-      // @ts-expect-error
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
