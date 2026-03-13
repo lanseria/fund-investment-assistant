@@ -353,6 +353,7 @@ export const useHoldingStore = defineStore('holding', () => {
     const updates: any[] = []
     const promises = codes.map(async (code) => {
       const data = await fetchClientEstimate(code)
+      // console.warn('data', data)
       if (data) {
         // 1. 收集数据准备上报
         updates.push({
@@ -379,7 +380,7 @@ export const useHoldingStore = defineStore('holding', () => {
 
     // 并发执行所有请求
     await Promise.all(promises)
-
+    console.warn('updates', updates)
     // 3. 批量上报服务端
     if (updates.length > 0) {
       try {

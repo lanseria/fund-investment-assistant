@@ -11,36 +11,59 @@ interface ClientEstimateData {
   gztime: string // 估值时间
 }
 
+// 扩展 Window 类型
+declare global {
+  interface Window {
+    jsonpgz?: (data: ClientEstimateData) => void
+  }
+}
+
 /**
  * 抓取单个基金的实时估值 (浏览器端执行)
- * 使用 JSONP 原理或 fetch (如果支持 CORS)
- * 天天基金接口通常返回 text/javascript: jsonpgz({...});
+ * 使用 JSONP 原理动态创建 script 标签
+ * 天天基金接口返回: jsonpgz({...});
  */
 export async function fetchClientEstimate(fundCode: string): Promise<ClientEstimateData | null> {
-  const timestamp = Date.now()
-  const url = `https://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${timestamp}`
+  return new Promise((resolve) => {
+    const script = document.createElement('script')
+    const timestamp = Date.now()
 
-  try {
-    const response = await fetch(url, {
-      method: 'GET',
-      mode: 'no-cors',
-    })
+    // 保存原有的回调函数（如果存在）
+    const originalJsonpgz = window.jsonpgz
 
-    if (!response.ok)
-      return null
-
-    const text = await response.text()
-
-    // 解析 jsonpgz({...});
-    const match = text.match(/jsonpgz\((.*?)\);/)
-    if (match && match[1]) {
-      const data = JSON.parse(match[1]) as ClientEstimateData
-      return data
+    // 定义全局回调
+    window.jsonpgz = (data: ClientEstimateData) => {
+      resolve(data)
+      // 清理
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
+      // 恢复原有的回调函数
+      window.jsonpgz = originalJsonpgz
     }
-    return null
-  }
-  catch (error) {
-    console.warn(`[ClientFetch] Failed to fetch ${fundCode}:`, error)
-    return null
-  }
+
+    // 处理加载失败的情况
+    script.onerror = () => {
+      console.warn(`[ClientFetch] Failed to load script for ${fundCode}`)
+      resolve(null)
+      // 清理
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+      }
+      // 恢复原有的回调函数
+      window.jsonpgz = originalJsonpgz
+    }
+
+    script.src = `https://fundgz.1234567.com.cn/js/${fundCode}.js?rt=${timestamp}`
+    document.body.appendChild(script)
+
+    // 超时处理，防止内存泄漏
+    setTimeout(() => {
+      if (document.body.contains(script)) {
+        document.body.removeChild(script)
+        window.jsonpgz = originalJsonpgz
+        resolve(null)
+      }
+    }, 10000) // 10秒超时
+  })
 }
