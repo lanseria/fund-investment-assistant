@@ -84,7 +84,6 @@ export default defineNuxtConfig({
   },
 
   compatibilityDate: '2026-02-04',
-
   nitro: {
     esbuild: {
       options: {
@@ -96,6 +95,20 @@ export default defineNuxtConfig({
       database: true,
       tasks: true,
       asyncContext: true,
+    },
+  },
+  vite: {
+    optimizeDeps: {
+      include: [
+        '@vue/devtools-core',
+        '@vue/devtools-kit',
+        'dayjs', // CJS
+        'dayjs/plugin/relativeTime', // CJS
+        'dayjs/plugin/updateLocale', // CJS
+        'dayjs/plugin/utc', // CJS
+        'dayjs/plugin/isBetween.js', // CJS
+        'bignumber.js',
+      ],
     },
   },
   echarts: {
