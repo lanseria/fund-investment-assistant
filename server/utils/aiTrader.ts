@@ -183,8 +183,8 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   1. **daily_analysis (重点)**: 每日宏观热点深度分析，包含核心主线和微观领域动态。请以此定调今日整体策略（进攻/防御）。
   2. market_indices: 实时市场指数。
   3. market_events: 近30天新闻事件时间线。
-  4. holdings: 当前持仓 (包含 sectorSignal 板块量化决策，极为重要)。
-  5. watchlist: 关注列表 (同样包含 sectorSignal 板块量化决策)。
+  4. holdings: 当前持仓 (包含量化决策sectorSignal/bias20/bollinger_bands/rsi)。
+  5. watchlist: 关注列表 (同样包含量化决策)。
 `
 
   const fixedOutputRules = `

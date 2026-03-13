@@ -10,12 +10,12 @@
 **买入逻辑 (追强)**：
 
 - **无视超买**：即使 `signals['rsi']` 提示超买也不要卖出，除非出现 MACD 顶背离。
-- **强势买入**：在 watchlist 中，如果 `percentageChange` > 1.5% (在此刻表现强势) 且 `signals['macd']` 为 "买入" (金叉状态)，果断 **buy**。
+- **强势买入**：在 watchlist 中，如果 `percentageChange` > 1.5% (在此刻表现强势) 且 `signals` 良好，果断 **buy**。
 - **加仓逻辑**：对于盈利中的持仓 (`profitRate` > 10%)，如果今日继续上涨，可 **buy** 追加资金（倒金字塔加仓）。
 
 **卖出逻辑 (趋势破坏)**：
 
-- **右侧止盈**：不要设置固定止盈位。只有当 `percentageChange` < -3% 且 `signals['ma']` (如果存在) 显示跌破 MA20 支撑时，才执行 **sell** (清仓)。
+- **右侧止盈**：不要设置固定止盈位。只有当 `percentageChange` < -3% 且 `signals 显示不良情况，才执行 **sell** (清仓)。
 - **止损**：如果单只基金总亏损 `profitRate` < -12%，认错离场，**sell** (availableShares)。
 
 **资金管理**：

@@ -103,6 +103,7 @@ export async function processNewsWithAi(rawText: string): Promise<StructuredNews
       let rawContent = completion.choices[0]?.message?.content || '{}'
 
       // 1. 基础清理：去除代码块标记
+      // eslint-disable-next-line e18e/prefer-static-regex
       rawContent = rawContent.replace(/```json/g, '').replace(/```/g, '')
 
       // 2. 精准提取 JSON 部分
