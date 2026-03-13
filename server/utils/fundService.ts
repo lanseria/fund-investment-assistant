@@ -150,7 +150,7 @@ export async function syncUserFundsEstimates(userId: number) {
       uniqueFundsMap.set(h.fund.code, h.fund)
   })
 
-  const fundsList = Array.from(uniqueFundsMap.values())
+  const fundsList = [...uniqueFundsMap.values()]
   return await syncFundsList(fundsList)
 }
 

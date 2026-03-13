@@ -140,7 +140,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       <!-- 优化后的基金代码与交易状态行 -->
       <div class="flex gap-3 h-5 items-center">
         <!-- 基金代码 -->
-        <div class="text-xs text-gray-400 font-normal font-mono tabular-nums dark:text-gray-500">
+        <div class="text-xs text-gray-400 font-mono font-normal tabular-nums dark:text-gray-500">
           {{ holding.code }}
         </div>
 
@@ -257,7 +257,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         </span>
         <span
           v-if="holding.bias20 !== null && holding.bias20 !== undefined"
-          class="text-xs font-medium font-mono tabular-nums px-2 py-0.5 rounded-full cursor-help"
+          class="text-xs font-medium font-mono px-2 py-0.5 rounded-full cursor-help tabular-nums"
           :class="getBiasTagClass(holding.bias20)"
           title="实时乖离率 (BIAS20): (现价 - MA20) / MA20"
         >
@@ -270,7 +270,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <!-- 2. 持有市值 / 份额 -->
     <td class="font-mono p-4 text-right">
       <template v-if="holding.holdingAmount !== null">
-        <div class="font-mono tabular-nums font-semibold">
+        <div class="font-mono font-semibold tabular-nums">
           {{ formatCurrency(holding.holdingAmount) }}
         </div>
         <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">
@@ -288,7 +288,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <!-- 3. 持有收益 / 收益率 -->
     <td class="font-mono p-4 text-right" :class="getProfitClass(holding)">
       <template v-if="holding.holdingProfitRate !== null">
-        <div class="font-mono tabular-nums font-semibold">
+        <div class="font-mono font-semibold tabular-nums">
           {{ formatCurrency(holding.holdingProfitAmount) }}
         </div>
         <div class="text-xs font-mono tabular-nums">
@@ -305,7 +305,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
     <!-- 4. 估算涨跌 / 收益 -->
     <td class="font-mono p-4 text-right" :class="getChangeClass(holding)">
-      <div class="font-mono tabular-nums font-semibold">
+      <div class="font-mono font-semibold tabular-nums">
         {{ holding.percentageChange !== null ? `${holding.percentageChange > 0 ? '+' : ''}${holding.percentageChange.toFixed(2)}%` : '-' }}
       </div>
       <div v-if="holding.todayEstimateAmount !== null && holding.holdingAmount !== null" class="text-xs font-mono tabular-nums">
@@ -320,7 +320,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     </td>
 
     <!-- 5. 更新时间 -->
-    <td class="text-sm text-gray-500 font-mono tabular-nums p-4 text-right">
+    <td class="text-sm text-gray-500 font-mono p-4 text-right tabular-nums">
       <template v-if="holding.todayEstimateUpdateTime">
         <div>
           {{ dayjs(holding.todayEstimateUpdateTime).format('HH:mm:ss') }}

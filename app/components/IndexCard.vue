@@ -51,7 +51,7 @@ const chartOption = computed<EChartsOption>(() => {
     <!-- Top Section -->
     <div class="flex items-baseline justify-between">
       <span class="font-semibold">{{ data.name }}</span>
-      <div class="font-mono tabular-nums font-semibold flex flex-col items-end" :class="colorClass">
+      <div class="font-mono font-semibold flex flex-col items-end tabular-nums" :class="colorClass">
         <span>{{ data.value.toFixed(2) }}</span>
         <div class="text-xs font-normal flex gap-2">
           <span>{{ data.changeAmount > 0 ? '+' : '' }}{{ data.changeAmount.toFixed(2) }}</span>

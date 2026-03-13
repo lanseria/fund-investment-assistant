@@ -79,7 +79,7 @@ export default defineMcpTool({
 
     // 5. 组装返回数据
     // history 是按时间正序排列的 (旧 -> 新)，所以最后一个是最新的
-    const currentPoint = history.length > 0 ? history[history.length - 1] : null
+    const currentPoint = history.length > 0 ? history.at(-1) : null
 
     // 计算乖离率 (Bias): (现价 - 均线) / 均线
     let bias20 = 'N/A'

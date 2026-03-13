@@ -406,7 +406,7 @@ export const useHoldingStore = defineStore('holding', () => {
     // 立即执行一次 (非强制，遵守交易时间)
     triggerClientUpdate(false)
     // 启动定时器 (60秒)
-    clientPollingTimer = setInterval(() => triggerClientUpdate(false), 60000)
+    clientPollingTimer = setInterval(triggerClientUpdate, 60000, false)
   }
 
   function stopClientPolling() {

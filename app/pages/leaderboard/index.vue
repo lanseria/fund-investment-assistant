@@ -193,7 +193,7 @@ function getPeriodLabel(period: LeaderboardPeriod) {
           <!-- Stats -->
           <div class="flex flex-shrink-0 gap-4 w-64 justify-end md:gap-8">
             <div class="flex flex-col w-24 items-end justify-center">
-              <span class="font-mono tabular-nums font-semibold" :class="getProfitRateClass(user.periodProfit)">
+              <span class="font-mono font-semibold tabular-nums" :class="getProfitRateClass(user.periodProfit)">
                 {{ formatCurrency(user.periodProfit) }}
               </span>
             </div>

@@ -148,7 +148,7 @@ function handleHideTooltip() {
                 {{ group.sectorLabel }} ({{ group.holdingCount }})
               </td>
               <td class="font-mono p-3 text-right" colspan="2">
-                <div class="font-mono tabular-nums font-semibold">
+                <div class="font-mono font-semibold tabular-nums">
                   {{ formatCurrency(group.groupTotalAmount) }}
                 </div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -156,7 +156,7 @@ function handleHideTooltip() {
                 </div>
               </td>
               <td class="font-mono p-3 text-right" :colspan="showActions ? 2 : 1">
-                <div class="font-mono tabular-nums font-semibold" :class="getChangeClass(group.groupTotalProfitLoss)">
+                <div class="font-mono font-semibold tabular-nums" :class="getChangeClass(group.groupTotalProfitLoss)">
                   {{ formatCurrency(group.groupTotalProfitLoss) }}
                 </div>
                 <div class="text-xs text-gray-500 dark:text-gray-400">

@@ -190,7 +190,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
     limit: 300, // 足够覆盖所有板块近几天的数据
   })
 
-  const dates = [...new Set(recentSectorStats.map(s => s.date))].sort().reverse()
+  const dates = new Set(recentSectorStats.map(s => s.date)).toSorted().reverse()
   const latestDate = dates[0]
   const prevDate = dates[1]
 

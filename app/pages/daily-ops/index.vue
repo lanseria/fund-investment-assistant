@@ -245,15 +245,15 @@ async function handleClearPending() {
                     <div class="text-xs text-gray-500 mt-1 flex flex-col flex-wrap gap-y-1">
                       <span title="总资产">
                         <span class="text-gray-400">总额:</span>
-                        <span class="text-gray-700 font-medium font-mono tabular-nums ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.totalAssets) }}</span>
+                        <span class="text-gray-700 font-medium font-mono ml-1 tabular-nums dark:text-gray-300">{{ formatCurrency(group.user.stats.totalAssets) }}</span>
                       </span>
                       <span title="持仓市值">
                         <span class="text-gray-400">持仓:</span>
-                        <span class="text-gray-700 font-medium font-mono tabular-nums ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.fundValue) }}</span>
+                        <span class="text-gray-700 font-medium font-mono ml-1 tabular-nums dark:text-gray-300">{{ formatCurrency(group.user.stats.fundValue) }}</span>
                       </span>
                       <span title="可用现金">
                         <span class="text-gray-400">现金:</span>
-                        <span class="text-gray-700 font-medium font-mono tabular-nums ml-1 dark:text-gray-300">{{ formatCurrency(group.user.stats.cash) }}</span>
+                        <span class="text-gray-700 font-medium font-mono ml-1 tabular-nums dark:text-gray-300">{{ formatCurrency(group.user.stats.cash) }}</span>
                       </span>
                     </div>
                   </div>

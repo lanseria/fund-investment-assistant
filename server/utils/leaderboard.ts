@@ -115,7 +115,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
   }
 
   // 4. 最终结算与排序
-  const usersList = Array.from(userMap.values()).map((u) => {
+  const usersList = Array.from(userMap.values(), (u) => {
     // 实时总权益 = 数据库记录的现金 + 实时持仓市值
     const realTimeTotalAssets = u.cash + u.fundValue
     u.totalAssets = realTimeTotalAssets

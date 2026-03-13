@@ -13,7 +13,7 @@ const chartOption = computed<EChartsOption>(() => {
 
   // 根据首尾数据判断整体趋势，决定图表颜色
   const firstNav = props.history[0]?.nav ?? 0
-  const lastNav = props.history[props.history.length - 1]?.nav ?? 0
+  const lastNav = props.history.at(-1)?.nav ?? 0
   const mainColor = lastNav >= firstNav ? '#ef4444' : '#22c55e' // 红涨绿跌
 
   // 信号点映射逻辑 (保持不变)

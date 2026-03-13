@@ -241,7 +241,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   }
 
   // 6. 生成 Summary
-  const lastPoint = history[history.length - 1] || {
+  const lastPoint = history.at(-1) || {
     dayProfit: 0,
     totalProfitRate: 0,
     totalAssets: 0,
@@ -252,7 +252,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
   // 在 history 数组中倒序查找（因为在末尾附近），找到日期匹配的记录
   // 如果昨天是周末或刚开始回测没数据，则回退为 0
-  const yesterdayPoint = history.slice().reverse().find(p => p.date === yesterdayStr)
+  const yesterdayPoint = history.toReversed().find(p => p.date === yesterdayStr)
 
   // 计算本年收益 (Year To Date Profit)
   const startOfYear = dayjs().startOf('year').format('YYYY-MM-DD')

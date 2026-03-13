@@ -104,7 +104,7 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
     if (!sortKey.value)
       return sourceHoldings
 
-    return [...sourceHoldings].sort((a, b) => {
+    return sourceHoldings.toSorted((a, b) => {
       const key = sortKey.value!
       const valA = a[key] ?? -Infinity
       const valB = b[key] ?? -Infinity

@@ -12,7 +12,7 @@ const chartOption = computed<EChartsOption>(() => {
 
   const { dates, netValues, rsiValues, signals, config } = props.data
   const firstNav = netValues[0] ?? 0
-  const lastNav = netValues[netValues.length - 1] ?? 0
+  const lastNav = netValues.at(-1) ?? 0
   const mainColor = lastNav >= firstNav ? '#ef4444' : '#22c55e'
 
   return {

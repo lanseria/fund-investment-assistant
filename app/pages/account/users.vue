@@ -194,6 +194,26 @@ async function deleteUser(user: any) {
   }
 }
 
+async function clearUserFunds(user: AdminUserItem) {
+  if (!confirm(`⚠️ 危险操作：确定要清空用户 "${user.username}" 的所有基金信息吗？\n\n此操作将删除：\n- 所有持仓记录\n- 所有交易记录\n- AI 执行日志\n\n用户账户本身将保留。`)) {
+    return
+  }
+  isSubmitting.value = true
+  try {
+    const res = await apiFetch<{ message: string, username: string, deleted: { logsCount: number, transactionsCount: number, holdingsCount: number } }>(`/api/admin/users/${user.id}/clear-funds`, {
+      method: 'POST',
+    })
+    alert(`清空成功！\n\n删除记录：\n- 持仓: ${res.deleted.holdingsCount}\n- 交易: ${res.deleted.transactionsCount}\n- AI日志: ${res.deleted.logsCount}`)
+    await refresh()
+  }
+  catch (e: any) {
+    alert(`清空失败: ${e.data?.statusMessage || '未知错误'}`)
+  }
+  finally {
+    isSubmitting.value = false
+  }
+}
+
 function openCloneModal(userId: number) {
   cloneSourceId.value = userId
   cloneNewUsername.value = ''
@@ -378,6 +398,11 @@ async function handleCloneUser() {
                   <div i-carbon-copy-file class="text-lg" />
                 </button>
 
+                <!-- 清空基金 -->
+                <button class="icon-btn p-2 hover:text-orange-600 hover:bg-orange-50 dark:hover:text-orange-400 dark:hover:bg-orange-900/30" title="清空基金信息" @click="clearUserFunds(user)">
+                  <div i-carbon-text-clear-format class="text-lg" />
+                </button>
+
                 <div class="mx-1 bg-gray-300 h-5 w-px self-center dark:bg-gray-600/50" />
 
                 <!-- 删除 -->
@@ -478,9 +503,9 @@ async function handleCloneUser() {
               <input
                 v-model.number="editForm.availableCash"
                 type="number"
-                step="0.01"
+                step="0.0001"
                 class="input-base pl-7"
-                placeholder="0.00"
+                placeholder="0.0000"
               >
             </div>
             <p class="text-xs text-gray-400 mt-1">

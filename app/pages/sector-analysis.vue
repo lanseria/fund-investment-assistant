@@ -341,7 +341,7 @@ function getSignalClass(code: string) {
                     </div>
                   </div>
                 </td>
-                <td class="font-mono tabular-nums font-semibold p-4 text-right" :class="getColorClass(row.changeRate)">
+                <td class="font-mono font-semibold p-4 text-right tabular-nums" :class="getColorClass(row.changeRate)">
                   {{ formatPercent(row.changeRate) }}
                 </td>
                 <!-- 换手率 -->
@@ -349,7 +349,7 @@ function getSignalClass(code: string) {
                   <div class="text-gray-800 font-medium font-mono tabular-nums dark:text-gray-200">
                     {{ row.turnoverRate !== null ? `${row.turnoverRate.toFixed(2)}%` : '-' }}
                   </div>
-                  <div class="text-[10px] font-mono tabular-nums mt-0.5" :class="getDiffColorClass(row.diffTurnoverRate)">
+                  <div class="text-[10px] font-mono mt-0.5 tabular-nums" :class="getDiffColorClass(row.diffTurnoverRate)">
                     {{ row.diffTurnoverRate > 0 ? '▲' : (row.diffTurnoverRate < 0 ? '▼' : '') }}
                     {{ Math.abs(row.diffTurnoverRate).toFixed(2) }}%
                   </div>
@@ -359,7 +359,7 @@ function getSignalClass(code: string) {
                   <div class="text-gray-800 font-medium font-mono tabular-nums dark:text-gray-200">
                     {{ row.volumeRatio !== null ? `${row.volumeRatio.toFixed(2)}%` : '-' }}
                   </div>
-                  <div class="text-[10px] font-mono tabular-nums mt-0.5" :class="getDiffColorClass(row.diffVolumeRatio)">
+                  <div class="text-[10px] font-mono mt-0.5 tabular-nums" :class="getDiffColorClass(row.diffVolumeRatio)">
                     {{ row.diffVolumeRatio > 0 ? '▲' : (row.diffVolumeRatio < 0 ? '▼' : '') }}
                     {{ Math.abs(row.diffVolumeRatio).toFixed(2) }}%
                   </div>
@@ -378,7 +378,7 @@ function getSignalClass(code: string) {
                   </div>
                 </td>
 
-                <td class="text-gray-600 font-mono tabular-nums p-4 text-right dark:text-gray-300">
+                <td class="text-gray-600 font-mono p-4 text-right tabular-nums dark:text-gray-300">
                   {{ formatMarketCap(row.totalMarketCap) }}
                 </td>
 

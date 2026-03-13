@@ -1,8 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(pnpm lint)",
-      "Bash(wc:*)"
-    ]
+      "Bash(*)"
+    ],
+    "defaultMode": "acceptEdits",
+    "disableBypassPermissionsMode": "disable"
   }
 }
