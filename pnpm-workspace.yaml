@@ -13,7 +13,7 @@ catalogs:
     drizzle-kit: ^0.31.9
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
-    openai: ^6.27.0
+    openai: ^6.29.0
     pg: ^8.20.0
   build:
     '@nuxt/eslint': ^1.15.2
