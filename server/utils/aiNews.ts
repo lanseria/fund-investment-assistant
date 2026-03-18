@@ -54,11 +54,11 @@ export async function processNewsWithAi(rawText: string): Promise<StructuredNews
   const truncatedInput = rawText.length > 20000 ? `${rawText.slice(0, 20000)}...(后续文本截断)` : rawText
 
   const openai = new OpenAI({
-    baseURL: 'https://ark.cn-beijing.volces.com/api/coding/v3',
+    baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
     apiKey: config.openRouterApiKey,
   })
 
-  const targetModel = 'minimax-m2.5'
+  const targetModel = 'doubao-seed-2.0-pro'
   const MAX_RETRIES = 3
 
   // 强化 Prompt：增加筛选逻辑，减少输出量，防止截断
