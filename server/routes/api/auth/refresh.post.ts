@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     id: user.id,
     username: user.username,
     role: user.role,
-    isAiAgent: user.isAiAgent,
+    aiMode: user.aiMode,
     aiSystemPrompt: user.aiSystemPrompt,
     availableCash: user.availableCash,
   }
@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
     id: user.id,
     username: user.username,
     role: user.role,
-    isAiAgent: user.isAiAgent,
+    aiMode: user.aiMode,
   }
 
   const localKey = await useStorage('redis').getItem<string>('localKey')

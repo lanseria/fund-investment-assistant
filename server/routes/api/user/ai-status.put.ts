@@ -6,7 +6,7 @@ import { useDb } from '~~/server/utils/db'
 
 // 允许更新部分或全部字段
 const updateAiConfigSchema = z.object({
-  isAiAgent: z.boolean().optional(),
+  aiMode: z.enum(['auto', 'draft', 'off']).optional(),
   aiSystemPrompt: z.string().optional().nullable(),
   availableCash: z.number().optional(),
 })
@@ -20,8 +20,8 @@ export default defineEventHandler(async (event) => {
 
   // 构建更新对象，过滤掉 undefined
   const updateData: Record<string, any> = {}
-  if (data.isAiAgent !== undefined)
-    updateData.isAiAgent = data.isAiAgent
+  if (data.aiMode !== undefined)
+    updateData.aiMode = data.aiMode
   if (data.aiSystemPrompt !== undefined)
     updateData.aiSystemPrompt = data.aiSystemPrompt
   if (data.availableCash !== undefined)

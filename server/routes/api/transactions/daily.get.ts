@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
     columns: {
       id: true,
       username: true,
-      isAiAgent: true,
+      aiMode: true,
       availableCash: true, //  获取现金余额
     },
   })
@@ -104,6 +104,7 @@ export default defineEventHandler(async (event) => {
       sell: userTxs.filter(t => t.type === 'sell').length,
       convert_in: userTxs.filter(t => t.type === 'convert_in').length,
       convert_out: userTxs.filter(t => t.type === 'convert_out').length,
+      draft: userTxs.filter(t => t.status === 'draft').length,
       pending: userTxs.filter(t => t.status === 'pending').length,
       failed: userTxs.filter(t => t.status === 'failed').length,
       confirmed: userTxs.filter(t => t.status === 'confirmed').length,

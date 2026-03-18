@@ -13,7 +13,7 @@ const isToggling = ref(false)
 
 // 表单数据 (直接绑定到组件，但独立于 authStore 以便编辑)
 const aiForm = reactive({
-  isAiAgent: false,
+  aiMode: 'off' as 'auto' | 'draft' | 'off',
   aiSystemPrompt: '',
 })
 
@@ -25,7 +25,7 @@ const isSavingCash = ref(false)
 // 初始化
 watch(() => authStore.user, (u) => {
   if (u) {
-    aiForm.isAiAgent = u.isAiAgent
+    aiForm.aiMode = u.aiMode || 'off'
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
     localAvailableCash.value = u.availableCash ? Number(u.availableCash) : 0
   }
@@ -53,19 +53,19 @@ async function saveCash() {
 }
 
 // 处理开关 (Immediate Mode)
-async function handleToggle(newState: boolean) {
-  if (!confirm(`确定要${newState ? '开启' : '关闭'} AI 自动操作功能吗？`))
+async function handleChangeMode(newState: 'auto' | 'draft' | 'off') {
+  if (!confirm(`确定要将 AI 模式切换为 [${newState}] 吗？`))
     return
 
   isToggling.value = true
   try {
     await apiFetch('/api/user/ai-status', {
       method: 'PUT',
-      body: { isAiAgent: newState },
+      body: { aiMode: newState },
     })
     if (authStore.user)
-      authStore.user.isAiAgent = newState
-    aiForm.isAiAgent = newState
+      authStore.user.aiMode = newState
+    aiForm.aiMode = newState
   }
   catch (e: any) {
     alert(`操作失败: ${e.data?.statusMessage || '未知错误'}`)
@@ -172,11 +172,11 @@ async function handleSaveConfig() {
 
       <!-- AI 设置组件 -->
       <AiSettingsPanel
-        v-model:is-ai-agent="aiForm.isAiAgent"
+        v-model:ai-mode="aiForm.aiMode"
         v-model:ai-system-prompt="aiForm.aiSystemPrompt"
         mode="immediate"
         :loading="isToggling"
-        @toggle="handleToggle"
+        @change-mode="handleChangeMode"
         @save-config="handleSaveConfig"
       />
 

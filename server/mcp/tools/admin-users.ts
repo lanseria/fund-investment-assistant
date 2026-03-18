@@ -14,7 +14,7 @@ export default defineMcpTool({
     password: z.string().min(6).optional().describe('用户密码。创建时必填，修改时选填（用于重置密码）。'),
     role: z.enum(['user', 'admin']).optional().describe('用户角色。默认为 user。'),
     availableCash: z.number().optional().describe('设置用户的可用现金余额 (数字)。'),
-    isAiAgent: z.boolean().optional().describe('是否开启 AI 自动交易代理。'),
+    aiMode: z.enum(['auto', 'draft', 'off']).optional().describe('设置用户的 AI 自动操作模式。'),
     aiSystemPrompt: z.string().optional().describe('设置用户的自定义 AI System Prompt。'),
   },
   handler: async (args) => {
@@ -54,7 +54,7 @@ export default defineMcpTool({
           id: true,
           username: true,
           role: true,
-          isAiAgent: true,
+          aiMode: true,
           availableCash: true,
           createdAt: true,
         },
@@ -62,7 +62,7 @@ export default defineMcpTool({
 
       // 格式化输出
       const table = allUsers.map(u =>
-        `ID: ${u.id} | User: ${u.username} | Role: ${u.role} | Cash: ${u.availableCash} | AI: ${u.isAiAgent ? 'ON' : 'OFF'}`,
+        `ID: ${u.id} | User: ${u.username} | Role: ${u.role} | Cash: ${u.availableCash} | AI: ${u.aiMode}`,
       ).join('\n')
 
       return {
@@ -90,7 +90,7 @@ export default defineMcpTool({
         username: args.username,
         password: hashedPassword,
         role: args.role || 'user',
-        isAiAgent: args.isAiAgent || false,
+        aiMode: args.aiMode || 'off',
         availableCash: args.availableCash ? String(args.availableCash) : '0',
         aiSystemPrompt: args.aiSystemPrompt || null,
       }).returning()
@@ -144,9 +144,9 @@ export default defineMcpTool({
         logs.push(`现金余额 -> ${args.availableCash}`)
       }
 
-      if (args.isAiAgent !== undefined) {
-        updateData.isAiAgent = args.isAiAgent
-        logs.push(`AI开关 -> ${args.isAiAgent}`)
+      if (args.aiMode !== undefined) {
+        updateData.aiMode = args.aiMode
+        logs.push(`AI模式 -> ${args.aiMode}`)
       }
 
       if (args.aiSystemPrompt !== undefined) {

@@ -158,7 +158,7 @@ const hasPendingTransactions = computed(() => {
 })
 
 async function handleClearPending() {
-  if (!confirm(`确定要清空 ${selectedDate.value} 所有 [待处理] 的交易记录吗？\n此操作不可恢复。`))
+  if (!confirm(`确定要清空 ${selectedDate.value} 所有 [草稿和待处理] 的交易记录吗？\n此操作不可恢复。`))
     return
 
   isClearing.value = true
@@ -175,6 +175,23 @@ async function handleClearPending() {
   }
   finally {
     isClearing.value = false
+  }
+}
+
+async function handleApproveDraft(userId: number, username: string) {
+  if (!confirm(`确认将用户 [${username}] 今日所有的[预操作] 批准为 [待处理] 状态吗？\n转为待处理后系统将在定时任务结算时正式执行。`))
+    return
+
+  try {
+    await apiFetch('/api/transactions/daily-approve', {
+      method: 'PUT',
+      body: { userId, date: selectedDate.value },
+    })
+    alert('预操作已全部确认并转为待处理！')
+    refresh()
+  }
+  catch (e: any) {
+    alert(`操作失败: ${e.message}`)
   }
 }
 </script>
@@ -209,7 +226,7 @@ async function handleClearPending() {
             @click="handleClearPending"
           >
             <div i-carbon-clean :class="{ 'animate-pulse': isClearing }" />
-            {{ isClearing ? '清空中...' : '清空待处理' }}
+            {{ isClearing ? '清空中...' : '清空待处理和预操作' }}
           </button>
         </div>
 
@@ -239,7 +256,7 @@ async function handleClearPending() {
                       <span class="text-lg text-gray-900 font-bold dark:text-gray-100" :class="{ 'text-gray-400': group.counts.total === 0 }">
                         {{ group.user.username }}
                       </span>
-                      <AiAgentBadge v-if="group.user.isAiAgent" />
+                      <AiAgentBadge v-if="group.user.aiMode !== 'off'" :mode="group.user.aiMode" />
                     </div>
                     <!--  资产统计条 -->
                     <div class="text-xs text-gray-500 mt-1 flex flex-col flex-wrap gap-y-1">
@@ -279,6 +296,9 @@ async function handleClearPending() {
                   <span v-if="group.counts.pending > 0" class="text-yellow-600 px-2 py-0.5 border border-yellow-100 rounded-full bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:bg-yellow-900/20">
                     待处理: {{ group.counts.pending }}
                   </span>
+                  <span v-if="group.counts.draft > 0" class="text-purple-600 px-2 py-0.5 border border-purple-100 rounded-full bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:bg-purple-900/20">
+                    草稿: {{ group.counts.draft }}
+                  </span>
                 </div>
                 <div v-else class="text-sm text-gray-400">
                   今日无操作
@@ -286,6 +306,16 @@ async function handleClearPending() {
 
                 <!-- 按钮组 -->
                 <div class="flex gap-2">
+                  <button
+                    v-if="group.counts.draft > 0 && (authStore.isAdmin || authStore.user?.id === group.user.id)"
+                    class="text-xs text-purple-600 px-2 py-1.5 border rounded bg-white flex gap-1 items-center dark:text-purple-300 dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
+                    title="确认所有预操作转为待处理"
+                    @click="handleApproveDraft(group.user.id, group.user.username)"
+                  >
+                    <div class="i-carbon-checkmark-outline" />
+                    <span class="hidden sm:inline">确认预操作</span>
+                  </button>
+
                   <button
                     class="text-xs px-2 py-1.5 border rounded bg-white flex gap-1 items-center dark:border-gray-500 dark:bg-gray-600 hover:bg-gray-50 dark:hover:bg-gray-500"
                     title="生成并复制当前上下文的 Prompt"

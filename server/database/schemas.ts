@@ -6,12 +6,14 @@ export const fundSchema = pgSchema('fund_app')
 
 // 定义用户角色的枚举类型
 export const userRoleEnum = fundSchema.enum('user_role', ['admin', 'user'])
+// 定义 AI 模式的枚举
+export const aiModeEnum = fundSchema.enum('ai_mode', ['auto', 'draft', 'off'])
 // 定义基金类型的枚举
 export const fundTypeEnum = fundSchema.enum('fund_type', ['open', 'qdii_lof'])
-// [修改] 扩展交易类型，增加 convert_out 和 convert_in
+// 扩展交易类型，增加 convert_out 和 convert_in
 export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell', 'convert_out', 'convert_in'])
-// 定义交易状态枚举 (目前只负责记录，后续逻辑会用到)
-export const transactionStatusEnum = fundSchema.enum('transaction_status', ['pending', 'confirmed', 'failed'])
+// 定义交易状态枚举，新增 draft 状态
+export const transactionStatusEnum = fundSchema.enum('transaction_status', ['draft', 'pending', 'confirmed', 'failed'])
 /**
  * 用户表 (users)
  * 存储应用的用户信息
@@ -25,11 +27,11 @@ export const users = fundSchema.table('users', {
   password: text('password').notNull(),
   /** 用户角色 ('admin' 或 'user') */
   role: userRoleEnum('role').notNull().default('user'),
-  /** 是否为 AI 代理账户 (用于自动化交易) */
-  isAiAgent: boolean('is_ai_agent').default(false).notNull(),
+  /** AI 自动操作模式 ('auto', 'draft' 或 'off') */
+  aiMode: aiModeEnum('ai_mode').default('off').notNull(),
   /** 自定义 System Prompt (如果为空则使用系统默认) */
   aiSystemPrompt: text('ai_system_prompt'),
-  /** [修改] 账户可用现金余额 (用于买入扣款和卖出回款) */
+  /** 账户可用现金余额 (用于买入扣款和卖出回款) */
   availableCash: numeric('available_cash', { precision: 18, scale: 4 }).default('0').notNull(),
   /** API Token (SHA-256 哈希存储，用于 MCP Bearer 认证) */
   apiToken: text('api_token').unique(),

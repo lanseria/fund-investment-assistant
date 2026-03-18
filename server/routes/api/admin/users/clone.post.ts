@@ -44,7 +44,7 @@ export default defineEventHandler(async (event) => {
       username: newUsername,
       password: await hashPassword('123456'),
       role: 'user',
-      isAiAgent: false, // 默认复制出来的不自动开启 AI，防止意外操作
+      aiMode: 'off', // 默认复制出来的不自动开启 AI，防止意外操作
     }).returning()
 
     if (!newUser)

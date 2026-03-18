@@ -1,4 +1,4 @@
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { fundTransactions } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
     where: and(
       eq(fundTransactions.id, Number(id)),
       eq(fundTransactions.userId, user.id),
-      eq(fundTransactions.status, 'pending'),
+      inArray(fundTransactions.status, ['pending', 'draft']),
     ),
   })
 

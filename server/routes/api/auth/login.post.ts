@@ -46,7 +46,7 @@ export default defineEventHandler(async (event) => {
     id: user.id,
     username: user.username,
     role: user.role,
-    isAiAgent: user.isAiAgent,
+    aiMode: user.aiMode,
     aiSystemPrompt: user.aiSystemPrompt,
     availableCash: user.availableCash,
   }
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
     id: user.id,
     username: user.username,
     role: user.role,
-    isAiAgent: user.isAiAgent,
+    aiMode: user.aiMode,
     // 其他字段保持 undefined/null，节省空间
   }
 

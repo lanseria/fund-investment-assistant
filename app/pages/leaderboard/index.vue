@@ -146,7 +146,7 @@ function getPeriodLabel(period: LeaderboardPeriod) {
           <div class="pl-2 flex-grow min-w-0">
             <div class="flex gap-2 items-center">
               <span class="font-bold truncate">{{ user.username }}</span>
-              <AiAgentBadge v-if="user.isAiAgent" />
+              <AiAgentBadge v-if="user.aiMode !== 'off'" :mode="user.aiMode" />
             </div>
 
             <!-- 资产细分条 (带进度条) -->

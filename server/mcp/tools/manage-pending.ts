@@ -1,11 +1,11 @@
-import { and, desc, eq } from 'drizzle-orm'
+import { and, desc, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
 import { funds, fundTransactions } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 export default defineMcpTool({
   name: 'manage_pending_transactions',
-  description: '管理用户的待处理交易。支持列出当前所有挂单 (list) 或撤销指定 ID 的挂单 (cancel)。撤销操作是不可逆的。',
+  description: '管理用户的待处理及预操作(草稿)交易。支持列出当前所有挂单 (list) 或撤销指定 ID 的挂单 (cancel)。撤销操作是不可逆的。',
   inputSchema: {
     action: z.enum(['list', 'cancel']).describe('操作类型：list (列出所有待处理交易) 或 cancel (撤销指定交易)'),
     transactionId: z.number().int().optional().describe('要撤销的交易 ID (整数)。仅当 action="cancel" 时必填。'),
@@ -37,6 +37,7 @@ export default defineMcpTool({
           type: fundTransactions.type,
           amount: fundTransactions.orderAmount,
           shares: fundTransactions.orderShares,
+          status: fundTransactions.status,
           date: fundTransactions.orderDate,
           note: fundTransactions.note,
           createdAt: fundTransactions.createdAt,
@@ -45,7 +46,7 @@ export default defineMcpTool({
           .leftJoin(funds, eq(fundTransactions.fundCode, funds.code))
           .where(and(
             eq(fundTransactions.userId, userId),
-            eq(fundTransactions.status, 'pending'),
+            inArray(fundTransactions.status, ['pending', 'draft']),
           ))
           .orderBy(desc(fundTransactions.createdAt))
 
@@ -61,6 +62,7 @@ export default defineMcpTool({
           detail: (tx.type === 'buy' || tx.type === 'convert_in')
             ? `金额: ${tx.amount}`
             : `份额: ${tx.shares}`,
+          status: tx.status,
           date: tx.date,
           note: tx.note || '-',
         }))
@@ -89,12 +91,12 @@ export default defineMcpTool({
           where: and(
             eq(fundTransactions.id, transactionId),
             eq(fundTransactions.userId, userId),
-            eq(fundTransactions.status, 'pending'),
+            inArray(fundTransactions.status, ['pending', 'draft']),
           ),
         })
 
         if (!tx) {
-          return { isError: true, content: [{ type: 'text', text: `未找到 ID 为 ${transactionId} 的待处理交易，或该交易已不再是 pending 状态。` }] }
+          return { isError: true, content: [{ type: 'text', text: `未找到 ID 为 ${transactionId} 的待处理或预操作交易，或该交易已执行。` }] }
         }
 
         // 逻辑复用：基金转换的特殊处理

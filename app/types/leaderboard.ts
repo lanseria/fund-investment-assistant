@@ -6,7 +6,7 @@ export interface LeaderboardUser {
   id: number
   rank: number
   username: string
-  isAiAgent: boolean
+  aiMode: 'auto' | 'draft' | 'off'
 
   // 核心资产数据
   totalAssets: number // 实时总权益 (现金 + 基金市值)

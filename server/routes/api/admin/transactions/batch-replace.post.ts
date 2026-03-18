@@ -1,7 +1,7 @@
 // server/routes/api/admin/transactions/batch-replace.post.ts
-import { and, eq } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
 import { z } from 'zod'
-import { fundTransactions } from '~~/server/database/schemas'
+import { fundTransactions, users } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
@@ -41,12 +41,19 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
 
   await db.transaction(async (tx) => {
-    // 1. 删除该用户在该日期下所有待处理 (pending) 的交易
+    // 0. 获取用户的 AI 模式，以决定写入的 status
+    const targetUser = await tx.query.users.findFirst({
+      where: eq(users.id, userId),
+      columns: { aiMode: true },
+    })
+    const defaultStatus = targetUser?.aiMode === 'auto' ? 'pending' : 'draft'
+
+    // 1. 删除该用户在该日期下所有待处理 (pending) 和预操作 (draft) 的交易
     await tx.delete(fundTransactions)
       .where(and(
         eq(fundTransactions.userId, userId),
         eq(fundTransactions.orderDate, date),
-        eq(fundTransactions.status, 'pending'),
+        inArray(fundTransactions.status, ['pending', 'draft']),
       ))
 
     // 2. 插入新的交易记录
@@ -76,7 +83,7 @@ export default defineEventHandler(async (event) => {
           userId,
           fundCode: d.fundCode,
           type: d.action,
-          status: 'pending',
+          status: defaultStatus,
           orderAmount: d.amount ? String(d.amount) : null,
           orderShares: d.shares ? String(d.shares) : null,
           orderDate: date,

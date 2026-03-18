@@ -16,7 +16,7 @@ useHead({
   title: `操作详情 - ${dateStr} - ${appName}`,
 })
 
-const { data, pending, error } = await useAsyncData(
+const { data, pending, error, refresh } = await useAsyncData(
   `daily-ops-detail-${dateStr}-${userId}`,
   () => apiFetch<{ user: any, txs: any[] }>(`/api/transactions/daily/${dateStr}/${userId}`),
 )
@@ -40,6 +40,29 @@ function getActionLabel(type: string) {
     convert_out: '转出',
   }
   return map[type] || type
+}
+
+const authStore = useAuthStore()
+const isApproving = ref(false)
+const hasDraft = computed(() => data.value?.txs.some(t => t.status === 'draft') ?? false)
+
+async function handleApproveAllDraft() {
+  if (!confirm('确认将当前所有的 [预操作] 转为 [待处理] 状态吗？'))
+    return
+  isApproving.value = true
+  try {
+    await apiFetch('/api/transactions/daily-approve', {
+      method: 'PUT',
+      body: { userId, date: dateStr },
+    })
+    refresh()
+  }
+  catch (e: any) {
+    alert(`操作失败: ${e.message}`)
+  }
+  finally {
+    isApproving.value = false
+  }
 }
 </script>
 
@@ -73,7 +96,7 @@ function getActionLabel(type: string) {
             <h2 class="text-xl font-bold">
               {{ data.user.username }}
             </h2>
-            <AiAgentBadge v-if="data.user.isAiAgent" />
+            <AiAgentBadge v-if="data.user.aiMode !== 'off'" :mode="data.user.aiMode" />
           </div>
           <p class="text-sm text-gray-500 font-mono mt-1">
             ID: {{ data.user.id }}
@@ -82,10 +105,19 @@ function getActionLabel(type: string) {
       </div>
 
       <div class="card overflow-hidden">
-        <div class="px-6 py-4 border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
+        <div class="px-6 py-4 border-b bg-gray-50 flex items-center justify-between dark:border-gray-700 dark:bg-gray-700/50">
           <h3 class="text-gray-800 font-bold dark:text-gray-200">
             交易记录 ({{ data.txs.length }}笔)
           </h3>
+          <button
+            v-if="hasDraft && (authStore.isAdmin || authStore.user?.id === userId)"
+            class="text-xs text-purple-600 px-3 py-1.5 border border-purple-200 rounded-md bg-white flex gap-1 transition-colors items-center dark:text-purple-400 dark:border-purple-800 dark:bg-gray-800 hover:bg-purple-50 dark:hover:bg-gray-700"
+            :disabled="isApproving"
+            @click="handleApproveAllDraft"
+          >
+            <div class="i-carbon-checkmark-outline" :class="{ 'animate-spin i-carbon-circle-dash': isApproving }" />
+            {{ isApproving ? '处理中...' : '全部转为待处理' }}
+          </button>
         </div>
 
         <div v-if="data.txs.length === 0" class="text-sm text-gray-400 p-10 text-center">
@@ -102,7 +134,8 @@ function getActionLabel(type: string) {
             <!-- 1. 时间 & 状态图标 -->
             <div class="text-xs text-gray-400 font-mono flex flex-shrink-0 gap-2 w-24 items-center">
               <span>{{ dayjs(tx.createdAt).format('HH:mm:ss') }}</span>
-              <div v-if="tx.status === 'pending'" class="i-carbon-hourglass text-yellow-500" title="待确认" />
+              <div v-if="tx.status === 'draft'" class="i-carbon-edit text-purple-500" title="预操作(草稿)" />
+              <div v-else-if="tx.status === 'pending'" class="i-carbon-hourglass text-yellow-500" title="待确认" />
               <div v-else-if="tx.status === 'failed'" class="i-carbon-close-filled text-red-500" title="失败" />
               <div v-else class="i-carbon-checkmark-filled text-green-500" title="已确认" />
             </div>

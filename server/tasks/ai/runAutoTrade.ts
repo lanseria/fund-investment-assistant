@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import dayjs from 'dayjs'
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
@@ -26,7 +26,7 @@ export default defineTask({
 
     // 1. 获取所有开启了 AI 代理的用户
     const aiUsers = await db.query.users.findMany({
-      where: eq(users.isAiAgent, true),
+      where: inArray(users.aiMode, ['auto', 'draft']),
     })
 
     console.log(`找到 ${aiUsers.length} 个 AI 代理用户。`)
@@ -51,7 +51,7 @@ export default defineTask({
           .from(fundTransactions)
           .where(and(
             eq(fundTransactions.userId, user.id),
-            eq(fundTransactions.status, 'pending'),
+            inArray(fundTransactions.status, ['pending', 'draft']),
             eq(fundTransactions.type, 'buy'),
           ))
 
@@ -89,8 +89,8 @@ export default defineTask({
           await db.insert(fundTransactions).values({
             userId: user.id,
             fundCode: decision.fundCode,
-            type: decision.action as 'buy' | 'sell', // 注意：这里可能需要扩展 TS 类型以支持 transfer，但目前 DB schema 限制了
-            status: 'pending',
+            type: decision.action as 'buy' | 'sell',
+            status: user.aiMode === 'auto' ? 'pending' : 'draft',
             orderAmount: decision.amount ? String(decision.amount) : null,
             orderShares: decision.shares ? String(decision.shares) : null,
             orderDate: todayStr ?? '',

@@ -3,6 +3,7 @@ export interface PendingTransaction {
   id: number
   // 增加转出转入类型
   type: 'buy' | 'sell' | 'convert_out' | 'convert_in'
+  status: 'pending' | 'draft'
   orderAmount: number | null
   orderShares: number | null
   orderDate: string

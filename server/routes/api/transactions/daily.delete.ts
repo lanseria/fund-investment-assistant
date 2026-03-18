@@ -18,11 +18,11 @@ export default defineEventHandler(async (event) => {
   // 构建子查询：查找所有开启了 AI 代理 (isAiAgent = true) 的用户 ID
   const aiUserIdsSubQuery = db.select({ id: users.id })
     .from(users)
-    .where(eq(users.isAiAgent, true))
+    .where(inArray(users.aiMode, ['auto', 'draft']))
 
   const conditions = [
     eq(fundTransactions.orderDate, dateStr),
-    eq(fundTransactions.status, 'pending'),
+    inArray(fundTransactions.status, ['pending', 'draft']),
     // 核心限制：仅删除属于 AI 用户的交易记录
     // 这样可以防止误删管理员或普通用户手动录入的交易
     inArray(fundTransactions.userId, aiUserIdsSubQuery),

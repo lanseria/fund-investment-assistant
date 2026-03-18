@@ -11,7 +11,7 @@ interface AdminUserItem {
   id: number
   username: string
   role: string
-  isAiAgent: boolean
+  aiMode: 'auto' | 'draft' | 'off'
   availableCash: string | number
   cash: number // 后端计算返回
   fundValue: number // 后端计算返回
@@ -87,7 +87,7 @@ const editingUserId = ref<number | null>(null)
 const editForm = reactive({
   username: '',
   availableCash: 0,
-  isAiAgent: false,
+  aiMode: 'off' as 'auto' | 'draft' | 'off',
   aiSystemPrompt: '',
 })
 
@@ -100,7 +100,7 @@ function openEditModal(user: any) {
   editingUserId.value = user.id
   editForm.username = user.username
   editForm.availableCash = user.availableCash ? Number(user.availableCash) : 0
-  editForm.isAiAgent = user.isAiAgent || false
+  editForm.aiMode = user.aiMode || 'off'
   editForm.aiSystemPrompt = user.aiSystemPrompt || ''
   isEditModalOpen.value = true
 }
@@ -145,7 +145,7 @@ async function handleEditUser() {
       body: {
         username: editForm.username,
         availableCash: editForm.availableCash,
-        isAiAgent: editForm.isAiAgent,
+        aiMode: editForm.aiMode,
         aiSystemPrompt: editForm.aiSystemPrompt || null,
       },
     })
@@ -298,7 +298,7 @@ async function handleCloneUser() {
                     <span class="text-gray-900 font-semibold truncate dark:text-gray-100">
                       {{ user.username }}
                     </span>
-                    <AiAgentBadge v-if="user.isAiAgent" />
+                    <AiAgentBadge v-if="user.aiMode !== 'off'" :mode="user.aiMode" />
                   </div>
                   <div class="mt-0.5 flex gap-2 items-center">
                     <span class="text-[10px] text-gray-400 font-mono">ID:{{ user.id }}</span>
@@ -514,7 +514,7 @@ async function handleCloneUser() {
           </div>
 
           <AiSettingsPanel
-            v-model:is-ai-agent="editForm.isAiAgent"
+            v-model:ai-mode="editForm.aiMode"
             v-model:ai-system-prompt="editForm.aiSystemPrompt"
             mode="form"
           />

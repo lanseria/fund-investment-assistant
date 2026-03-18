@@ -98,11 +98,11 @@ export async function getUserHoldingsAndSummary(userId: number) {
     },
   })
 
-  // 获取用户所有状态为 'pending' 的交易记录
+  // 获取用户所有状态为 'pending' 和 'draft' 的交易记录
   const pendingTxs = await db.query.fundTransactions.findMany({
     where: and(
       eq(fundTransactions.userId, userId),
-      eq(fundTransactions.status, 'pending'),
+      inArray(fundTransactions.status, ['pending', 'draft']),
     ),
     orderBy: [desc(fundTransactions.createdAt)],
   })
@@ -125,6 +125,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
     pendingTxMap.get(tx.fundCode)!.push({
       id: tx.id,
       type: tx.type,
+      status: tx.status,
       orderAmount: tx.orderAmount ? Number(tx.orderAmount) : null,
       orderShares: tx.orderShares ? Number(tx.orderShares) : null,
       orderDate: tx.orderDate,

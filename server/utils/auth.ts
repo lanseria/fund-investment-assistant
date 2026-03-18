@@ -7,7 +7,7 @@ export interface UserPayload {
   id: number
   username: string
   role: 'admin' | 'user'
-  isAiAgent: boolean
+  aiMode: 'auto' | 'draft' | 'off'
   aiSystemPrompt?: string | null
   availableCash?: string | null
 }

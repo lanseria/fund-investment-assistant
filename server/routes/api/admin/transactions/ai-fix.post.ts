@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import type { AiModel } from '~~/shared/ai-models'
-import { and, eq, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiFixStatus, setAiFixStatus } from '~~/server/utils/aiFixStatus'
@@ -13,7 +13,7 @@ import { AI_MODELS } from '~~/shared/ai-models'
 const AiFixSchema = z.object({
   userId: z.number(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  model: z.enum(AI_MODELS as [AiModel, ...AiModel[]]),
+  model: z.enum(AI_MODELS as unknown as [AiModel, ...AiModel[]]),
 })
 
 export default defineEventHandler(async (event) => {
@@ -42,6 +42,7 @@ export default defineEventHandler(async (event) => {
       username: true,
       availableCash: true,
       aiSystemPrompt: true,
+      aiMode: true,
     },
   })
 
@@ -81,7 +82,7 @@ export default defineEventHandler(async (event) => {
         .from(fundTransactions)
         .where(and(
           eq(fundTransactions.userId, userId),
-          eq(fundTransactions.status, 'pending'),
+          inArray(fundTransactions.status, ['pending', 'draft']),
           eq(fundTransactions.type, 'buy'),
           ne(fundTransactions.orderDate, date),
         ))
@@ -110,7 +111,7 @@ export default defineEventHandler(async (event) => {
           .where(and(
             eq(fundTransactions.userId, userId),
             eq(fundTransactions.orderDate, date),
-            eq(fundTransactions.status, 'pending'),
+            inArray(fundTransactions.status, ['pending', 'draft']),
           ))
 
         if (decisions.length === 0)
@@ -138,7 +139,7 @@ export default defineEventHandler(async (event) => {
             userId,
             fundCode: d.fundCode,
             type: d.action,
-            status: 'pending',
+            status: targetUser.aiMode === 'auto' ? 'pending' : 'draft',
             orderAmount: d.amount ? String(d.amount) : null,
             orderShares: d.shares ? String(d.shares) : null,
             orderDate: date,

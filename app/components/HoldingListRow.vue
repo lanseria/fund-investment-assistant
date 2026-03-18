@@ -223,7 +223,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
             {{ (tx.type === 'buy' || tx.type === 'convert_in') ? (tx.orderAmount ? formatCurrency(tx.orderAmount) : '等待确认') : `${tx.orderShares}份` }}
           </span>
 
-          <span class="ml-1 opacity-75">(待确认)</span>
+          <span class="ml-1 opacity-75">({{ tx.status === 'draft' ? '预操作' : '待处理' }})</span>
 
           <!-- 删除图标 (转入时不显示或显示禁用状态) -->
           <div v-if="tx.type !== 'convert_in'" class="i-carbon-close-filled ml-1 opacity-0 transition-opacity group-hover:opacity-100" />

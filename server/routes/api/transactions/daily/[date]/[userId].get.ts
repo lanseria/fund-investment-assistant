@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
 
   const user = await db.query.users.findFirst({
     where: eq(users.id, userId),
-    columns: { id: true, username: true, isAiAgent: true },
+    columns: { id: true, username: true, aiMode: true },
   })
 
   if (!user)

@@ -1,7 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
-  isAiAgent: boolean
+  aiMode: 'auto' | 'draft' | 'off'
   aiSystemPrompt?: string | null
   // 模式: 'immediate' (个人中心，独立保存) | 'form' (后台管理，仅表单)
   mode?: 'immediate' | 'form'
@@ -12,9 +12,9 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  'update:isAiAgent': [value: boolean]
+  'update:aiMode': [value: 'auto' | 'draft' | 'off']
   'update:aiSystemPrompt': [value: string]
-  'toggle': [value: boolean] // 仅 immediate 模式使用
+  'change-mode': [value: 'auto' | 'draft' | 'off'] // 仅 immediate 模式使用
   'save-config': [] // 仅 immediate 模式使用
 }>()
 
@@ -85,13 +85,14 @@ function copyDefaultPrompt() {
   localPrompt.value = DEFAULT_PROMPT_TEMPLATE
 }
 
-function handleToggle() {
-  const newState = !props.isAiAgent
+function handleModeChange(m: 'auto' | 'draft' | 'off') {
+  if (props.loading)
+    return
   if (props.mode === 'immediate') {
-    emit('toggle', newState)
+    emit('change-mode', m)
   }
   else {
-    emit('update:isAiAgent', newState)
+    emit('update:aiMode', m)
   }
 }
 </script>
@@ -102,29 +103,40 @@ function handleToggle() {
       AI 智能代理设置
     </h2>
 
-    <!-- 主开关 -->
+    <!-- 主开关/模式选择 -->
     <div class="mb-4 p-4 border rounded-lg bg-gray-50 flex items-center justify-between dark:border-gray-700 dark:bg-gray-800">
       <div>
         <div class="font-medium flex gap-2 items-center">
           <div class="i-carbon-bot text-xl" />
-          AI 自动操作开关
+          AI 自动操作模式
         </div>
         <p class="text-xs text-gray-500 mt-1">
-          开启后，系统将在每个交易日 14:40 自动执行 AI 分析与下单。
+          设定 AI 在每个交易日 14:30 的行为。
         </p>
       </div>
-      <button
-        class="border-2 border-transparent rounded-full inline-flex flex-shrink-0 h-6 w-11 cursor-pointer transition-colors duration-200 ease-in-out relative focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
-        :class="isAiAgent ? 'bg-primary' : 'bg-gray-200 dark:bg-gray-600'"
-        :disabled="loading"
-        type="button"
-        @click="handleToggle"
-      >
-        <span
-          class="rounded-full bg-white h-5 w-5 inline-block pointer-events-none ring-0 shadow transform transition duration-200 ease-in-out"
-          :class="isAiAgent ? 'translate-x-5' : 'translate-x-0'"
-        />
-      </button>
+      <div class="p-1 rounded-lg bg-gray-200 flex dark:bg-gray-700">
+        <button
+          class="text-sm px-3 py-1.5 rounded-md transition-colors"
+          :class="aiMode === 'auto' ? 'bg-white shadow-sm text-primary font-bold dark:bg-gray-600 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+          :disabled="loading" type="button" @click="handleModeChange('auto')"
+        >
+          全自动
+        </button>
+        <button
+          class="text-sm px-3 py-1.5 rounded-md transition-colors"
+          :class="aiMode === 'draft' ? 'bg-white shadow-sm text-purple-600 font-bold dark:bg-gray-600 dark:text-purple-300' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+          :disabled="loading" type="button" @click="handleModeChange('draft')"
+        >
+          预操作
+        </button>
+        <button
+          class="text-sm px-3 py-1.5 rounded-md transition-colors"
+          :class="aiMode === 'off' ? 'bg-white shadow-sm text-gray-800 font-bold dark:bg-gray-600 dark:text-gray-200' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'"
+          :disabled="loading" type="button" @click="handleModeChange('off')"
+        >
+          关闭
+        </button>
+      </div>
     </div>
 
     <!-- 高级配置折叠面板 -->
