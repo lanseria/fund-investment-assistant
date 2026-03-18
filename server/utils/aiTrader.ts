@@ -274,7 +274,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = userConfig.model || 'doubao-seed-2.0-pro'
+  const targetModel = userConfig.model || 'doubao-seed-2-0-pro-260215'
 
   try {
     const openai = new OpenAI({
