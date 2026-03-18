@@ -7,30 +7,30 @@ packages: []
 
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.7.0
+    '@nuxtjs/mcp-toolkit': ^0.8.0
     '@types/pg': ^8.18.0
     argon2: ^0.44.0
-    drizzle-kit: ^0.31.9
+    drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
-    openai: ^6.29.0
+    openai: ^6.32.0
     pg: ^8.20.0
   build:
     '@nuxt/eslint': ^1.15.2
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.6.6
-    '@unocss/nuxt': ^66.6.6
+    '@unocss/eslint-config': ^66.6.7
+    '@unocss/nuxt': ^66.6.7
     '@vueuse/nuxt': ^14.2.1
     nuxt: ^4.4.2
-    unocss: ^66.6.6
+    unocss: ^66.6.7
     unplugin: ^3.0.0
   dev:
-    '@antfu/eslint-config': ^7.7.2
+    '@antfu/eslint-config': ^7.7.3
     eslint: ^10.0.3
     eslint-plugin-format: ^2.0.1
     typescript: ^5.9.3
-    vue-tsc: ^3.2.5
+    vue-tsc: ^3.2.6
   frontend:
     '@vueuse/components': ^14.2.1
     '@vueuse/core': ^14.2.1
