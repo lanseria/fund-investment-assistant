@@ -18,6 +18,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
       userId: holdings.userId,
       username: users.username,
       aiMode: users.aiMode,
+      aiSystemPrompt: users.aiSystemPrompt,
       userCash: users.availableCash, // [修改] 直接读取可用现金
       fundCode: holdings.fundCode,
       shares: holdings.shares,
@@ -75,6 +76,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
         rank: 0,
         username: h.username,
         aiMode: h.aiMode,
+        aiSystemPrompt: h.aiSystemPrompt,
         // 初始化现金 (从第一条记录获取即可，因为同一用户的 userCash 是一样的)
         cash: Number(h.userCash || 0),
         fundValue: 0,

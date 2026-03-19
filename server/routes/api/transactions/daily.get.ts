@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
       username: true,
       aiMode: true,
       availableCash: true, //  获取现金余额
+      aiSystemPrompt: true, // 添加获取系统提示词
     },
   })
 

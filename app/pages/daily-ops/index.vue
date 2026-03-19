@@ -42,6 +42,14 @@ const aiFixTargetUser = ref<{ id: number, username: string } | null>(null)
 const aiFixModel = ref<AiModel>('doubao-seed-2-0-pro-260215')
 const isAiFixSubmitting = ref(false)
 
+const isStrategyModalOpen = ref(false)
+const selectedStrategyUser = ref<{ username: string, aiSystemPrompt: string } | null>(null)
+
+function openStrategyModal(user: any) {
+  selectedStrategyUser.value = user
+  isStrategyModalOpen.value = true
+}
+
 // 动态获取 Prompt，不再依赖日志表
 async function handleCopyPrompt(userId: number, username: string) {
   isLogLoading.value = true
@@ -257,6 +265,14 @@ async function handleApproveDraft(userId: number, username: string) {
                         {{ group.user.username }}
                       </span>
                       <AiAgentBadge v-if="group.user.aiMode !== 'off'" :mode="group.user.aiMode" />
+                      <button
+                        v-if="group.user.aiSystemPrompt"
+                        class="icon-btn text-gray-400 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"
+                        title="查看操作策略"
+                        @click.stop="openStrategyModal(group.user)"
+                      >
+                        <div class="i-carbon-catalog text-lg" />
+                      </button>
                     </div>
                     <!--  资产统计条 -->
                     <div class="text-xs text-gray-500 mt-1 flex flex-col flex-wrap gap-y-1">
@@ -416,6 +432,18 @@ async function handleApproveDraft(userId: number, username: string) {
               {{ isAiFixSubmitting ? '提交中...' : '开始修正' }}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      <!-- 操作策略展示模态框 -->
+      <Modal v-model="isStrategyModalOpen" :title="`${selectedStrategyUser?.username} 的操作策略`">
+        <div class="pr-2 max-h-[60vh] overflow-y-auto">
+          <pre class="text-sm text-gray-700 font-mono p-4 rounded-md bg-gray-50 whitespace-pre-wrap dark:text-gray-300 dark:bg-gray-800">{{ selectedStrategyUser?.aiSystemPrompt }}</pre>
+        </div>
+        <div class="mt-6 flex justify-end">
+          <button class="btn" @click="isStrategyModalOpen = false">
+            关闭
+          </button>
         </div>
       </Modal>
     </div>

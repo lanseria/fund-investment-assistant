@@ -72,6 +72,14 @@ function getPeriodLabel(period: LeaderboardPeriod) {
     default: return ''
   }
 }
+
+const isStrategyModalOpen = ref(false)
+const selectedStrategyUser = ref<LeaderboardUser | null>(null)
+
+function openStrategyModal(user: LeaderboardUser) {
+  selectedStrategyUser.value = user
+  isStrategyModalOpen.value = true
+}
 </script>
 
 <template>
@@ -147,6 +155,14 @@ function getPeriodLabel(period: LeaderboardPeriod) {
             <div class="flex gap-2 items-center">
               <span class="font-bold truncate">{{ user.username }}</span>
               <AiAgentBadge v-if="user.aiMode !== 'off'" :mode="user.aiMode" />
+              <button
+                v-if="user.aiSystemPrompt"
+                class="icon-btn text-gray-400 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"
+                title="查看操作策略"
+                @click.stop="openStrategyModal(user)"
+              >
+                <div class="i-carbon-catalog" />
+              </button>
             </div>
 
             <!-- 资产细分条 (带进度条) -->
@@ -217,5 +233,17 @@ function getPeriodLabel(period: LeaderboardPeriod) {
       <div i-carbon-trophy class="text-5xl mx-auto mb-4 opacity-30" />
       <p>暂无排行数据</p>
     </div>
+
+    <!-- 操作策略展示模态框 -->
+    <Modal v-model="isStrategyModalOpen" :title="`${selectedStrategyUser?.username} 的操作策略`">
+      <div class="pr-2 max-h-[60vh] overflow-y-auto">
+        <pre class="text-sm text-gray-700 font-mono p-4 rounded-md bg-gray-50 whitespace-pre-wrap dark:text-gray-300 dark:bg-gray-800">{{ selectedStrategyUser?.aiSystemPrompt }}</pre>
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button class="btn" @click="isStrategyModalOpen = false">
+          关闭
+        </button>
+      </div>
+    </Modal>
   </div>
 </template>

@@ -64,6 +64,8 @@ async function handleApproveAllDraft() {
     isApproving.value = false
   }
 }
+
+const isStrategyModalOpen = ref(false)
 </script>
 
 <template>
@@ -97,6 +99,14 @@ async function handleApproveAllDraft() {
               {{ data.user.username }}
             </h2>
             <AiAgentBadge v-if="data.user.aiMode !== 'off'" :mode="data.user.aiMode" />
+            <button
+              v-if="data.user.aiSystemPrompt"
+              class="icon-btn text-gray-400 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"
+              title="查看操作策略"
+              @click="isStrategyModalOpen = true"
+            >
+              <div class="i-carbon-catalog text-xl" />
+            </button>
           </div>
           <p class="text-sm text-gray-500 font-mono mt-1">
             ID: {{ data.user.id }}
@@ -194,5 +204,17 @@ async function handleApproveAllDraft() {
         </div>
       </div>
     </div>
+
+    <!-- 操作策略展示模态框 -->
+    <Modal v-model="isStrategyModalOpen" :title="`${data?.user.username} 的操作策略`">
+      <div class="pr-2 max-h-[60vh] overflow-y-auto">
+        <pre class="text-sm text-gray-700 font-mono p-4 rounded-md bg-gray-50 whitespace-pre-wrap dark:text-gray-300 dark:bg-gray-800">{{ data?.user.aiSystemPrompt }}</pre>
+      </div>
+      <div class="mt-6 flex justify-end">
+        <button class="btn" @click="isStrategyModalOpen = false">
+          关闭
+        </button>
+      </div>
+    </Modal>
   </div>
 </template>
