@@ -10,8 +10,8 @@ const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
-// 新增: 板块数据定时同步 (默认交易日 11:30 和 15:30)
-const syncSectorsCron = env.CRON_MARKET_SYNC_SECTORS ?? '30 11,15 * * 1-5'
+// 板块数据定时同步 (默认交易日 11:30 和 15:30)
+const syncSectorsCron = env.CRON_MARKET_SYNC_SECTORS ?? '30 11,14 * * 1-5'
 
 // 只有当环境变量中设置了有效的 Cron 表达式时，才添加任务
 if (syncHistoryCron) {

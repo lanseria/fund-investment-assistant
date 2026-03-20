@@ -50,46 +50,79 @@ export default defineEventHandler(async (event) => {
     const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
 
     // --- 升级版多维交叉决策系统逻辑 ---
-    let signal = '震荡/分歧'
+    let signal = '震荡分歧'
     let signalCode = 'neutral' // 用于前端配色
-    let action = '观望'
+    let action = '底仓观望 (30%)'
 
-    // 规则 1: 量价配合判定（防飞刀，最高优先级）
-    if (curChangeRate < -2.0 && diffTurn > 1.0) {
-      signal = '放量大跌'
+    // 1. 极端风控 (最高优先级)
+    if (curChangeRate <= -3.0 && diffTurn > 0.5) {
+      signal = '放量暴跌'
       signalCode = 'down'
-      action = '坚决清仓'
+      action = '风控清仓 (0%)'
     }
-    // 规则 2: 拥挤度一票否决权（防崩盘）
-    else if (curVol > 10) {
+    else if (curChangeRate <= -2.0 && curVol > 10) {
+      signal = '拥挤踩踏'
+      signalCode = 'down'
+      action = '减仓避险 (0-20%)'
+    }
+    // 2. 高位预警 (拥挤度过高)
+    else if (curVol > 12) {
       if (curChangeRate > 0) {
-        signal = '高位震荡'
+        signal = '情绪过热'
         signalCode = 'top'
-        action = '持有/停买'
+        action = '逢高止盈 (30%)'
       }
       else {
-        signal = '极度拥挤'
+        signal = '高位派发'
         signalCode = 'top'
-        action = '减仓/防守'
+        action = '防守减仓 (20%)'
       }
     }
-    // 规则 3: 冰点底部的确认（抓潜伏）
-    else if (curTurn < 1.0) {
-      signal = '冰点筑底'
-      signalCode = 'bottom'
-      action = '左侧建仓'
-    }
-    // 补充规则: 无量阴跌
-    else if (curChangeRate < -2.0 && curTurn >= 1.0 && curTurn < 2.0) {
-      signal = '无量阴跌'
-      signalCode = 'down'
-      action = '空仓观望'
-    }
-    // 规则 4: 真正的主升浪定义（找主线）
-    else if (curChangeRate > 0 && curVol >= 3 && curVol <= 8 && curTurn > 2 && diffTurn > 0) {
-      signal = '主升浪'
+    // 3. 主升浪行情 (右侧趋势)
+    else if (curChangeRate >= 1.5 && diffTurn > 0.5 && curVol >= 3 && curVol <= 10) {
+      signal = '放量突破'
       signalCode = 'up'
-      action = '持仓/加仓'
+      action = '右侧追击 (80-100%)'
+    }
+    else if (curChangeRate >= 0.5 && curTurn > 2 && diffTurn >= -0.5) {
+      signal = '温和推升'
+      signalCode = 'up'
+      action = '趋势持仓 (60-80%)'
+    }
+    // 4. 底部特征 (左侧潜伏)
+    else if (curTurn < 1.0 && curChangeRate >= -0.5 && curChangeRate <= 1.0) {
+      signal = '冰点企稳'
+      signalCode = 'bottom'
+      action = '试探建仓 (10-20%)'
+    }
+    else if (curTurn < 1.5 && curChangeRate > 1.0 && diffTurn > 0) {
+      signal = '底部异动'
+      signalCode = 'bottom'
+      action = '左侧加仓 (30-50%)'
+    }
+    // 5. 下跌中继
+    else if (curChangeRate < -1.0 && diffTurn <= 0) {
+      signal = '缩量阴跌'
+      signalCode = 'down'
+      action = '阴跌观望 (0-10%)'
+    }
+    else if (curChangeRate < -1.0 && diffTurn > 0) {
+      signal = '放量回调'
+      signalCode = 'down'
+      action = '谨慎防守 (20%)'
+    }
+    // 6. 默认震荡
+    else {
+      if (curChangeRate > 0) {
+        signal = '缩量震荡'
+        signalCode = 'neutral'
+        action = '底仓持有 (30-50%)'
+      }
+      else {
+        signal = '弱势震荡'
+        signalCode = 'neutral'
+        action = '高抛低吸 (20-30%)'
+      }
     }
 
     return {

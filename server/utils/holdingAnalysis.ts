@@ -212,23 +212,40 @@ export async function getUserHoldingsAndSummary(userId: number) {
       const curChangeRate = Number(curr.changeRate || 0) // 新增：读取当日涨跌幅
       const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
 
-      let action = '观望'
-      if (curChangeRate < -2.0 && diffTurn > 1.0) {
-        action = '坚决清仓'
+      let action = '底仓观望 (30%)'
+      if (curChangeRate <= -3.0 && diffTurn > 0.5) {
+        action = '风控清仓 (0%)'
       }
-      else if (curVol > 10) {
+      else if (curChangeRate <= -2.0 && curVol > 10) {
+        action = '减仓避险 (0-20%)'
+      }
+      else if (curVol > 12) {
         if (curChangeRate > 0)
-          action = '持有/停买'
-        else action = '减仓/防守'
+          action = '逢高止盈 (30%)'
+        else action = '防守减仓 (20%)'
       }
-      else if (curTurn < 1.0) {
-        action = '左侧建仓'
+      else if (curChangeRate >= 1.5 && diffTurn > 0.5 && curVol >= 3 && curVol <= 10) {
+        action = '右侧追击 (80-100%)'
       }
-      else if (curChangeRate < -2.0 && curTurn >= 1.0 && curTurn < 2.0) {
-        action = '空仓观望'
+      else if (curChangeRate >= 0.5 && curTurn > 2 && diffTurn >= -0.5) {
+        action = '趋势持仓 (60-80%)'
       }
-      else if (curChangeRate > 0 && curVol >= 3 && curVol <= 8 && curTurn > 2 && diffTurn > 0) {
-        action = '持仓/加仓'
+      else if (curTurn < 1.0 && curChangeRate >= -0.5 && curChangeRate <= 1.0) {
+        action = '试探建仓 (10-20%)'
+      }
+      else if (curTurn < 1.5 && curChangeRate > 1.0 && diffTurn > 0) {
+        action = '左侧加仓 (30-50%)'
+      }
+      else if (curChangeRate < -1.0 && diffTurn <= 0) {
+        action = '阴跌观望 (0-10%)'
+      }
+      else if (curChangeRate < -1.0 && diffTurn > 0) {
+        action = '谨慎防守 (20%)'
+      }
+      else {
+        if (curChangeRate > 0)
+          action = '底仓持有 (30-50%)'
+        else action = '高抛低吸 (20-30%)'
       }
 
       // 存储完整数据

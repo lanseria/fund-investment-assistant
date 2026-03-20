@@ -433,66 +433,79 @@ function getSignalClass(code: string) {
                 市场含义
               </th>
               <th class="p-2 border dark:border-gray-600">
-                指令
+                建议仓位
               </th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td class="text-red-600 font-bold p-2 border bg-red-50 dark:border-gray-600 dark:bg-red-900/20">
-                主升浪
+              <td class="text-green-600 font-bold p-2 border bg-green-50 dark:border-gray-600 dark:bg-green-900/20">
+                极端风控
               </td>
               <td class="p-2 border dark:border-gray-600">
-                收涨 且 水位健康(3~8%)<br>换手率 > 2% 且 稳步放大
+                跌幅 ≤ -3% 且 换手放大<br>或 跌幅 ≤ -2% 且 水位 > 10%
               </td>
               <td class="p-2 border dark:border-gray-600">
-                量价齐升，资金持续流入
+                恐慌性抛售或高位拥挤踩踏
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                持仓 / 加仓
+                清仓/避险 (0~20%)
               </td>
             </tr>
             <tr>
               <td class="text-purple-600 font-bold p-2 border bg-purple-50 dark:border-gray-600 dark:bg-purple-900/20">
-                极度拥挤 / 高位震荡
+                高位预警
               </td>
               <td class="p-2 border dark:border-gray-600">
-                成交额占比 > 10%<br>无论涨跌
+                水位 > 12%<br>(情绪过热/高位派发)
               </td>
               <td class="p-2 border dark:border-gray-600">
-                板块严重吸血，随时瓦解
+                板块极度拥挤，博弈剧烈，瓦解风险高
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                减仓防守 / 停止买入
+                止盈/防守 (20~30%)
               </td>
             </tr>
             <tr>
-              <td class="text-green-600 font-bold p-2 border bg-green-50 dark:border-gray-600 dark:bg-green-900/20">
-                放量大跌 / 无量阴跌
+              <td class="text-red-600 font-bold p-2 border bg-red-50 dark:border-gray-600 dark:bg-red-900/20">
+                主升浪/趋势
               </td>
               <td class="p-2 border dark:border-gray-600">
-                跌幅 > 2%<br>伴随 换手急剧放大 或 极度萎缩
+                涨幅 ≥ 1.5% 且 换手放大 (水位 3~10%)<br>或 温和推升
               </td>
               <td class="p-2 border dark:border-gray-600">
-                恐慌性出逃 或 多头躺平
+                右侧趋势确立，资金持续健康流入
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                坚决清仓 / 空仓观望
+                追击/持仓 (60~100%)
               </td>
             </tr>
             <tr>
               <td class="text-blue-600 font-bold p-2 border bg-blue-50 dark:border-gray-600 dark:bg-blue-900/20">
-                冰点筑底
-              </td>
-              <td v-pre class="p-2 border dark:border-gray-600">
-                <!-- eslint-disable-next-line vue/no-parsing-error -->
-                换手率 < 1%
+                底部潜伏
               </td>
               <td class="p-2 border dark:border-gray-600">
-                抛压枯竭，无人问津
+                换手率 &lt; 1.0% (冰点企稳)<br>或 底部放量异动
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                抛压枯竭无人问津，或左侧资金尝试抄底
               </td>
               <td class="font-bold p-2 border dark:border-gray-600">
-                左侧建仓
+                试探/左侧建仓 (10~50%)
+              </td>
+            </tr>
+            <tr>
+              <td class="text-gray-600 font-bold p-2 border bg-gray-50 dark:border-gray-600 dark:bg-gray-800/50">
+                下跌中继/震荡
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                缩量阴跌 / 放量回调<br>或 缩量震荡
+              </td>
+              <td class="p-2 border dark:border-gray-600">
+                多头抵抗意愿弱，持续释放抛压，或进入分歧期
+              </td>
+              <td class="font-bold p-2 border dark:border-gray-600">
+                观望/高抛低吸 (0~50%)
               </td>
             </tr>
           </tbody>

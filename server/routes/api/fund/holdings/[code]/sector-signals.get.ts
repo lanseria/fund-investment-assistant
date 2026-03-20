@@ -42,36 +42,62 @@ export default defineEventHandler(async (event) => {
     let action = '观望'
 
     // --- 核心多维交叉决策系统逻辑 ---
-    if (curChangeRate < -2.0 && diffTurn > 1.0) {
-      signal = '放量大跌'
-      action = '坚决清仓'
+    if (curChangeRate <= -3.0 && diffTurn > 0.5) {
+      signal = '放量暴跌'
+      action = '风控清仓 (0%)'
     }
-    else if (curVol > 10) {
+    else if (curChangeRate <= -2.0 && curVol > 10) {
+      signal = '拥挤踩踏'
+      action = '减仓避险 (0-20%)'
+    }
+    else if (curVol > 12) {
       if (curChangeRate > 0) {
-        signal = '高位震荡'
-        action = '持有/停买'
+        signal = '情绪过热'
+        action = '逢高止盈 (30%)'
       }
       else {
-        signal = '极度拥挤'
-        action = '减仓/防守'
+        signal = '高位派发'
+        action = '防守减仓 (20%)'
       }
     }
-    else if (curTurn < 1.0) {
-      signal = '冰点筑底'
-      action = '左侧建仓'
+    else if (curChangeRate >= 1.5 && diffTurn > 0.5 && curVol >= 3 && curVol <= 10) {
+      signal = '放量突破'
+      action = '右侧追击 (80-100%)'
     }
-    else if (curChangeRate < -2.0 && curTurn >= 1.0 && curTurn < 2.0) {
-      signal = '无量阴跌'
-      action = '空仓观望'
+    else if (curChangeRate >= 0.5 && curTurn > 2 && diffTurn >= -0.5) {
+      signal = '温和推升'
+      action = '趋势持仓 (60-80%)'
     }
-    else if (curChangeRate > 0 && curVol >= 3 && curVol <= 8 && curTurn > 2 && diffTurn > 0) {
-      signal = '主升浪'
-      action = '持仓/加仓'
+    else if (curTurn < 1.0 && curChangeRate >= -0.5 && curChangeRate <= 1.0) {
+      signal = '冰点企稳'
+      action = '试探建仓 (10-20%)'
+    }
+    else if (curTurn < 1.5 && curChangeRate > 1.0 && diffTurn > 0) {
+      signal = '底部异动'
+      action = '左侧加仓 (30-50%)'
+    }
+    else if (curChangeRate < -1.0 && diffTurn <= 0) {
+      signal = '缩量阴跌'
+      action = '阴跌观望 (0-10%)'
+    }
+    else if (curChangeRate < -1.0 && diffTurn > 0) {
+      signal = '放量回调'
+      action = '谨慎防守 (20%)'
+    }
+    else {
+      if (curChangeRate > 0) {
+        signal = '缩量震荡'
+        action = '底仓持有 (30-50%)'
+      }
+      else {
+        signal = '弱势震荡'
+        action = '高抛低吸 (20-30%)'
+      }
     }
 
     // 5. 仅保留产生买卖动作的指标信号
-    const isBuy = action === '持仓/加仓' || action === '左侧建仓'
-    const isSell = action === '坚决清仓' || action === '减仓/防守'
+    const isBuy = action.includes('建仓') || action.includes('加仓') || action.includes('追击') || action.includes('低吸')
+    const isSell = action.includes('清仓') || action.includes('减仓') || action.includes('止盈') || action.includes('避险') || action.includes('防守') || action.includes('高抛')
 
     if (isBuy || isSell) {
       const closeNav = navMap.get(curr.date)
