@@ -49,7 +49,7 @@
     "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
     "pinia": "catalog:frontend",
-    "secure-exec": "catalog:",
+    "secure-exec": "catalog:backend",
     "typescript": "catalog:dev",
     "unocss": "catalog:build",
     "vue": "catalog:frontend",
