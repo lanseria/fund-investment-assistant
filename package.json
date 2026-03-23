@@ -49,6 +49,7 @@
     "paseto-ts": "catalog:utils",
     "pg": "catalog:backend",
     "pinia": "catalog:frontend",
+    "secure-exec": "catalog:",
     "typescript": "catalog:dev",
     "unocss": "catalog:build",
     "vue": "catalog:frontend",
@@ -61,6 +62,6 @@
     "nuxt": "catalog:build",
     "semver": "^7.7.4",
     "unplugin": "catalog:build",
-    "vite": "^8.0.0"
+    "vite": "^8.0.1"
   }
 }

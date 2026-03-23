@@ -2,6 +2,7 @@
 import { getMcpUser } from '~~/server/utils/apiToken'
 
 export default defineMcpHandler({
+  experimental_codeMode: true,
   middleware: async (event) => {
     // --- DEBUG START ---
     const headers = getHeaders(event)
