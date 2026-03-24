@@ -3,7 +3,7 @@
 import type { Holding } from '~/types/holding'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
-import { appName, SECTOR_DICT_TYPE } from '~/constants'
+import { appName } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 const dayjs = useDayjs()
@@ -16,7 +16,6 @@ const { holdings } = storeToRefs(holdingStore)
 
 // 获取当前基金的 holding 数据
 const currentHolding = computed(() => holdingStore.holdings.find(h => h.code === code))
-const { getLabel } = useDictStore()
 
 // 请求新的基金详情接口
 const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
@@ -148,15 +147,11 @@ const { data, pending, error, refresh } = await useAsyncData(
     // 获取区间涨跌幅数据
     const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
 
-    // [新增] 获取板块历史量化决策信号
-    const fetchSectorSignals = () => apiFetch<any[]>(`/api/fund/holdings/${code}/sector-signals`)
-
-    const [baseData, rsiData, bollingerData, performanceData, sectorSignalsData] = await Promise.all([
+    const [baseData, rsiData, bollingerData, performanceData] = await Promise.all([
       fetchGenericStrategy(''),
       fetchRsiStrategy(),
       fetchGenericStrategy('bollinger_bands'),
       fetchPerformance(),
-      fetchSectorSignals(), // [新增]
     ])
 
     return {
@@ -164,7 +159,6 @@ const { data, pending, error, refresh } = await useAsyncData(
       rsi: rsiData,
       bollingerBands: bollingerData,
       performance: performanceData,
-      sectorSignals: sectorSignalsData, // [新增]
     }
   },
 )
@@ -251,7 +245,7 @@ function setDateRange(period: string) {
     return
 
   const targetDate = dayjs(historyData[totalPoints - 1]!.date).subtract(filter.amount, filter.unit as any)
-  const startIndex = historyData.findIndex(p => dayjs(p.date).isAfter(targetDate))
+  const startIndex = historyData.findIndex((p: { date: string }) => dayjs(p.date).isAfter(targetDate))
 
   if (startIndex !== -1) {
     dataZoomStart.value = (startIndex / totalPoints) * 100
@@ -315,9 +309,6 @@ watch(data, (newData) => {
         <div class="flex gap-3 items-center">
           <span class="text-xl font-bold">{{ fundDetail.name }}</span>
           <span class="text-sm text-gray-500 font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{{ fundDetail.code }}</span>
-          <span class="text-xs text-blue-600 px-2 py-0.5 border border-blue-100 rounded bg-blue-50 dark:text-blue-300 dark:border-blue-800 dark:bg-blue-900/30">
-            {{ getLabel(SECTOR_DICT_TYPE, fundDetail.sector) || '未设置板块' }}
-          </span>
         </div>
         <div class="text-xs text-gray-400 mt-2 flex gap-4">
           <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
@@ -423,16 +414,6 @@ watch(data, (newData) => {
         :history="data.bollingerBands.history"
         :signals="data.bollingerBands.signals"
         :title="`基金 ${fundName} - 布林带策略`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
-        @signal-click="openSignalDetails"
-      />
-
-      <!-- [新增] 板块量化决策历史图表 -->
-      <GenericStrategyChart
-        :history="data.base.history"
-        :signals="data.sectorSignals || []"
-        :title="`基金 ${fundName} - 板块量化决策`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"

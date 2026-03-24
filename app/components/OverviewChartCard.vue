@@ -3,7 +3,6 @@ import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
-import { SECTOR_DICT_TYPE } from '~/constants'
 import { dateFilterOptions } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 
@@ -12,7 +11,6 @@ interface ChartCardData {
   name: string
   strategy: string
   data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[] }
-  sector: string | null
   holdingAmount: number | null
   percentageChange: number | null
   todayEstimateProfitLoss: number | null
@@ -24,7 +22,6 @@ const props = defineProps<{
 }>()
 
 const dayjs = useDayjs()
-const { getLabel } = useDictStore()
 
 // --- 辅助函数 ---
 function getChangeClass(value: number | null | undefined) {
@@ -36,6 +33,7 @@ function getChangeClass(value: number | null | undefined) {
     return 'text-green-500 dark:text-green-400'
   return 'text-gray'
 }
+
 // [核心] 在卡片组件内部根据全量数据和筛选器，计算出需要传递给图表的数据切片
 const slicedData = computed(() => {
   const period = props.activeDateFilter
@@ -85,11 +83,8 @@ const slicedData = computed(() => {
 
 <template>
   <div class="card flex flex-col overflow-hidden">
-    <!-- 头部：基金名称和板块 -->
+    <!-- 头部：基金名称 -->
     <div class="p-3 border-b flex gap-2 items-baseline justify-between dark:border-gray-700">
-      <div class="text-xs font-medium px-2 py-0.5 rounded-full flex-none" :class="fund.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400'">
-        {{ getLabel(SECTOR_DICT_TYPE, fund.sector) || '未分类' }}
-      </div>
       <NuxtLink :to="`/fund/${fund.code}`" :title="fund.code" class="text-sm font-semibold truncate transition-colors hover:text-primary">
         {{ fund.name }}
       </NuxtLink>

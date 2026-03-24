@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, boolean, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')

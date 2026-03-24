@@ -1,7 +1,7 @@
 // server/utils/holdingAnalysis.ts
 import BigNumber from 'bignumber.js'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { fundTransactions, holdings, navHistory, sectorDailyStats, strategySignals } from '~~/server/database/schemas'
+import { fundTransactions, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -185,74 +185,6 @@ export async function getUserHoldingsAndSummary(userId: number) {
   }
   const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
 
-  // --- 获取最近两天的板块数据以计算 AI 决策 ---
-  const recentSectorStats = await db.query.sectorDailyStats.findMany({
-    orderBy: [desc(sectorDailyStats.date)],
-    limit: 300, // 足够覆盖所有板块近几天的数据
-  })
-
-  const dates = Array.from(new Set(recentSectorStats.map(s => s.date))).sort().reverse()
-  const latestDate = dates[0]
-  const prevDate = dates[1]
-
-  // 扩展 Map 以存储更多信息
-  const sectorSignalMap = new Map<string, { action: string, volumeRatio: number, turnoverRate: number }>()
-
-  if (latestDate) {
-    const currentStats = recentSectorStats.filter(s => s.date === latestDate)
-    const prevStatsMap = new Map()
-    if (prevDate) {
-      recentSectorStats.filter(s => s.date === prevDate).forEach(p => prevStatsMap.set(p.sector, p))
-    }
-
-    currentStats.forEach((curr) => {
-      const prev = prevStatsMap.get(curr.sector)
-      const curVol = Number(curr.volumeRatio || 0)
-      const curTurn = Number(curr.turnoverRate || 0)
-      const curChangeRate = Number(curr.changeRate || 0) // 新增：读取当日涨跌幅
-      const diffTurn = prev ? curTurn - Number(prev.turnoverRate || 0) : 0
-
-      let action = '底仓观望 (30%)'
-      if (curChangeRate <= -3.0 && diffTurn > 0.5) {
-        action = '风控清仓 (0%)'
-      }
-      else if (curChangeRate <= -2.0 && curVol > 10) {
-        action = '减仓避险 (0-20%)'
-      }
-      else if (curVol > 12) {
-        if (curChangeRate > 0)
-          action = '逢高止盈 (30%)'
-        else action = '防守减仓 (20%)'
-      }
-      else if (curChangeRate >= 1.5 && diffTurn > 0.5 && curVol >= 3 && curVol <= 10) {
-        action = '右侧追击 (80-100%)'
-      }
-      else if (curChangeRate >= 0.5 && curTurn > 2 && diffTurn >= -0.5) {
-        action = '趋势持仓 (60-80%)'
-      }
-      else if (curTurn < 1.0 && curChangeRate >= -0.5 && curChangeRate <= 1.0) {
-        action = '试探建仓 (10-20%)'
-      }
-      else if (curTurn < 1.5 && curChangeRate > 1.0 && diffTurn > 0) {
-        action = '左侧加仓 (30-50%)'
-      }
-      else if (curChangeRate < -1.0 && diffTurn <= 0) {
-        action = '阴跌观望 (0-10%)'
-      }
-      else if (curChangeRate < -1.0 && diffTurn > 0) {
-        action = '谨慎防守 (20%)'
-      }
-      else {
-        if (curChangeRate > 0)
-          action = '底仓持有 (30-50%)'
-        else action = '高抛低吸 (20-30%)'
-      }
-
-      // 存储完整数据
-      sectorSignalMap.set(curr.sector, { action, volumeRatio: curVol, turnoverRate: curTurn })
-    })
-  }
-
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
   let heldCount = 0
@@ -288,20 +220,11 @@ export async function getUserHoldingsAndSummary(userId: number) {
     let holdingData: any = {
       code: fundInfo.code,
       name: fundInfo.name,
-      sector: fundInfo.sector,
       yesterdayNav: Number(fundInfo.yesterdayNav),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
       signals: signalsMap.get(fundInfo.code) || {},
-      // 注入板块 AI 决策和统计数据
-      sectorSignal: fundInfo.sector && sectorSignalMap.has(fundInfo.sector) ? sectorSignalMap.get(fundInfo.sector)!.action : '无板块',
-      sectorStats: fundInfo.sector && sectorSignalMap.has(fundInfo.sector)
-        ? {
-            volumeRatio: sectorSignalMap.get(fundInfo.sector)!.volumeRatio,
-            turnoverRate: sectorSignalMap.get(fundInfo.sector)!.turnoverRate,
-          }
-        : null,
       bias20,
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
       recentTransactions: historyTxMap.get(fundInfo.code) || [],

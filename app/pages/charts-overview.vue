@@ -44,7 +44,6 @@ const { data: chartData, pending, error, refresh } = useAsyncData(
           name: fund.name,
           strategy: selectedStrategy.value,
           data: chartApiData,
-          sector: fund.sector,
           holdingAmount: fund.holdingAmount,
           percentageChange: fund.percentageChange,
           // 计算今日预估盈亏

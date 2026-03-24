@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { useDayjs } from '#imports'
 import AiAgentBadge from '~/components/AiAgentBadge.vue'
-import { appName, SECTOR_DICT_TYPE } from '~/constants'
+import { appName } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 const route = useRoute<'daily-ops-date-userId'>()
@@ -157,14 +157,8 @@ const isStrategyModalOpen = ref(false)
               </span>
             </div>
 
-            <!-- 3.  基金名称、代码与板块 -->
+            <!-- 3.  基金名称、代码 -->
             <div class="flex flex-grow flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:items-center">
-              <span
-                v-if="tx.fundSector"
-                class="text-[10px] text-gray-500 px-1.5 py-0.5 border border-gray-200 rounded bg-gray-100 flex-shrink-0 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700"
-              >
-                {{ getLabel(SECTOR_DICT_TYPE, tx.fundSector) }}
-              </span>
               <div class="flex gap-2 truncate items-baseline">
                 <span class="text-gray-900 font-medium truncate dark:text-gray-100" :title="tx.fundName">
                   {{ tx.fundName || '未知基金' }}

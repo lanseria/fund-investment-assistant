@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
-import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 const props = defineProps<{
@@ -13,14 +12,12 @@ const emit = defineEmits([
   'edit',
   'delete',
   'clear-position',
-  'edit-sector',
   'trade',
   'delete-transaction',
   'show-strategy-tooltip',
   'hide-strategy-tooltip',
 ])
 
-const { getLabel } = useDictStore()
 const dayjs = useDayjs()
 
 // --- 辅助函数 ---
@@ -129,9 +126,6 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <!-- 1. 基金名称与信号 -->
     <td class="font-semibold p-4">
       <div class="mb-1 flex items-center">
-        <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full flex-none transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
-          {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
-        </button>
         <NuxtLink :to="targetUserId ? `/fund/${holding.code}?userId=${targetUserId}` : `/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
           {{ holding.name }}
         </NuxtLink>
@@ -230,21 +224,8 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         </div>
       </div>
 
-      <!-- 策略信号与板块决策 -->
+      <!-- 策略信号 -->
       <div v-if="holding.signals" class="mt-2 flex flex-wrap gap-1.5 items-center">
-        <!-- 板块决策标签 -->
-        <span
-          v-if="holding.sectorSignal && holding.sectorSignal !== '无板块'"
-          class="text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
-          :class="{
-            'bg-red-100 text-red-800 dark:bg-red-900/50 dark:text-red-300': holding.sectorSignal.includes('建仓') || holding.sectorSignal.includes('加仓') || holding.sectorSignal.includes('持仓') || holding.sectorSignal.includes('追击') || holding.sectorSignal.includes('低吸'),
-            'bg-green-100 text-green-800 dark:bg-green-900/50 dark:text-green-300': holding.sectorSignal.includes('空仓') || holding.sectorSignal.includes('清仓') || holding.sectorSignal.includes('减仓') || holding.sectorSignal.includes('防守') || holding.sectorSignal.includes('避险') || holding.sectorSignal.includes('止盈'),
-            'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300': holding.sectorSignal.includes('观望') || holding.sectorSignal.includes('停买') || holding.sectorSignal === '未知',
-          }"
-          :title="holding.sectorStats ? `成交额占比: ${holding.sectorStats.volumeRatio.toFixed(2)}%\n换手率: ${holding.sectorStats.turnoverRate.toFixed(2)}%` : ''"
-        >
-          板块: {{ holding.sectorSignal }}
-        </span>
         <span
           v-for="(name, key) in strategiesForTags"
           :key="key"

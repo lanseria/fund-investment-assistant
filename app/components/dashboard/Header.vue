@@ -6,7 +6,6 @@ defineProps<{
   isDataLoading: boolean
   isProcessingTransactions: boolean
   isHeldOnly: boolean
-  isGroupedBySector: boolean
 }>()
 
 const emit = defineEmits([
@@ -15,7 +14,6 @@ const emit = defineEmits([
   'refresh-data',
   'process-transactions',
   'toggle-held',
-  'toggle-group',
   'import',
   'export',
   'copy-info',
@@ -89,14 +87,6 @@ function handleServerUpdate() {
         @click="emit('toggle-held')"
       >
         <div i-carbon-wallet />
-      </button>
-      <button
-        class="icon-btn"
-        :class="{ 'text-primary': isGroupedBySector }"
-        title="按板块分组"
-        @click="emit('toggle-group')"
-      >
-        <div i-carbon-table-split />
       </button>
       <button class="icon-btn" title="导入数据" @click="emit('import')">
         <div i-carbon-upload />

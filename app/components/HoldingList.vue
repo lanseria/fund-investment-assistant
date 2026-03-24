@@ -1,12 +1,10 @@
 <script setup lang="ts">
-import type { GroupedHolding, Holding, SortableKey } from '~/types/holding'
+import type { Holding, SortableKey } from '~/types/holding'
 import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
-import { formatCurrency } from '~/utils/format'
 import HoldingListRow from './HoldingListRow.vue'
 
 withDefaults(defineProps<{
-  data: Holding[] | GroupedHolding[]
-  isGrouped: boolean
+  data: Holding[]
   sortKey: SortableKey | null
   sortOrder: 'asc' | 'desc'
   showActions?: boolean
@@ -15,20 +13,10 @@ withDefaults(defineProps<{
   showActions: true,
 })
 
-const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'edit-sector', 'trade', 'delete-transaction'])
+const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'trade', 'delete-transaction'])
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
-}
-
-function getChangeClass(value: number | null) {
-  if (value === null || value === undefined)
-    return 'text-gray-500'
-  if (value > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (value < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray-500'
 }
 
 // --- Tooltip 逻辑 ---
@@ -120,10 +108,9 @@ function handleHideTooltip() {
           </tr>
         </thead>
 
-        <!-- 1. 默认列表视图 -->
-        <tbody v-if="!isGrouped">
+        <tbody>
           <HoldingListRow
-            v-for="h in (data as Holding[])"
+            v-for="h in data"
             :key="h.code"
             :holding="h"
             :show-actions="showActions"
@@ -131,58 +118,12 @@ function handleHideTooltip() {
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
             @clear-position="emit('clear-position', $event)"
-            @edit-sector="emit('edit-sector', $event)"
             @trade="(h, type) => emit('trade', h, type)"
             @delete-transaction="emit('delete-transaction', $event)"
             @show-strategy-tooltip="handleShowTooltip"
             @hide-strategy-tooltip="handleHideTooltip"
           />
         </tbody>
-
-        <!-- 2. 板块分组视图 -->
-        <template v-else>
-          <tbody v-for="group in (data as GroupedHolding[])" :key="group.sectorKey" class="border-b-2 border-gray-200 dark:border-gray-700">
-            <!-- 分组头 (保持不变，这部分不重复) -->
-            <tr class="bg-gray-100 dark:bg-gray-700/50">
-              <td class="font-semibold p-3" colspan="2">
-                {{ group.sectorLabel }} ({{ group.holdingCount }})
-              </td>
-              <td class="font-mono p-3 text-right" colspan="2">
-                <div class="font-mono font-semibold tabular-nums">
-                  {{ formatCurrency(group.groupTotalAmount) }}
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  板块市值
-                </div>
-              </td>
-              <td class="font-mono p-3 text-right" :colspan="showActions ? 2 : 1">
-                <div class="font-mono font-semibold tabular-nums" :class="getChangeClass(group.groupTotalProfitLoss)">
-                  {{ formatCurrency(group.groupTotalProfitLoss) }}
-                </div>
-                <div class="text-xs text-gray-500 dark:text-gray-400">
-                  今日预估盈亏
-                </div>
-              </td>
-            </tr>
-
-            <!-- 组内循环调用子组件 -->
-            <HoldingListRow
-              v-for="h in group.holdings"
-              :key="h.code"
-              :holding="h"
-              :show-actions="showActions"
-              :target-user-id="targetUserId"
-              @edit="emit('edit', $event)"
-              @delete="emit('delete', $event)"
-              @clear-position="emit('clear-position', $event)"
-              @edit-sector="emit('edit-sector', $event)"
-              @trade="(h, type) => emit('trade', h, type)"
-              @delete-transaction="emit('delete-transaction', $event)"
-              @show-strategy-tooltip="handleShowTooltip"
-              @hide-strategy-tooltip="handleHideTooltip"
-            />
-          </tbody>
-        </template>
       </table>
     </div>
 

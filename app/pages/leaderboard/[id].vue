@@ -12,7 +12,7 @@ useHead({
 })
 
 // --- 获取用户持仓详情 ---
-const { data: userHoldings, pending, error, refresh } = useAsyncData(
+const { data: userHoldings, pending, error } = useAsyncData(
   `leaderboard-details-${userId}`,
   () => apiFetch<Holding[]>(`/api/leaderboard/${userId}`),
 )
@@ -45,20 +45,6 @@ const displayData = computed(() => {
   }
   return data
 })
-
-// --- 编辑板块逻辑 ---
-const isSectorModalOpen = ref(false)
-const editingHoldingForSector = ref<Holding | null>(null)
-
-function openSectorModal(holding: Holding) {
-  editingHoldingForSector.value = holding
-  isSectorModalOpen.value = true
-}
-
-async function onSectorUpdateSuccess() {
-  isSectorModalOpen.value = false
-  await refresh() // 更新成功后重新拉取数据
-}
 </script>
 
 <template>
@@ -95,13 +81,11 @@ async function onSectorUpdateSuccess() {
     <div v-else-if="displayData.length > 0">
       <HoldingList
         :data="displayData"
-        :is-grouped="false"
         :sort-key="sortKey"
         :sort-order="sortOrder"
         :show-actions="false"
         :target-user-id="userId"
         @set-sort="handleSetSort"
-        @edit-sector="openSectorModal"
       />
     </div>
 
@@ -110,16 +94,5 @@ async function onSectorUpdateSuccess() {
       <div i-carbon-filter-remove class="text-5xl mx-auto mb-4 opacity-30" />
       <p>该用户暂无持仓数据</p>
     </div>
-
-    <!-- 板块编辑模态框 -->
-    <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
-      <SectorEditModal
-        :fund-code="editingHoldingForSector.code"
-        :fund-name="editingHoldingForSector.name"
-        :current-sector="editingHoldingForSector.sector"
-        @success="onSectorUpdateSuccess"
-        @cancel="isSectorModalOpen = false"
-      />
-    </Modal>
   </div>
 </template>

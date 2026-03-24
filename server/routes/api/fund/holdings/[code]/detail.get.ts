@@ -47,7 +47,6 @@ export default defineEventHandler(async (event) => {
   return {
     code: fundInfo.code,
     name: fundInfo.name,
-    sector: fundInfo.sector,
     fundType: fundInfo.fundType,
     yesterdayNav: Number(fundInfo.yesterdayNav),
     todayEstimateNav: fundInfo.todayEstimateNav ? Number(fundInfo.todayEstimateNav) : null,

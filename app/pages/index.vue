@@ -27,13 +27,11 @@ watch(portfolioData, (newData) => {
 
 // --- 抽离的排序与分组逻辑 ---
 const {
-  isGroupedBySector,
   isHeldOnly,
   sortKey,
   sortOrder,
   displayData,
   handleSetSort,
-  toggleGrouping,
   toggleHeldFilter,
 } = useDashboardData(holdings)
 
@@ -113,9 +111,6 @@ async function handleDeleteTransaction(tx: any) {
   }
 }
 
-const isSectorModalOpen = ref(false)
-const editingHoldingForSector = ref<Holding | null>(null)
-
 function openAddModal() {
   editingHolding.value = null
   isModalOpen.value = true
@@ -128,11 +123,6 @@ function openEditModal(holding: Holding) {
 
 function closeModal() {
   isModalOpen.value = false
-}
-
-function openSectorModal(holding: Holding) {
-  editingHoldingForSector.value = holding
-  isSectorModalOpen.value = true
 }
 
 async function handleSubmit(formData: any) {
@@ -220,11 +210,6 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
   if (result)
     alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
 }
-
-async function onSectorUpdateSuccess() {
-  isSectorModalOpen.value = false
-  await holdingStore.fetchHoldings()
-}
 </script>
 
 <template>
@@ -236,13 +221,11 @@ async function onSectorUpdateSuccess() {
       :is-data-loading="!!isDataLoading"
       :is-processing-transactions="isProcessingTransactions"
       :is-held-only="isHeldOnly"
-      :is-grouped-by-sector="isGroupedBySector"
       @refresh-client="holdingStore.triggerClientUpdate(true)"
       @refresh-server-user="holdingStore.refreshServerEstimates('user')"
       @refresh-data="refresh"
       @process-transactions="handleProcessTransactions"
       @toggle-held="toggleHeldFilter"
-      @toggle-group="toggleGrouping"
       @import="isImportModalOpen = true"
       @export="handleExport"
       @copy-info="handleCopyInfo"
@@ -265,14 +248,13 @@ async function onSectorUpdateSuccess() {
     <HoldingList
       v-else
       :data="displayData"
-      :is-grouped="isGroupedBySector"
+      :is-grouped="false"
       :sort-key="sortKey"
       :sort-order="sortOrder"
       @edit="openEditModal"
       @delete="handleDelete"
       @set-sort="handleSetSort"
       @clear-position="handleClearPosition"
-      @edit-sector="openSectorModal"
       @trade="openTradeModal"
       @delete-transaction="handleDeleteTransaction"
     />
@@ -313,16 +295,6 @@ async function onSectorUpdateSuccess() {
 
     <Modal v-model="isImportModalOpen" title="导入持仓数据">
       <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
-    </Modal>
-
-    <Modal v-if="editingHoldingForSector" v-model="isSectorModalOpen" title="设置基金板块">
-      <SectorEditModal
-        :fund-code="editingHoldingForSector.code"
-        :fund-name="editingHoldingForSector.name"
-        :current-sector="editingHoldingForSector.sector"
-        @success="onSectorUpdateSuccess"
-        @cancel="isSectorModalOpen = false"
-      />
     </Modal>
   </div>
 </template>
