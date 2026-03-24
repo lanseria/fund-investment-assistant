@@ -70,6 +70,7 @@ export default defineNuxtConfig({
       password: '',
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
+    openRouterBaseUrl: '', // NUXT_OPEN_ROUTER_BASE_URL
   },
 
   experimental: {

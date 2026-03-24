@@ -138,15 +138,16 @@ fund-investment-assistant/
 
 ## 环境变量
 
-| 变量                             | 说明                                     |
-| -------------------------------- | ---------------------------------------- |
-| `NUXT_DB_URL`                    | PostgreSQL 连接字符串                    |
-| `NUXT_STRATEGY_API_URL`          | 策略分析 API 地址                        |
-| `NUXT_REDIS_HOST`                | Redis 主机                               |
-| `NUXT_REDIS_PASSWORD`            | Redis 密码                               |
-| `NUXT_OPEN_ROUTER_API_KEY`       | OpenRouter API Key (AI)                  |
-| `CRON_FUND_SYNC_HISTORY`         | 历史净值同步 Cron (默认: `0 2 * * *`)    |
-| `CRON_FUND_SYNC_ESTIMATE`        | 实时估值同步 Cron (默认: `* 8-23 * * *`) |
-| `CRON_FUND_RUN_STRATEGIES`       | 策略分析执行 Cron (默认: `0 6 * * *`)    |
-| `CRON_FUND_PROCESS_TRANSACTIONS` | 交易处理 Cron (默认: `0 9 * * *`)        |
-| `CRON_AI_AUTO_TRADE`             | AI 自动交易 Cron (默认: `30 14 * * 1-5`) |
+| 变量                             | 说明                                                         |
+| -------------------------------- | ------------------------------------------------------------ |
+| `NUXT_DB_URL`                    | PostgreSQL 连接字符串                                        |
+| `NUXT_STRATEGY_API_URL`          | 策略分析 API 地址                                            |
+| `NUXT_REDIS_HOST`                | Redis 主机                                                   |
+| `NUXT_REDIS_PASSWORD`            | Redis 密码                                                   |
+| `NUXT_OPEN_ROUTER_API_KEY`       | OpenRouter API Key (AI)                                      |
+| `NUXT_OPEN_ROUTER_BASE_URL`      | OpenRouter API 基地址 (默认: `https://openrouter.ai/api/v1`) |
+| `CRON_FUND_SYNC_HISTORY`         | 历史净值同步 Cron (默认: `0 2 * * *`)                        |
+| `CRON_FUND_SYNC_ESTIMATE`        | 实时估值同步 Cron (默认: `* 8-23 * * *`)                     |
+| `CRON_FUND_RUN_STRATEGIES`       | 策略分析执行 Cron (默认: `0 6 * * *`)                        |
+| `CRON_FUND_PROCESS_TRANSACTIONS` | 交易处理 Cron (默认: `0 9 * * *`)                            |
+| `CRON_AI_AUTO_TRADE`             | AI 自动交易 Cron (默认: `30 14 * * 1-5`)                     |

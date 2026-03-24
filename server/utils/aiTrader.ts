@@ -233,7 +233,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
 
   try {
     const openai = new OpenAI({
-      baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
+      baseURL: config.openRouterBaseUrl,
       apiKey: config.openRouterApiKey,
     })
 
