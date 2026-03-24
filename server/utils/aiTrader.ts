@@ -1,11 +1,7 @@
 // server/utils/aiTrader.ts
 import type { AiModel } from '~~/shared/ai-models'
-import dayjs from 'dayjs'
-import { desc, gte } from 'drizzle-orm'
 import OpenAI from 'openai'
 import { z } from 'zod'
-import { aiDailyAnalysis, newsItems } from '~~/server/database/schemas'
-import { useDb } from '~~/server/utils/db'
 import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
 
@@ -27,37 +23,7 @@ export type TradeDecision = z.infer<typeof TradeDecisionSchema>
 
 // --- 2. 辅助函数：构建上下文数据 ---
 export async function buildAiContext(fullHoldingsData: any[]) {
-  const db = useDb()
-
-  // [新增] 获取最新的 AI 热点分析 (TrendRadar)
-  // 获取日期最近的一条记录作为宏观参考
-  const latestAnalysisRecord = await db.query.aiDailyAnalysis.findFirst({
-    orderBy: [desc(aiDailyAnalysis.date)],
-  })
-
-  // A. 获取近一个月的新闻事件 (舆情时间线)
-  const oneMonthAgo = dayjs().subtract(30, 'day').format('YYYY-MM-DD')
-
-  const recentNewsItems = await db.query.newsItems.findMany({
-    where: gte(newsItems.date, oneMonthAgo),
-    orderBy: [desc(newsItems.date), desc(newsItems.id)],
-    limit: 60,
-    columns: {
-      date: true,
-      title: true,
-      content: true,
-      tag: true,
-    },
-  })
-
-  const formattedNewsTimeline = recentNewsItems.map(item => ({
-    date: item.date,
-    tag: item.tag || 'General',
-    title: item.title,
-    summary: item.content,
-  }))
-
-  // B. 获取实时市场指数 (宏观)
+  // A. 获取实时市场指数 (宏观)
   const marketData: Record<string, any[]> = {}
   try {
     const indicesMap = await getCachedMarketData()
@@ -82,7 +48,7 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     console.error('获取市场指数失败:', e)
   }
 
-  // C. 格式化持仓与关注列表
+  // B. 格式化持仓与关注列表
   const floorShares = (num: number) => Math.floor(num * 10000) / 10000
 
   const simplify = (h: any) => {
@@ -99,7 +65,6 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     return {
       code: h.code,
       name: h.name,
-      sector: h.sector || '未分类',
       ...(h.holdingAmount !== null
         ? {
             costPrice: h.costPrice,
@@ -111,7 +76,6 @@ export async function buildAiContext(fullHoldingsData: any[]) {
         : {}),
       percentageChange: h.percentageChange ? `${h.percentageChange.toFixed(2)}%` : '0%',
       signals: h.signals,
-      sectorSignal: h.sectorSignal, // 加入板块决策供 AI 参考
       bias20: h.bias20,
       recentTransactions: h.recentTransactions?.slice(0, 3).map((t: any) => ({
         type: t.type,
@@ -127,13 +91,6 @@ export async function buildAiContext(fullHoldingsData: any[]) {
   const myWatchlist = fullHoldingsData.filter(h => h.holdingAmount === null).map(simplify)
 
   return {
-    daily_analysis: latestAnalysisRecord
-      ? {
-          date: latestAnalysisRecord.date,
-          content: latestAnalysisRecord.content,
-        }
-      : null,
-    market_events: formattedNewsTimeline,
     market_indices: marketData,
     holdings: myHoldings,
     watchlist: myWatchlist,
@@ -156,7 +113,7 @@ interface AiTradeResult {
 
 /**
  * 仅生成 Prompt 内容，不执行 AI 调用
- * 用于前端“复制 Prompt”功能
+ * 用于前端"复制 Prompt"功能
  */
 export async function generateAiPrompt(fullHoldingsData: any[], userConfig: UserAiConfig) {
   if (!userConfig.aiSystemPrompt || !userConfig.aiSystemPrompt.trim()) {
@@ -179,12 +136,10 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   - 总资产: ${totalAssets.toFixed(4)} 元
   - 当前持仓市值: ${currentInvested.toFixed(4)} 元
   - **可用现金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
-- **输入数据**: 
-  1. **daily_analysis (重点)**: 每日宏观热点深度分析，包含核心主线和微观领域动态。请以此定调今日整体策略（进攻/防御）。
-  2. market_indices: 实时市场指数。
-  3. market_events: 近30天新闻事件时间线。
-  4. holdings: 当前持仓 (包含量化决策sectorSignal/bias20/bollinger_bands/rsi)。
-  5. watchlist: 关注列表 (同样包含量化决策)。
+- **输入数据**:
+  1. market_indices: 实时市场指数。
+  2. holdings: 当前持仓 (包含量化决策bias20)。
+  3. watchlist: 关注列表 (同样包含量化决策)。
 `
 
   const fixedOutputRules = `
@@ -195,34 +150,34 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
 **核心结算规则（强制遵守）：**
 
 1. **资金风控（最高优先级 - 绝对红线）：**
-   - **禁止超支**：你输出的所有 \`buy\` 决策中，\`amount\` 之和 **严禁超过 ${availableCashStr} 元**。
-   - **自我校验**：在输出 JSON 前，请务必在内心计算：Sum(buy.amount) <= ${availableCashStr}。如果超过，必须**削减**每个买入项的金额，或**删除**部分买入建议。
-   - **若余额不足**：如果剩余资金少于 100 元，请不要执行任何买入操作。
+   - **禁止超支**：你输出的所有 \`buy\` 决策中， \`amount\` 之和 **严禁超过 ${availableCashStr} 元**。
+   - **自我校验**：在输出 JSON 前,请务必在内心计算：Sum(buy.amount) <= ${availableCashStr}。如果超过,必须**削减**每个买入项的金额,或**删除**部分买入建议。
+   - **若余额不足**：如果剩余资金少于 100 元,请不要执行任何买入操作。
 
 2. **交易动作规范 (Action Rules)：**
-你现在拥有更广泛的资金权限，请选择以下动作之一：
+你现在拥有更广泛的资金权限,请选择以下动作之一：
 
-  1.  **buy (买入)**: 
+  1.  **buy (买入)**:
       - 信号: 强烈的上涨趋势或超跌反弹。
       - 限制: 必须有足够的 availableCash。
 
-  2.  **sell (卖出)**: 
+  2.  **sell (卖出)**:
       - 限制: 必须持有该标的 (Holdings > 0)。
-      - **🔴 [CRITICAL] 7天惩罚性费率**: 
+      - **🔴 [CRITICAL] 7天惩罚性费率**:
         - 请务必检查 input 中的 \`recentTransactions\` 日期。
-        - 规则: 若最近一次买入(\`buy\`/\`convert_in\`)发生在 **7天以内**，卖出将强制扣除 **1.5%** 的惩罚性手续费。
-        - **决策逻辑**: 除非预判未来短期跌幅 **> 2.0%** (即持有亏损将超过手续费)，否则对于不足7天的持仓 **严禁卖出**。建议输出 \`hold\` 等待期满。
+        - 规则: 若最近一次买入(\`buy\`/\`convert_in\`)发生在 **7天以内**,卖出将强制扣除 **1.5%** 的惩罚性手续费。
+        - **决策逻辑**: 除非预判未来短期跌幅 **> 2.0%** (即持有亏损将超过手续费),否则对于不足7天的持仓 **严禁卖出**。建议输出 \`hold\` 等待期满。
 
-  3.  **convert_in (转入/入金)**: 
+  3.  **convert_in (转入/入金)**:
       - 场景: 绝佳机会但 cash 不足 / 宏观牛市追加本金。
 
-  4.  **convert_out (转出/出金)**: 
+  4.  **convert_out (转出/出金)**:
       - 场景: 止盈落袋 / 熊市避险。
-      - ⚠️ **注意**: 此操作本质是卖出，同样受 **7天 1.5% 费率** 限制。请优先选择持仓时间 >7 天的标的进行转出。
+      - ⚠️ **注意**: 此操作本质是卖出,同样受 **7天 1.5% 费率** 限制。请优先选择持仓时间 >7 天的标的进行转出。
 
 3. **数据精度要求 (Precision Constraint)：**
    - **amount (金额)** 和 **shares (份额)** 字段必须 **严格保留 4 位小数**。
-   - 即使是整数，也必须输出为 \`100.0000\` 的形式。
+   - 即使是整数,也必须输出为 \`100.0000\` 的形式。
 
 #### 4. Output Format (JSON Only)
 
@@ -247,7 +202,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
       "action": "buy",
       "amount": 5000.0000,
       "shares": 0.0000,
-      "reason": "RSI超卖，回踩支撑位"
+      "reason": "RSI超卖,回踩支撑位"
     }
   ]
 }
@@ -322,7 +277,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
           const remaining = budgetLimit - currentTotalBuy
           if (remaining > 10) {
             action.amount = Math.floor(remaining)
-            action.reason += ` [系统风控: 剩余预算不足，修正金额至 ${action.amount}]`
+            action.reason += ` [系统风控: 剩余预算不足,修正金额至 ${action.amount}]`
             currentTotalBuy += action.amount
             validActions.push(action)
           }
