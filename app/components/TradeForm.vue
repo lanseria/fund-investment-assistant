@@ -51,7 +51,7 @@ const safeShares = computed(() => {
   return Math.max(0, (props.currentShares || 0) - recentBuysWithin7Days)
 })
 
-// [修改] 计算 FIFO 下的短期持有惩罚
+// 计算 FIFO 下的短期持有惩罚
 const penaltyAnalysis = computed(() => {
   if (props.type !== 'sell' || !formData.date || !formData.shares)
     return { isShortTerm: false, fee: 0, penaltyShares: 0 }
@@ -87,7 +87,7 @@ const sellRatios = [
   { label: '全部', value: 1 },
 ]
 
-// [修改] 支持传入具体数值或比例
+// 支持传入具体数值或比例
 function setSellShares(ratio: number | 'safe') {
   if (!props.currentShares)
     return
@@ -117,7 +117,7 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
-    // [修改] 7天惩罚二次确认
+    // 7天惩罚二次确认
     if (penaltyAnalysis.value.isShortTerm) {
       const feeStr = penaltyAnalysis.value.fee.toFixed(2)
       const sharesStr = penaltyAnalysis.value.penaltyShares.toFixed(2)
@@ -150,7 +150,7 @@ function handleSubmit() {
         </p>
       </div>
 
-      <!-- [修改] 7天惩罚提示 -->
+      <!-- 7天惩罚提示 -->
       <div
         v-if="type === 'sell' && penaltyAnalysis.isShortTerm"
         class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"

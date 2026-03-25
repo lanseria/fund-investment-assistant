@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
     where: eq(users.username, username),
   })
 
-  // [修改] 使用 verifyPassword 进行验证
+  // 使用 verifyPassword 进行验证
   const isValid = user && await verifyPassword(user.password, password)
 
   if (!isValid || !user) {

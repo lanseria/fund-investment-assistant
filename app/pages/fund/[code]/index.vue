@@ -349,7 +349,7 @@ watch(data, (newData) => {
       </div>
     </div>
 
-    <!-- [修改] 顶部数据卡片区域 -->
+    <!-- 顶部数据卡片区域 -->
     <div class="mb-8 p-4 card">
       <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
         <button

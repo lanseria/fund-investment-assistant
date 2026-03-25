@@ -122,7 +122,7 @@ onMounted(async () => {
       <p>暂无持仓基金或无法加载图表数据。</p>
     </div>
 
-    <!-- [重大修改] 更新网格布局以实现更好的响应式 -->
+    <!-- 更新网格布局以实现更好的响应式 -->
     <div v-else class="gap-4 grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 xl:grid-cols-4">
       <OverviewChartCard
         v-for="fundData in chartData"

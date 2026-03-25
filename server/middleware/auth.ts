@@ -42,7 +42,7 @@ export default defineEventHandler(async (event) => {
     event.context.user = payload
   }
   catch (error: any) {
-    // [修复] 当解密失败（如密钥轮换导致 invalid authentication tag）时，
+    // 当解密失败（如密钥轮换导致 invalid authentication tag）时，
     // 主动清除无效的 Cookie，防止客户端一直发送错误的 Token
     deleteCookie(event, 'auth-token', { path: '/' })
 

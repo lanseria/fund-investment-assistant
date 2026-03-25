@@ -2,10 +2,10 @@
 import { marketGroups } from '~~/shared/market'
 
 const marketStore = useMarketStore()
-// [核心修改] 从 store 中获取完整的 indices 对象，而不仅仅是激活的
+// 从 store 中获取完整的 indices 对象，而不仅仅是激活的
 const { activeGroup, indices, activeGroupIndices, sseStatus, isLoading } = storeToRefs(marketStore)
 
-// [核心修改] 创建一个新的计算属性，用于生成每个分组的涨跌统计和颜色
+// 创建一个新的计算属性，用于生成每个分组的涨跌统计和颜色
 const groupSummaries = computed(() => {
   // Object.entries 将 marketGroups 转换为 [key, value] 数组，方便遍历
   return Object.entries(marketGroups).map(([key, group]) => {
@@ -40,7 +40,7 @@ const groupSummaries = computed(() => {
   })
 })
 
-// [核心修改] 一个辅助函数，根据状态返回不同的样式类，让模板更清晰
+// 一个辅助函数，根据状态返回不同的样式类，让模板更清晰
 function getGroupButtonClass(summary: typeof groupSummaries.value[0]) {
   const isActive = activeGroup.value === summary.key
   if (isActive)

@@ -113,7 +113,7 @@ function mapTransactionsToMarkPoints(): MarkPointComponentOption['data'] {
     if (!val)
       return
 
-    // [修复] 对象字面量中包含自定义属性 transactionList
+    // 对象字面量中包含自定义属性 transactionList
     markPoints.push({
       name: isMixed ? `交易-混合` : `交易-${firstType}`,
       coord: [date, val],
@@ -194,7 +194,7 @@ function handleChartClick(params: any) {
     if (params.data.fullData) {
       emit('signal-click', params.data.fullData)
     }
-    // [修改] 检查 transactionList
+    // 检查 transactionList
     else if (params.data.transactionList) {
       emit('transaction-click', params.data.transactionList)
     }

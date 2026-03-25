@@ -51,7 +51,7 @@ function handleSubmit() {
   if (canSubmit.value) {
     const payload: any = {
       code: formData.code,
-      // [修改] 如果为空字符串或0，则发送null
+      // 如果为空字符串或0，则发送null
       shares: formData.shares || null,
       costPrice: formData.costPrice || null,
     }

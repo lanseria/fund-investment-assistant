@@ -41,7 +41,7 @@ export default defineMcpTool({
           costPrice: null,
         })
 
-        // [修复] 单独查询基金名称以提供更好的反馈
+        // 单独查询基金名称以提供更好的反馈
         const db = useDb()
         const fundInfo = await db.query.funds.findFirst({
           where: eq(funds.code, fundCode),

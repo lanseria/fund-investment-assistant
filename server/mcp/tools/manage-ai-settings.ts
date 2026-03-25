@@ -49,7 +49,7 @@ export default defineMcpTool({
       }
     }
 
-    // --- Action: Update (修改) ---
+    // --- Action: Update  ---
     if (action === 'update') {
       const updateData: Record<string, any> = {}
       const logs: string[] = []

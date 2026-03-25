@@ -248,7 +248,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
     totalProfit: 0,
   }
 
-  // [修复] 明确获取“昨天”的数据点用于展示
+  // 明确获取“昨天”的数据点用于展示
   const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
   // 在 history 数组中倒序查找（因为在末尾附近），找到日期匹配的记录
   // 如果昨天是周末或刚开始回测没数据，则回退为 0
@@ -264,7 +264,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
 
   return {
     summary: {
-      // [修改] 这里使用明确查找到的 yesterdayPoint
+      // 这里使用明确查找到的 yesterdayPoint
       yesterdayProfit: yesterdayPoint ? yesterdayPoint.dayProfit : 0,
       yearProfit,
       // 累计收益率和总资产依然显示“当前/最新”的状态 (即 lastPoint)

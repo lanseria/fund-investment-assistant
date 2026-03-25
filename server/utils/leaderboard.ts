@@ -19,7 +19,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
       username: users.username,
       aiMode: users.aiMode,
       aiSystemPrompt: users.aiSystemPrompt,
-      userCash: users.availableCash, // [修改] 直接读取可用现金
+      userCash: users.availableCash,
       fundCode: holdings.fundCode,
       shares: holdings.shares,
       costPrice: holdings.costPrice,

@@ -12,7 +12,7 @@ export const apiFetch = ofetch.create({
       const authStore = useAuthStore()
 
       if (!refreshTokenPromise) {
-        // 【关键修复 2】刷新 Token 的请求也要用 ofetch
+        // 刷新 Token 的请求也要用 ofetch
         refreshTokenPromise = ofetch('/api/auth/refresh', {
           method: 'POST',
         }).catch(async (e) => {
@@ -26,7 +26,7 @@ export const apiFetch = ofetch.create({
 
       try {
         await refreshTokenPromise
-        // 【关键修复 3】重新发起原请求时，必须带上 options！
+        // 重新发起原请求时，必须带上 options！
         // 否则原请求的 body 参数、headers (比如刚刚更新的 Token) 都会丢失
         return ofetch(request)
       }

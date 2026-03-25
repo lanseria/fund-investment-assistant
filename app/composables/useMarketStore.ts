@@ -2,7 +2,7 @@ import type { MarketIndexData } from '~~/server/utils/dataFetcher'
 import { acceptHMRUpdate, defineStore } from 'pinia'
 import { marketGroups } from '~~/shared/market'
 
-// [核心修改] 使用 keyof typeof 动态生成联合类型，使其与 marketGroups 的键保持同步
+// 使用 keyof typeof 动态生成联合类型，使其与 marketGroups 的键保持同步
 type MarketGroupKey = keyof typeof marketGroups
 
 export const useMarketStore = defineStore('market', () => {

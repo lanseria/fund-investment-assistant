@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { getUserFromEvent } from '~~/server/utils/auth'
 
-// [重大修改] 更新 Zod schema
+// 更新 Zod schema
 const holdingUpdateSchema = z.object({
   shares: z.number().positive('份额必须为正数').nullable().optional(),
   costPrice: z.number().positive('成本价必须为正数').nullable().optional(),

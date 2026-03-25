@@ -5,7 +5,7 @@ import { funds, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getHistoryWithMA } from '~~/server/utils/holdingAnalysis'
 
-// [修复] 定义包含动态 MA 属性的接口
+// 定义包含动态 MA 属性的接口
 interface FundHistoryPoint {
   date: string
   nav: number
@@ -55,7 +55,7 @@ export default defineMcpTool({
     const endDate = dayjs().format('YYYY-MM-DD')
     const startDate = dayjs().subtract(days || 30, 'day').format('YYYY-MM-DD')
 
-    // [修复] 使用 'as' 关键字强制转换类型，告诉 TS 这里包含了 ma5/ma20 等字段
+    // 使用 'as' 关键字强制转换类型，告诉 TS 这里包含了 ma5/ma20 等字段
     const history = (await getHistoryWithMA(fundCode, startDate, endDate, [5, 20, 60])) as FundHistoryPoint[]
 
     // 4. 获取最新策略信号
@@ -83,7 +83,7 @@ export default defineMcpTool({
 
     // 计算乖离率 (Bias): (现价 - 均线) / 均线
     let bias20 = 'N/A'
-    // [修复] 使用可选链 ?. 访问属性，类型安全
+    // 使用可选链 ?. 访问属性，类型安全
     if (currentPoint?.nav && currentPoint?.ma20) {
       const val = ((currentPoint.nav - currentPoint.ma20) / currentPoint.ma20) * 100
       bias20 = `${val.toFixed(2)}%`

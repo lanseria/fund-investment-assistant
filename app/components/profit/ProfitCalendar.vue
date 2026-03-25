@@ -113,7 +113,7 @@ function getTextColor(profit: number) {
             class="text-[10px] font-bold font-mono text-center w-full truncate sm:text-xs"
             :class="getTextColor(day.profit)"
           >
-            <!-- [修改] 移除 Math.floor，使用 toFixed(2) 保留两位小数 -->
+            <!-- 移除 Math.floor，使用 toFixed(2) 保留两位小数 -->
             {{ day.profit !== 0 ? (day.profit > 0 ? `+${day.profit.toFixed(2)}` : day.profit.toFixed(2)) : '-' }}
           </span>
           <!-- 今日标记 -->

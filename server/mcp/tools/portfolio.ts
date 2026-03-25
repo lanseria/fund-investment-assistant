@@ -28,7 +28,7 @@ export default defineMcpTool({
       const simplifiedHoldings = holdings.map(h => ({
         code: h.code,
         name: h.name,
-        sector: h.sector || '未分类', // <--- 关键修改：暴露板块信息
+        sector: h.sector || '未分类',
         amount: h.holdingAmount,
         profitRate: h.holdingProfitRate,
         todayChange: h.percentageChange,

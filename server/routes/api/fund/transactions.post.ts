@@ -6,7 +6,7 @@ import { useDb } from '~~/server/utils/db'
 const transactionSchema = z.object({
   fundCode: z.string().min(1, '基金代码不能为空'),
   type: z.enum(['buy', 'sell']),
-  // [修改] 添加 .nullable() 以允许前端传 null
+  // 添加 .nullable() 以允许前端传 null
   amount: z.number().positive().nullable().optional(),
   shares: z.number().positive().nullable().optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, '日期格式应为 YYYY-MM-DD'),

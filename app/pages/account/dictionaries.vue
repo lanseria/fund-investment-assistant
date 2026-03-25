@@ -15,13 +15,13 @@ const editingData = ref<any>(null)
 
 // --- Data Fetching ---
 
-// [核心修改] 1. 使用 await 等待数据获取完成
+// 1. 使用 await 等待数据获取完成
 const { data: dictTypes, pending: typesPending, refresh: refreshTypes } = await useAsyncData(
   'admin-dict-types',
   () => apiFetch<any[]>('/api/admin/dict-types'),
 )
 
-// [核心修改] 3. 在 await 之后，同步执行成功后的逻辑
+// 3. 在 await 之后，同步执行成功后的逻辑
 // 这段代码只会在 dictTypes 成功获取后执行
 if (!selectedType.value && dictTypes.value && dictTypes.value.length > 0)
   selectedType.value = dictTypes.value[0].type
@@ -116,7 +116,7 @@ async function deleteData(id: number) {
     <h1 class="text-2xl font-bold mb-4">
       字典管理
     </h1>
-    <!-- [修改] 限制整体布局高度，为内部滚动做准备 -->
+    <!-- 限制整体布局高度，为内部滚动做准备 -->
     <div class="flex flex-col gap-6 h-[calc(100vh-220px)] md:flex-row">
       <!-- Left Panel: Dictionary Types (基本不变) -->
       <div class="p-4 border rounded-lg overflow-y-auto md:w-1/3">
@@ -161,12 +161,12 @@ async function deleteData(id: number) {
       </div>
 
       <!-- Right Panel: Dictionary Data -->
-      <!-- [修改] 1. 将右侧面板设置为 flex 容器，方向为垂直 -->
+      <!-- 1. 将右侧面板设置为 flex 容器，方向为垂直 -->
       <div class="flex flex-col md:w-2/3">
         <div v-if="!selectedType" class="text-gray-500 border rounded-lg flex h-full items-center justify-center">
           请在左侧选择一个字典类别
         </div>
-        <!-- [修改] 2. 将内容区域也设置为 flex 容器，让表格区域可以伸展 -->
+        <!-- 2. 将内容区域也设置为 flex 容器，让表格区域可以伸展 -->
         <div v-else class="flex flex-grow flex-col min-h-0">
           <div class="mb-3 flex flex-shrink-0 items-center justify-between">
             <h2 class="font-semibold">
@@ -179,10 +179,10 @@ async function deleteData(id: number) {
           <div v-if="dataPending" class="text-gray-500">
             加载中...
           </div>
-          <!-- [修改] 3. 这是核心：包裹表格的 div 现在负责滚动 -->
+          <!-- 3. 这是核心：包裹表格的 div 现在负责滚动 -->
           <div v-else class="border rounded-lg flex-grow min-h-0 relative overflow-auto">
             <table class="text-left w-full">
-              <!-- [修改] 4. thead 加上 sticky 定位，并确保有不透明的背景色 -->
+              <!-- 4. thead 加上 sticky 定位，并确保有不透明的背景色 -->
               <thead class="bg-gray-50 top-0 sticky z-10 dark:bg-gray-800">
                 <tr>
                   <th class="p-3">

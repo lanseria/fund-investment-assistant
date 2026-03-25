@@ -3,7 +3,7 @@ import { Buffer } from 'node:buffer'
 import { z } from 'zod'
 import { getUserFromEvent } from '~~/server/utils/auth' // 导入认证工具
 
-// [重要修改] 创建一个更健壮、将被实际使用的 Zod schema
+// 创建一个更健壮、将被实际使用的 Zod schema
 const importSchema = z.object({
   // `overwrite` 在表单中是字符串 'true' 或 'false'，我们预处理它为布尔值
   overwrite: z.preprocess(val => String(val) === 'true', z.boolean()),
@@ -21,7 +21,7 @@ export default defineEventHandler(async (event) => {
   if (!formData)
     throw createError({ status: 400, statusText: '需要 Multipart form data。' })
 
-  // 2. [重要修改] 将 formData 数组转换为 Zod 可以验证的对象
+  // 2. 将 formData 数组转换为 Zod 可以验证的对象
   // Nitro 的 readMultipartFormData 返回一个数组，我们需要将其转换为 {key: value} 形式
   const dataToValidate = formData.reduce((acc, part) => {
     if (part.name)
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
   }, {} as Record<string, any>)
 
   try {
-    // 3. [重要修改] 使用 schema 来解析和验证转换后的数据
+    // 3. 使用 schema 来解析和验证转换后的数据
     const { file, overwrite } = await importSchema.parseAsync(dataToValidate)
 
     // 4. `file` 已经过验证，是一个 Buffer，现在可以安全地解析它

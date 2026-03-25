@@ -84,7 +84,7 @@ const slicedChartData = computed(() => {
     <div v-else-if="error" class="text-xs text-red-500 text-center flex h-full items-center justify-center">
       加载失败: {{ error.message }}
     </div>
-    <!-- 3. [修改] 使用切片后的数据 (slicedChartData) 来渲染图表 -->
+    <!-- 3. 使用切片后的数据 (slicedChartData) 来渲染图表 -->
     <div v-else-if="slicedChartData" class="h-full w-full">
       <template v-if="strategyKey === 'rsi'">
         <MiniRsiChart :data="slicedChartData as RsiChartData" />

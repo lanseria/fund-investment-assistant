@@ -120,7 +120,7 @@ async function handleSaveConfig() {
           <span class="font-mono">{{ authStore.user.id }}</span>
         </div>
 
-        <!-- [修改] 可用现金编辑行 -->
+        <!-- 可用现金编辑行 -->
         <div class="flex h-8 items-center">
           <span class="text-gray-500 w-24">可用现金:</span>
 

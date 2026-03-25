@@ -204,7 +204,7 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
         return null
       }
 
-      // [修复] 代码解析
+      // 代码解析
       const codeWithPrefix = parts[0]!.split('=')[0]!
       const code = codeWithPrefix.substring(2)
 
