@@ -2,8 +2,9 @@
 import type { Holding, SortableKey } from '~/types/holding'
 import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
 import HoldingListRow from './HoldingListRow.vue'
+import SectorEditModal from './SectorEditModal.vue'
 
-withDefaults(defineProps<{
+const props = withDefaults(defineProps<{
   data: Holding[]
   sortKey: SortableKey | null
   sortOrder: 'asc' | 'desc'
@@ -17,6 +18,29 @@ const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'trade
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
+}
+
+// --- 板块编辑弹窗逻辑 ---
+const sectorEditModal = ref(false)
+const editingFund = ref<{ code: string, name: string, sector: string | null } | null>(null)
+
+function handleEditSector(holding: Holding) {
+  editingFund.value = {
+    code: holding.code,
+    name: holding.name,
+    sector: holding.sector,
+  }
+  sectorEditModal.value = true
+}
+
+function handleSectorEditSuccess(result: { code: string, newSector: string | null }) {
+  // 更新本地数据
+  const fund = props.data.find(h => h.code === result.code)
+  if (fund) {
+    fund.sector = result.newSector
+  }
+  sectorEditModal.value = false
+  editingFund.value = null
 }
 
 // --- Tooltip 逻辑 ---
@@ -118,6 +142,7 @@ function handleHideTooltip() {
             @edit="emit('edit', $event)"
             @delete="emit('delete', $event)"
             @clear-position="emit('clear-position', $event)"
+            @edit-sector="handleEditSector"
             @trade="(h, type) => emit('trade', h, type)"
             @delete-transaction="emit('delete-transaction', $event)"
             @show-strategy-tooltip="handleShowTooltip"
@@ -139,6 +164,30 @@ function handleHideTooltip() {
             :fund-code="hoveredFundCode"
             :strategy-key="hoveredStrategyKey"
           />
+        </div>
+      </Transition>
+    </Teleport>
+
+    <!-- 板块编辑弹窗 -->
+    <Teleport to="body">
+      <Transition name="fade">
+        <div
+          v-if="sectorEditModal && editingFund"
+          class="bg-black/50 flex items-center inset-0 justify-center fixed z-50"
+          @click.self="sectorEditModal = false"
+        >
+          <div class="p-6 rounded-lg bg-white max-w-md w-full shadow-xl dark:bg-gray-800" @click.stop>
+            <h3 class="text-lg font-semibold mb-4">
+              编辑板块
+            </h3>
+            <SectorEditModal
+              fund-code="editingFund.code"
+              fund-name="editingFund.name"
+              current-sector="editingFund.sector"
+              @success="handleSectorEditSuccess"
+              @cancel="sectorEditModal = false"
+            />
+          </div>
         </div>
       </Transition>
     </Teleport>

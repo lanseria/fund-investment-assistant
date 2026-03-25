@@ -23,6 +23,7 @@ export interface RecentTransaction {
 export interface Holding {
   code: string
   name: string
+  sector: string | null
   // shares 和 costPrice 可以为 null
   shares: number | null
   costPrice: number | null

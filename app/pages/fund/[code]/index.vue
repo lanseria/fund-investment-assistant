@@ -3,10 +3,11 @@
 import type { Holding } from '~/types/holding'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
-import { appName } from '~/constants'
+import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 const dayjs = useDayjs()
+const dictStore = useDictStore()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
 const targetUserId = route.query.userId ? Number(route.query.userId) : null
@@ -312,6 +313,7 @@ watch(data, (newData) => {
         </div>
         <div class="text-xs text-gray-400 mt-2 flex gap-4">
           <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
+          <span v-if="fundDetail.sector">板块: {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundDetail.sector) }}</span>
           <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? dayjs(fundDetail.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}</span>
         </div>
       </div>

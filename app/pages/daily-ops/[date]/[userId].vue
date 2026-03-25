@@ -7,7 +7,6 @@ import { formatCurrency } from '~/utils/format'
 
 const route = useRoute<'daily-ops-date-userId'>()
 const dayjs = useDayjs()
-const { getLabel } = useDictStore()
 
 const dateStr = route.params.date as string
 const userId = Number(route.params.userId)
