@@ -3,14 +3,16 @@ import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
+import { SECTOR_DICT_TYPE } from '~/constants' // [新增] 引入板块字典常量
 import { dateFilterOptions } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 
 interface ChartCardData {
   code: string
   name: string
+  sector: string | null // [新增] 板块字段
   strategy: string
-  data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[] }
+  data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[], transactions?: any[] } // [新增] transactions 支持
   holdingAmount: number | null
   percentageChange: number | null
   todayEstimateProfitLoss: number | null
@@ -22,6 +24,7 @@ const props = defineProps<{
 }>()
 
 const dayjs = useDayjs()
+const { getLabel } = useDictStore() // [新增] 引入获取字典标签的方法
 
 // --- 辅助函数 ---
 function getChangeClass(value: number | null | undefined) {
@@ -72,7 +75,7 @@ const slicedData = computed(() => {
     }
   }
   else {
-    const genericData = fullData as { history: HoldingHistoryPoint[], signals: any[] }
+    const genericData = fullData as { history: HoldingHistoryPoint[], signals: any[], transactions?: any[] }
     return {
       ...genericData,
       history: genericData.history.slice(startIndex),
@@ -84,10 +87,16 @@ const slicedData = computed(() => {
 <template>
   <div class="card flex flex-col overflow-hidden">
     <!-- 头部：基金名称 -->
-    <div class="p-3 border-b flex gap-2 items-baseline justify-between dark:border-gray-700">
-      <NuxtLink :to="`/fund/${fund.code}`" :title="fund.code" class="text-sm font-semibold truncate transition-colors hover:text-primary">
-        {{ fund.name }}
-      </NuxtLink>
+    <div class="p-3 border-b flex gap-2 items-center justify-between dark:border-gray-700">
+      <div class="flex gap-2 items-center overflow-hidden">
+        <!-- [新增] 板块标签 -->
+        <span v-if="fund.sector" class="text-[10px] text-gray-500 px-1.5 py-0.5 rounded bg-gray-100 flex-shrink-0 whitespace-nowrap dark:text-gray-400 dark:bg-gray-700/50">
+          {{ getLabel(SECTOR_DICT_TYPE, fund.sector) || '未设置' }}
+        </span>
+        <NuxtLink :to="`/fund/${fund.code}`" :title="fund.code" class="text-sm font-semibold truncate transition-colors hover:text-primary">
+          {{ fund.name }}
+        </NuxtLink>
+      </div>
     </div>
 
     <!-- 图表区域 -->
@@ -99,6 +108,7 @@ const slicedData = computed(() => {
         <MiniFundChart
           :history="(slicedData as any).history"
           :signals="(slicedData as any).signals"
+          :transactions="(slicedData as any).transactions"
         />
       </template>
     </div>
