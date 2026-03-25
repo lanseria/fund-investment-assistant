@@ -14,7 +14,15 @@ const props = withDefaults(defineProps<{
   showActions: true,
 })
 
-const emit = defineEmits(['edit', 'delete', 'set-sort', 'clear-position', 'trade', 'delete-transaction'])
+const emit = defineEmits([
+  'edit',
+  'delete',
+  'set-sort',
+  'clear-position',
+  'trade',
+  'delete-transaction',
+  'update-attention',
+])
 
 function setSort(key: SortableKey) {
   emit('set-sort', key)
@@ -147,6 +155,7 @@ function handleHideTooltip() {
             @delete-transaction="emit('delete-transaction', $event)"
             @show-strategy-tooltip="handleShowTooltip"
             @hide-strategy-tooltip="handleHideTooltip"
+            @update-attention="(code, level) => emit('update-attention', code, level)"
           />
         </tbody>
       </table>

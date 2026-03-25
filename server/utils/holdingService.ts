@@ -8,6 +8,7 @@ interface HoldingCreateData {
   code: string
   shares?: number | null
   costPrice?: number | null
+  attentionLevel?: number
   userId: number
   fundType: 'open' | 'qdii_lof'
 }
@@ -42,6 +43,7 @@ export async function addHolding(data: HoldingCreateData) {
     fundCode: data.code,
     shares: data.shares ? String(data.shares) : null,
     costPrice: data.costPrice ? String(data.costPrice) : null,
+    attentionLevel: data.attentionLevel ?? 1,
   }
 
   const [result] = await db.insert(holdings).values(newHoldingData).returning()
@@ -51,14 +53,19 @@ export async function addHolding(data: HoldingCreateData) {
 /**
  * 更新用户持仓记录
  */
-export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null }) {
+export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null, attentionLevel?: number }) {
   const db = useDb()
 
+  const updatePayload: any = {}
+  if (data.shares !== undefined)
+    updatePayload.shares = data.shares ? String(data.shares) : null
+  if (data.costPrice !== undefined)
+    updatePayload.costPrice = data.costPrice ? String(data.costPrice) : null
+  if (data.attentionLevel !== undefined)
+    updatePayload.attentionLevel = data.attentionLevel
+
   const [updatedHolding] = await db.update(holdings)
-    .set({
-      shares: data.shares !== undefined ? (data.shares ? String(data.shares) : null) : undefined,
-      costPrice: data.costPrice !== undefined ? (data.costPrice ? String(data.costPrice) : null) : undefined,
-    })
+    .set(updatePayload)
     .where(and(eq(holdings.userId, userId), eq(holdings.fundCode, code)))
     .returning()
 

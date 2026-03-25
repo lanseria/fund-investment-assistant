@@ -18,14 +18,21 @@ const emit = defineEmits([
   'delete-transaction',
   'show-strategy-tooltip',
   'hide-strategy-tooltip',
+  'update-attention',
 ])
+
+// 切换关注度逻辑
+function toggleAttention() {
+  const nextLevel = props.holding.attentionLevel >= 3 ? 1 : props.holding.attentionLevel + 1
+  emit('update-attention', props.holding.code, nextLevel)
+}
 
 const { getLabel } = useDictStore()
 const dayjs = useDayjs()
 
 // --- 辅助函数 ---
 
-// [新增] 计算最近一次买入的持有状态
+// 计算最近一次买入的持有状态
 const lastBuyStatus = computed(() => {
   const txs = props.holding.recentTransactions
   if (!txs || txs.length === 0)
@@ -125,14 +132,36 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 </script>
 
 <template>
-  <tr class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50">
+  <tr
+    class="border-b transition-colors dark:border-gray-700/50 hover:bg-gray-50 dark:hover:bg-gray-800/50"
+    :class="holding.holdingAmount === null ? 'bg-slate-50/50 dark:bg-gray-900/30' : ''"
+  >
     <!-- 1. 基金名称与信号 -->
-    <td class="font-semibold p-4">
-      <div class="mb-1 flex items-center">
-        <button class="text-xs font-medium mr-2 px-2 py-0.5 rounded-full flex-none transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
+    <td
+      class="font-semibold p-4 border-l-4 transition-colors"
+      :class="[
+        holding.attentionLevel >= 3 ? 'border-l-red-500'
+        : holding.attentionLevel === 2 ? 'border-l-orange-400'
+          : 'border-l-transparent',
+      ]"
+    >
+      <div class="mb-1 flex gap-2 items-center">
+        <!-- 关注度图标交互 -->
+        <button
+          type="button"
+          class="icon-btn flex-shrink-0 transition-transform active:scale-90"
+          :title="['普通关注 (点击升级)', '重点关注 (点击升级)', '核心关注 (点击降级)'][holding.attentionLevel - 1] || '设置关注度'"
+          @click.prevent="toggleAttention"
+        >
+          <div v-if="holding.attentionLevel >= 3" class="i-carbon-fire text-red-500" />
+          <div v-else-if="holding.attentionLevel === 2" class="i-carbon-star-filled text-orange-400" />
+          <div v-else class="i-carbon-star text-gray-300 dark:text-gray-600 hover:text-orange-400" />
+        </button>
+
+        <button class="text-xs font-medium px-2 py-0.5 rounded-full flex-none transition-colors" :class="holding.sector ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/50 dark:text-blue-300 hover:bg-blue-200' : 'bg-gray-100 text-gray-500 dark:bg-gray-700/50 dark:text-gray-400 hover:bg-gray-200'" @click="emit('edit-sector', holding)">
           {{ getLabel(SECTOR_DICT_TYPE, holding.sector) || '未设置' }}
         </button>
-        <NuxtLink :to="targetUserId ? `/fund/${holding.code}?userId=${targetUserId}` : `/fund/${holding.code}`" class="transition-colors hover:text-primary-hover">
+        <NuxtLink :to="targetUserId ? `/fund/${holding.code}?userId=${targetUserId}` : `/fund/${holding.code}`" class="truncate transition-colors hover:text-primary-hover">
           {{ holding.name }}
         </NuxtLink>
       </div>

@@ -10,12 +10,12 @@ const holdingStore = useHoldingStore()
 const fundList = computed(() => holdingStore.holdings)
 
 const strategySelectOptions = [
+  { value: '', label: '基础走势' },
   { value: 'bollinger_bands', label: '布林带策略' },
   { value: 'rsi', label: 'RSI 策略' },
-  { value: '', label: '基础走势' },
 ]
 
-const selectedStrategy = ref('bollinger_bands')
+const selectedStrategy = ref('')
 const activeDateFilter = ref('3m')
 
 const { data: chartData, pending, error, refresh } = useAsyncData(
@@ -43,6 +43,7 @@ const { data: chartData, pending, error, refresh } = useAsyncData(
           code: fund.code,
           name: fund.name,
           sector: fund.sector, // [新增] 传递板块信息
+          attentionLevel: fund.attentionLevel || 1, // 传递关注度
           strategy: selectedStrategy.value,
           data: chartApiData,
           holdingAmount: fund.holdingAmount,
@@ -73,6 +74,29 @@ onMounted(async () => {
     await refresh()
   }
 })
+
+async function handleUpdateAttention(code: string, newLevel: number) {
+  // 1. 乐观更新：解决 useAsyncData shallowRef 导致的深层修改不触发视图更新问题
+  if (chartData.value) {
+    const newData = [...chartData.value]
+    const index = newData.findIndex(f => f?.code === code)
+    if (index !== -1 && newData[index]) {
+      // 创建一个新对象并替换，触发视图重新渲染
+      newData[index] = { ...newData[index]!, attentionLevel: newLevel }
+      chartData.value = newData
+    }
+  }
+
+  // 2. 发起 API 请求更新后端和全局 Store
+  try {
+    await holdingStore.updateHolding(code, { attentionLevel: newLevel })
+  }
+  catch (error) {
+    console.error('更新关注度失败:', error)
+    // 失败则回滚视图状态
+    await refresh()
+  }
+}
 </script>
 
 <template>
@@ -130,6 +154,7 @@ onMounted(async () => {
         :key="fundData!.code"
         :fund="fundData!"
         :active-date-filter="activeDateFilter"
+        @update-attention="handleUpdateAttention"
       />
     </div>
   </div>

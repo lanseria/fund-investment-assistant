@@ -103,7 +103,7 @@ export const useHoldingStore = defineStore('holding', () => {
   /**
    * 更新持仓金额
    */
-  async function updateHolding(code: string, data: { shares?: number | null, costPrice?: number | null }) {
+  async function updateHolding(code: string, data: { shares?: number | null, costPrice?: number | null, attentionLevel?: number | null }) {
     try {
       await apiFetch(`/api/fund/holdings/${code}`, {
         method: 'PUT',

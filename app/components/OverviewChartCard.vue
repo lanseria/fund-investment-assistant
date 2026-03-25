@@ -11,6 +11,7 @@ interface ChartCardData {
   code: string
   name: string
   sector: string | null // [新增] 板块字段
+  attentionLevel: number // [新增] 关注度
   strategy: string
   data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[], transactions?: any[] } // [新增] transactions 支持
   holdingAmount: number | null
@@ -23,8 +24,16 @@ const props = defineProps<{
   activeDateFilter: string
 }>()
 
+const emit = defineEmits(['update-attention'])
+
 const dayjs = useDayjs()
 const { getLabel } = useDictStore() // [新增] 引入获取字典标签的方法
+
+function toggleAttention() {
+  // 1 -> 2 -> 3 -> 1 循环切换
+  const nextLevel = props.fund.attentionLevel >= 3 ? 1 : props.fund.attentionLevel + 1
+  emit('update-attention', props.fund.code, nextLevel)
+}
 
 // --- 辅助函数 ---
 function getChangeClass(value: number | null | undefined) {
@@ -85,17 +94,45 @@ const slicedData = computed(() => {
 </script>
 
 <template>
-  <div class="card flex flex-col overflow-hidden">
+  <div
+    class="border-t-4 card flex flex-col transition-all duration-300 overflow-hidden"
+    :class="[
+      // 根据是否持有显示不同的背景
+      fund.holdingAmount !== null
+        ? 'bg-white dark:bg-gray-800'
+        : '!bg-slate-50 dark:!bg-gray-900/60 shadow-inner',
+      // 根据关注度显示顶部边框高亮
+      fund.attentionLevel >= 3 ? 'border-red-500'
+      : fund.attentionLevel === 2 ? 'border-orange-400'
+        : 'border-transparent',
+    ]"
+  >
     <!-- 头部：基金名称 -->
     <div class="p-3 border-b flex gap-2 items-center justify-between dark:border-gray-700">
       <div class="flex gap-2 items-center overflow-hidden">
-        <!-- [新增] 板块标签 -->
+        <!-- 关注度图标交互 -->
+        <button
+          type="button"
+          class="icon-btn flex-shrink-0 transition-transform active:scale-90"
+          :title="['普通关注 (点击升级)', '重点关注 (点击升级)', '核心关注 (点击降级)'][fund.attentionLevel - 1] || '设置关注度'"
+          @click.prevent="toggleAttention"
+        >
+          <div v-if="fund.attentionLevel >= 3" class="i-carbon-fire text-red-500" />
+          <div v-else-if="fund.attentionLevel === 2" class="i-carbon-star-filled text-orange-400" />
+          <div v-else class="i-carbon-star text-gray-300 dark:text-gray-600 hover:text-orange-400" />
+        </button>
+
+        <!-- 板块标签 -->
         <span v-if="fund.sector" class="text-[10px] text-gray-500 px-1.5 py-0.5 rounded bg-gray-100 flex-shrink-0 whitespace-nowrap dark:text-gray-400 dark:bg-gray-700/50">
           {{ getLabel(SECTOR_DICT_TYPE, fund.sector) || '未设置' }}
         </span>
+
         <NuxtLink :to="`/fund/${fund.code}`" :title="fund.code" class="text-sm font-semibold truncate transition-colors hover:text-primary">
           {{ fund.name }}
         </NuxtLink>
+
+        <!-- 仅关注徽章 -->
+        <span v-if="fund.holdingAmount === null" class="text-[10px] text-gray-400 px-1 py-px border border-gray-200 rounded flex-shrink-0 dark:border-gray-600">仅关注</span>
       </div>
     </div>
 

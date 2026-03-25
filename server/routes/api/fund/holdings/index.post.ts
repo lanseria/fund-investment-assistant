@@ -5,6 +5,7 @@ const holdingCreateSchema = z.object({
   code: z.string().length(6),
   shares: z.number().positive('份额必须为正数').nullable().optional(),
   costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
+  attentionLevel: z.number().int().min(1).max(3).optional().default(1),
   fundType: z.enum(['open', 'qdii_lof']),
 }).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
   message: '持有份额和持仓成本价必须同时填写或同时不填。',

@@ -210,6 +210,23 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
   if (result)
     alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
 }
+
+async function handleUpdateAttention(code: string, newLevel: number) {
+  // 1. 乐观更新（Pinia store 中 holdings 是 deep reactive，直接修改即可响应）
+  const index = holdingStore.holdings.findIndex(h => h.code === code)
+  if (index !== -1) {
+    holdingStore.holdings[index]!.attentionLevel = newLevel
+  }
+
+  // 2. 发起 API 请求更新后端
+  try {
+    await holdingStore.updateHolding(code, { attentionLevel: newLevel })
+  }
+  catch (error) {
+    console.error('更新关注度失败:', error)
+    await refresh() // 失败则回滚视图状态
+  }
+}
 </script>
 
 <template>
@@ -257,6 +274,7 @@ async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: 
       @clear-position="handleClearPosition"
       @trade="openTradeModal"
       @delete-transaction="handleDeleteTransaction"
+      @update-attention="handleUpdateAttention"
     />
 
     <!-- Modals -->

@@ -24,6 +24,7 @@ export interface Holding {
   code: string
   name: string
   sector: string | null
+  attentionLevel: number
   // shares 和 costPrice 可以为 null
   shares: number | null
   costPrice: number | null

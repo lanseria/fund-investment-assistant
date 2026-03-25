@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."holdings" ADD COLUMN "attention_level" integer DEFAULT 1 NOT NULL;

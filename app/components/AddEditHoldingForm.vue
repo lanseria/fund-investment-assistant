@@ -9,6 +9,7 @@ const formData = reactive({
   shares: null as number | null,
   costPrice: null as number | null,
   name: '',
+  attentionLevel: 1,
   fundType: 'open' as 'open' | 'qdii_lof',
 })
 
@@ -20,12 +21,14 @@ watch(() => props.initialData, (newData) => {
     formData.shares = newData.shares
     formData.costPrice = newData.costPrice
     formData.name = newData.name
+    formData.attentionLevel = newData.attentionLevel || 1
   }
   else {
     formData.code = ''
     formData.shares = null
     formData.costPrice = null
     formData.name = ''
+    formData.attentionLevel = 1
     formData.fundType = 'open'
   }
 }, { immediate: true })
@@ -54,6 +57,7 @@ function handleSubmit() {
       // 如果为空字符串或0，则发送null
       shares: formData.shares || null,
       costPrice: formData.costPrice || null,
+      attentionLevel: formData.attentionLevel,
     }
     if (!isEditing.value)
       payload.fundType = formData.fundType
@@ -117,6 +121,20 @@ function handleSubmit() {
           placeholder="若不持仓，可留空"
           class="input-base"
         >
+      </div>
+
+      <!-- 关注程度 -->
+      <div>
+        <label for="attention-level" class="text-sm font-medium mb-1 block">关注程度</label>
+        <CustomSelect
+          id="attention-level"
+          v-model="formData.attentionLevel"
+          :options="[
+            { value: 1, label: '普通关注 (1级)' },
+            { value: 2, label: '重点关注 (2级)' },
+            { value: 3, label: '核心关注 (3级)' },
+          ]"
+        />
       </div>
     </div>
 

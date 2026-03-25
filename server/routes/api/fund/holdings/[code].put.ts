@@ -5,6 +5,7 @@ import { getUserFromEvent } from '~~/server/utils/auth'
 const holdingUpdateSchema = z.object({
   shares: z.number().positive('份额必须为正数').nullable().optional(),
   costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
+  attentionLevel: z.number().int().min(1).max(3).optional(),
 }).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
   message: '持有份额和持仓成本价必须同时填写或同时不填。',
   path: ['shares'],

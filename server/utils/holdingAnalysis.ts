@@ -221,6 +221,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       code: fundInfo.code,
       name: fundInfo.name,
       sector: fundInfo.sector,
+      attentionLevel: h.attentionLevel,
       yesterdayNav: Number(fundInfo.yesterdayNav),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,

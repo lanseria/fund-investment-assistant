@@ -75,6 +75,8 @@ export const holdings = fundSchema.table('holdings', {
   shares: numeric('shares', { precision: 18, scale: 4 }),
   /** 持仓成本价 (买入时的单位净值) */
   costPrice: numeric('cost_price', { precision: 10, scale: 4 }),
+  /** 关注程度 (1: 普通, 2: 重点, 3: 核心) */
+  attentionLevel: integer('attention_level').default(1).notNull(),
 }, (table) => {
   return {
     /** 使用 用户ID 和 基金代码 创建复合主键，确保一个用户对一个基金只能有一条持仓记录 */
