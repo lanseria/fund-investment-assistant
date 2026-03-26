@@ -200,14 +200,14 @@ async function handleRunStrategies() {
   }
 }
 
-// [新增] 辅助函数：获取特定区间的性能数据
+// 辅助函数：获取特定区间的性能数据
 function getPerformanceValue(key: string) {
   if (!data.value?.performance)
     return null
   return data.value.performance[key]
 }
 
-// [新增] 辅助函数：格式化显示
+// 辅助函数：格式化显示
 function formatPerformance(key: string) {
   const val = getPerformanceValue(key)
   if (val === null || val === undefined)
@@ -215,7 +215,7 @@ function formatPerformance(key: string) {
   return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`
 }
 
-// [新增] 辅助函数：获取颜色样式
+// 辅助函数：获取颜色样式
 function getPerformanceClass(key: string) {
   const val = getPerformanceValue(key)
   if (val === null || val === undefined)
@@ -303,7 +303,7 @@ watch(data, (newData) => {
       </div>
     </header>
 
-    <!-- [新增] 基金当日核心详情面板 -->
+    <!-- 基金当日核心详情面板 -->
     <div v-if="fundDetail" class="mb-8 p-5 card flex flex-col gap-6 items-center justify-between from-white to-gray-50 bg-gradient-to-br md:flex-row dark:from-gray-800 dark:to-gray-800/80">
       <!-- 基本信息 -->
       <div class="flex flex-1 flex-col">

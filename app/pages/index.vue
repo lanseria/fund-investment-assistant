@@ -46,7 +46,7 @@ const isConvertModalOpen = ref(false)
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
 const availableShares = ref(0)
-const tradeTargetTransactions = ref<any[]>([]) // 新增
+const tradeTargetTransactions = ref<any[]>([])
 
 // 辅助函数
 function calculateAvailableShares(holding: Holding) {
@@ -62,7 +62,7 @@ function calculateAvailableShares(holding: Holding) {
 function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
   tradeTarget.value = holding
   availableShares.value = calculateAvailableShares(holding)
-  tradeTargetTransactions.value = holding.recentTransactions || [] // 新增
+  tradeTargetTransactions.value = holding.recentTransactions || []
 
   if (type === 'convert') {
     isConvertModalOpen.value = true

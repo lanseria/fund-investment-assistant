@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
 
-  // [新增] 先查询该交易
+  // 先查询该交易
   const tx = await db.query.fundTransactions.findFirst({
     where: and(
       eq(fundTransactions.id, Number(id)),
@@ -26,12 +26,12 @@ export default defineEventHandler(async (event) => {
     throw createError({ status: 404, statusText: '未找到该待处理交易' })
   }
 
-  // [新增] 保护逻辑：如果是“转入”记录，不允许直接删除，提示删除“转出”记录
+  // 保护逻辑：如果是“转入”记录，不允许直接删除，提示删除“转出”记录
   if (tx.type === 'convert_in') {
     throw createError({ status: 400, statusText: '请删除对应的 [转出] 记录，系统将自动删除此 [转入] 记录。' })
   }
 
-  // [新增] 级联删除逻辑：如果是“转出”记录，需要查找并删除关联的“转入”记录
+  // 级联删除逻辑：如果是“转出”记录，需要查找并删除关联的“转入”记录
   if (tx.type === 'convert_out') {
     await db.delete(fundTransactions)
       .where(and(

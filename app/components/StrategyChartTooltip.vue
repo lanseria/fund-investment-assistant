@@ -30,7 +30,7 @@ const { data: chartData, pending, error } = useAsyncData(
   },
 )
 
-// 2. [核心] 新增 computed 属性，用于在客户端对全量数据进行切片
+// 2. 用于在客户端对全量数据进行切片
 const slicedChartData = computed(() => {
   if (!chartData.value)
     return null

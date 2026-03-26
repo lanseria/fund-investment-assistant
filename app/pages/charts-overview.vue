@@ -42,8 +42,8 @@ const { data: chartData, pending, error, refresh } = useAsyncData(
         return {
           code: fund.code,
           name: fund.name,
-          sector: fund.sector, // [新增] 传递板块信息
-          attentionLevel: fund.attentionLevel || 1, // 传递关注度
+          sector: fund.sector,
+          attentionLevel: fund.attentionLevel || 1,
           strategy: selectedStrategy.value,
           data: chartApiData,
           holdingAmount: fund.holdingAmount,

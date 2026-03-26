@@ -64,7 +64,7 @@ export default defineTask({
           aiSystemPrompt: user.aiSystemPrompt,
         })
 
-        // [新增] 保存执行日志
+        // 保存执行日志
         const todayStr = new Date().toISOString().split('T')[0]
         await db.insert(aiExecutionLogs).values({
           userId: user.id,

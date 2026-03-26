@@ -12,7 +12,7 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.1
     iconv-lite: ^0.7.2
-    openai: ^6.32.0
+    openai: ^6.33.0
     pg: ^8.20.0
     secure-exec: ^0.1.0
   build:
@@ -37,10 +37,10 @@ catalogs:
     echarts: ^6.0.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
-    vue: ^3.5.30
+    vue: ^3.5.31
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.19
+    '@iconify-json/carbon': ^1.2.20
     '@iconify-json/f7': ^1.2.2
     '@iconify-json/twemoji': ^1.2.5
   utils:

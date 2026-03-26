@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  // [新增] 安全升级：如果是旧版哈希，自动更新为 Argon2
+  // 安全升级：如果是旧版哈希，自动更新为 Argon2
   if (needsRehash(user.password)) {
     console.log(`[Auth] Migrating password for user ${user.username} to Argon2...`)
     const newHash = await hashPassword(password)

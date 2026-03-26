@@ -173,7 +173,7 @@ export async function fetchFundHistory(fundCode: string, startDate?: string, end
   return allData
 }
 
-// [新增] 定义单个指数的数据结构
+// 定义单个指数的数据结构
 export interface MarketIndexData {
   code: string
   name: string

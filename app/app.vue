@@ -16,14 +16,14 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
     // 如果用户已认证，则启动 SSE 连接 和 客户端轮询
     console.warn('[Global] 用户已认证，正在启动 SSE 及客户端轮询...')
     holdingStore.startSseUpdates()
-    holdingStore.startClientPolling() // [新增] 启动客户端轮询
+    holdingStore.startClientPolling() // 启动客户端轮询
     marketStore.startMarketUpdates()
   }
   else {
     // 如果用户未认证（或已登出），则关闭 SSE 连接 和 轮询
     console.warn('[Global] 用户未认证，正在关闭服务...')
     holdingStore.stopSseUpdates()
-    holdingStore.stopClientPolling() // [新增] 停止客户端轮询
+    holdingStore.stopClientPolling() // 停止客户端轮询
     marketStore.stopMarketUpdates()
   }
 }, {

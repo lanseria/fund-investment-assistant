@@ -43,7 +43,7 @@ function openMergeModal(user: AdminUserItem) {
   isMergeModalOpen.value = true
 }
 
-// [新增] 提交合并请求
+// 提交合并请求
 async function handleMergeHoldings() {
   if (!mergeSourceUser.value || !mergeTargetUserId.value)
     return
@@ -530,7 +530,7 @@ async function handleCloneUser() {
         </div>
       </form>
     </Modal>
-    <!-- [新增] 合并持仓模态框 -->
+    <!-- 合并持仓模态框 -->
     <Modal v-model="isMergeModalOpen" title="合并持仓关注">
       <form @submit.prevent="handleMergeHoldings">
         <div class="space-y-4">

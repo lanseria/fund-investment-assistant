@@ -63,7 +63,7 @@ const chartOption = computed<EChartsOption>(() => {
             [{ yAxis: config.rsiLower, itemStyle: { color: '#22c55e' } }, { yAxis: 0 }],
           ],
         },
-        // [新增] 添加超买超卖标记线
+        // 添加超买超卖标记线
         markLine: {
           silent: true,
           symbol: 'none',

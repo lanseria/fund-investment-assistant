@@ -1,4 +1,4 @@
-import type { H3Event } from 'h3' // [新增] 显式导入 H3Event 类型
+import type { H3Event } from 'h3'
 import { createHash, randomBytes } from 'node:crypto'
 import { eq } from 'drizzle-orm'
 import { users } from '~~/server/database/schemas'

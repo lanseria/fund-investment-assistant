@@ -68,7 +68,7 @@ async function handleTypeSubmit() {
     isTypeModalOpen.value = false
     await refreshTypes()
 
-    // [体验优化] 如果是新增，则自动选中新增的类型
+    // 如果是新增，则自动选中新增的类型
     if (!isEditing)
       selectedType.value = newOrUpdatedType.type
   }

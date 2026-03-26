@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
 
   console.log('[SSE Market] New connection established.')
 
-  // [新增] 连接建立后，立即从 Redis 获取并推送一次最新数据
+  // 连接建立后，立即从 Redis 获取并推送一次最新数据
   // 避免用户等待下一个 1 分钟周期
   try {
     const cachedData = await getCachedMarketData()

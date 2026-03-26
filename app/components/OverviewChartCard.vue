@@ -3,17 +3,17 @@ import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
-import { SECTOR_DICT_TYPE } from '~/constants' // [新增] 引入板块字典常量
+import { SECTOR_DICT_TYPE } from '~/constants' // 引入板块字典常量
 import { dateFilterOptions } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 
 interface ChartCardData {
   code: string
   name: string
-  sector: string | null // [新增] 板块字段
-  attentionLevel: number // [新增] 关注度
+  sector: string | null // 板块字段
+  attentionLevel: number // 关注度
   strategy: string
-  data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[], transactions?: any[] } // [新增] transactions 支持
+  data: RsiChartData | { history: HoldingHistoryPoint[], signals: any[], transactions?: any[] } // transactions 支持
   holdingAmount: number | null
   percentageChange: number | null
   todayEstimateProfitLoss: number | null
@@ -27,7 +27,7 @@ const props = defineProps<{
 const emit = defineEmits(['update-attention'])
 
 const dayjs = useDayjs()
-const { getLabel } = useDictStore() // [新增] 引入获取字典标签的方法
+const { getLabel } = useDictStore() // 引入获取字典标签的方法
 
 function toggleAttention() {
   // 1 -> 2 -> 3 -> 1 循环切换
@@ -46,7 +46,7 @@ function getChangeClass(value: number | null | undefined) {
   return 'text-gray'
 }
 
-// [核心] 在卡片组件内部根据全量数据和筛选器，计算出需要传递给图表的数据切片
+// 在卡片组件内部根据全量数据和筛选器，计算出需要传递给图表的数据切片
 const slicedData = computed(() => {
   const period = props.activeDateFilter
   const isRsi = props.fund.strategy === 'rsi'

@@ -12,7 +12,7 @@ const TradeDecisionSchema = z.object({
   amount: z.number().nullable().optional(),
   shares: z.number().nullable().optional(),
   reason: z.string().optional(),
-  // [新增] 关联索引：用于 convert_in 指向对应的 convert_out 在 decisions 数组中的下标
+  // 关联索引：用于 convert_in 指向对应的 convert_out 在 decisions 数组中的下标
   relatedIndex: z.number().int().min(0).optional(),
 })
 

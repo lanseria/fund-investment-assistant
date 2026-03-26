@@ -3,13 +3,6 @@ import isBetween from 'dayjs/plugin/isBetween.js'
 
 dayjs.extend(isBetween)
 
-/**
- * @file shared/market.ts
- * @description 前后端共享的市场指数与时间配置
- * 这是项目中关于市场指数和交易时间的唯一信源 (Single Source of Truth)。
- */
-
-// 定义指数分组，供前端 UI 使用
 export const marketGroups = {
   A: {
     label: 'A 股',
@@ -63,7 +56,7 @@ export const marketGroups = {
  */
 export const ALL_INDEX_CODES = Object.values(marketGroups).flatMap(group => group.codes)
 
-// [新增] 节假日配置 (Single Source of Truth)
+// 节假日配置 (Single Source of Truth)
 // 未来可以从数据库或API动态获取
 export const HOLIDAYS_CONFIG: [string, string][] = [
   // 2026 年休市日期区间 (包含起止日期)

@@ -5,7 +5,7 @@ import type { HoldingHistoryPoint } from '~/types/holding'
 const props = defineProps<{
   history: HoldingHistoryPoint[]
   signals: any[]
-  transactions?: any[] // [新增] 交易记录属性
+  transactions?: any[] // 交易记录属性
 }>()
 
 const chartOption = computed<EChartsOption>(() => {
@@ -17,7 +17,7 @@ const chartOption = computed<EChartsOption>(() => {
   const lastNav = props.history.at(-1)?.nav ?? 0
   const mainColor = lastNav >= firstNav ? '#ef4444' : '#22c55e' // 红涨绿跌
 
-  // 信号点映射逻辑 (保持不变)
+  // 信号点映射逻辑
   const mapSignalsToMarkPoints = (signalType: '买入' | '卖出') => {
     const isBuy = signalType === '买入'
     return props.signals
@@ -34,7 +34,7 @@ const chartOption = computed<EChartsOption>(() => {
       }))
   }
 
-  // [新增] 将交易记录映射到图表上的打点逻辑
+  // 将交易记录映射到图表上的打点逻辑
   const mapTransactionsToMarkPoints = () => {
     if (!props.transactions || props.transactions.length === 0)
       return []
@@ -109,7 +109,7 @@ const chartOption = computed<EChartsOption>(() => {
           data: [
             ...mapSignalsToMarkPoints('买入'),
             ...mapSignalsToMarkPoints('卖出'),
-            ...mapTransactionsToMarkPoints(), // [新增] 加入交易记录的渲染
+            ...mapTransactionsToMarkPoints(), // 加入交易记录的渲染
           ],
         },
       },

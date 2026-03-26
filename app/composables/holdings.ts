@@ -431,8 +431,8 @@ export const useHoldingStore = defineStore('holding', () => {
     clearHoldingPosition,
     exportHoldings,
     importHoldings,
-    refreshServerEstimates, // 重命名并增强
-    triggerClientUpdate, // 新增：手动触发客户端更新
+    refreshServerEstimates,
+    triggerClientUpdate,
     syncHistory,
     runStrategiesForFund,
     submitTrade,

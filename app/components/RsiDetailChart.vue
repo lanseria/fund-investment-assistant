@@ -19,7 +19,7 @@ interface ChartData {
 const props = defineProps<{
   data: ChartData
   title: string
-  // [新增] 接收 dataZoom 控制参数
+  // 接收 dataZoom 控制参数
   dataZoomStart: number
   dataZoomEnd: number
 }>()
