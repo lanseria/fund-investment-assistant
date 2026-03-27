@@ -152,7 +152,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
 1. **资金风控（最高优先级 - 绝对红线）：**
    - **禁止超支**：你输出的所有 \`buy\` 决策中， \`amount\` 之和 **严禁超过 ${availableCashStr} 元**。
    - **自我校验**：在输出 JSON 前,请务必在内心计算：Sum(buy.amount) <= ${availableCashStr}。如果超过,必须**削减**每个买入项的金额,或**删除**部分买入建议。
-   - **若余额不足**：如果剩余资金少于 100 元,请不要执行任何买入操作。
+   - **若余额不足**：如果剩余资金少于 10000 元，请不要执行任何买入操作，必须至少留有 10000 元的现金。
 
 2. **交易动作规范 (Action Rules)：**
 你现在拥有更广泛的资金权限,请选择以下动作之一：

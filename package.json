@@ -43,7 +43,7 @@
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
     "mitt": "catalog:utils",
-    "nuxt": "catalog:build",
+    "nuxt": "^4.4.2",
     "nuxt-echarts": "catalog:frontend",
     "openai": "catalog:backend",
     "paseto-ts": "catalog:utils",
