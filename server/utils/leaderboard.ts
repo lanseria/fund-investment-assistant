@@ -1,8 +1,8 @@
 import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
-import { sql } from 'drizzle-orm'
-import { funds, holdings, navHistory, users } from '~~/server/database/schemas'
+import { eq, sql } from 'drizzle-orm'
+import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -66,7 +66,37 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     }
   }
 
-  // 3. 计算每个用户的资产状况
+  // 3. 准备当天的交易统计
+  const todayStr = dayjs().format('YYYY-MM-DD')
+  const todayTxs = await db.select({
+    userId: fundTransactions.userId,
+    type: fundTransactions.type,
+    status: fundTransactions.status,
+  }).from(fundTransactions).where(eq(fundTransactions.orderDate, todayStr))
+
+  const userCountsMap = new Map<number, NonNullable<LeaderboardUser['todayCounts']>>()
+  for (const tx of todayTxs) {
+    if (!userCountsMap.has(tx.userId)) {
+      userCountsMap.set(tx.userId, { total: 0, buy: 0, sell: 0, convert_in: 0, convert_out: 0, pending: 0, draft: 0 })
+    }
+    const counts = userCountsMap.get(tx.userId)!
+    counts.total++
+    if (tx.type === 'buy')
+      counts.buy++
+    else if (tx.type === 'sell')
+      counts.sell++
+    else if (tx.type === 'convert_in')
+      counts.convert_in++
+    else if (tx.type === 'convert_out')
+      counts.convert_out++
+
+    if (tx.status === 'pending')
+      counts.pending++
+    else if (tx.status === 'draft')
+      counts.draft++
+  }
+
+  // 4. 计算每个用户的资产状况
   const userMap = new Map<number, LeaderboardUser>()
 
   for (const h of allHoldings) {
@@ -116,8 +146,11 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     user.periodProfit += profit
   }
 
-  // 4. 最终结算与排序
+  // 5. 最终结算与排序
   const usersList = Array.from(userMap.values(), (u) => {
+    // 挂载今日操作统计
+    u.todayCounts = userCountsMap.get(u.id) || { total: 0, buy: 0, sell: 0, convert_in: 0, convert_out: 0, pending: 0, draft: 0 }
+
     // 实时总权益 = 数据库记录的现金 + 实时持仓市值
     const realTimeTotalAssets = u.cash + u.fundValue
     u.totalAssets = realTimeTotalAssets

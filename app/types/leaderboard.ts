@@ -23,4 +23,15 @@ export interface LeaderboardUser {
 
   // 展开后的持仓
   holdings?: Holding[]
+
+  // 当日操作统计
+  todayCounts?: {
+    total: number
+    buy: number
+    sell: number
+    convert_in: number
+    convert_out: number
+    pending: number
+    draft: number
+  }
 }

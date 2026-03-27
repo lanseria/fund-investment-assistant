@@ -152,17 +152,39 @@ function openStrategyModal(user: LeaderboardUser) {
 
           <!-- User Info & Assets Breakdown -->
           <div class="pl-2 flex-grow min-w-0">
-            <div class="flex gap-2 items-center">
+            <div class="flex flex-wrap gap-2 items-center">
               <span class="font-bold truncate">{{ user.username }}</span>
               <AiAgentBadge v-if="user.aiMode !== 'off'" :mode="user.aiMode" />
               <button
                 v-if="user.aiSystemPrompt"
-                class="icon-btn text-gray-400 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"
+                class="icon-btn text-gray-400 flex-shrink-0 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"
                 title="查看操作策略"
                 @click.stop="openStrategyModal(user)"
               >
                 <div class="i-carbon-catalog" />
               </button>
+
+              <!-- 当日交易统计 Badges -->
+              <div v-if="user.todayCounts && user.todayCounts.total > 0" class="text-[10px] flex flex-wrap gap-1">
+                <span v-if="user.todayCounts.buy > 0" class="text-red-600 px-1.5 py-0.5 border border-red-100 rounded-full bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20">
+                  买入: {{ user.todayCounts.buy }}
+                </span>
+                <span v-if="user.todayCounts.sell > 0" class="text-green-600 px-1.5 py-0.5 border border-green-100 rounded-full bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20">
+                  卖出: {{ user.todayCounts.sell }}
+                </span>
+                <span v-if="user.todayCounts.convert_in > 0" class="text-purple-600 px-1.5 py-0.5 border border-purple-100 rounded-full bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:bg-purple-900/20">
+                  转入: {{ user.todayCounts.convert_in }}
+                </span>
+                <span v-if="user.todayCounts.convert_out > 0" class="text-blue-600 px-1.5 py-0.5 border border-blue-100 rounded-full bg-blue-50 dark:text-blue-400 dark:border-blue-800 dark:bg-blue-900/20">
+                  转出: {{ user.todayCounts.convert_out }}
+                </span>
+                <span v-if="user.todayCounts.pending > 0" class="text-yellow-600 px-1.5 py-0.5 border border-yellow-100 rounded-full bg-yellow-50 dark:text-yellow-400 dark:border-yellow-800 dark:bg-yellow-900/20">
+                  待处理: {{ user.todayCounts.pending }}
+                </span>
+                <span v-if="user.todayCounts.draft > 0" class="text-purple-600 px-1.5 py-0.5 border border-purple-100 rounded-full bg-purple-50 dark:text-purple-400 dark:border-purple-800 dark:bg-purple-900/20">
+                  草稿: {{ user.todayCounts.draft }}
+                </span>
+              </div>
             </div>
 
             <!-- 资产细分条 (带进度条) -->
