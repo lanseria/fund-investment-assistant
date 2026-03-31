@@ -230,7 +230,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = userConfig.model || 'GLM-5'
+  const targetModel = userConfig.model || 'glm-5.1'
 
   try {
     const openai = new OpenAI({

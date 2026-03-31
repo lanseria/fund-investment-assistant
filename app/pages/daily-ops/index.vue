@@ -39,7 +39,7 @@ const importJsonContent = ref('')
 const isImporting = ref(false)
 const isAiFixModalOpen = ref(false)
 const aiFixTargetUser = ref<{ id: number, username: string } | null>(null)
-const aiFixModel = ref<AiModel>('GLM-5')
+const aiFixModel = ref<AiModel>('glm-5.1')
 const isAiFixSubmitting = ref(false)
 
 const isStrategyModalOpen = ref(false)
@@ -80,7 +80,7 @@ function openImportModal(user: { id: number, username: string }) {
 
 function openAiFixModal(user: { id: number, username: string }) {
   aiFixTargetUser.value = { ...user, id: Number(user.id) }
-  aiFixModel.value = 'GLM-5'
+  aiFixModel.value = 'glm-5.1'
   isAiFixModalOpen.value = true
 }
 
