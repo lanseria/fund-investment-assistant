@@ -10,9 +10,8 @@ export default defineEventHandler(async (event) => {
   }
 
   try {
-    const { holdings } = await getUserHoldingsAndSummary(Number(userId))
-    // 为了保护隐私，不返回汇总信息，只返回持仓列表
-    return holdings
+    const data = await getUserHoldingsAndSummary(Number(userId))
+    return data
   }
   catch (error) {
     console.error(`获取用户 ${userId} 的持仓详情时出错:`, error)

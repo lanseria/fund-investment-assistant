@@ -12,9 +12,9 @@ useHead({
 })
 
 // --- 获取用户持仓详情 ---
-const { data: userHoldings, pending, error } = useAsyncData(
+const { data: userData, pending, error } = useAsyncData(
   `leaderboard-details-${userId}`,
-  () => apiFetch<Holding[]>(`/api/leaderboard/${userId}`),
+  () => apiFetch<{ holdings: Holding[], summary: any }>(`/api/leaderboard/${userId}`),
 )
 
 // --- 排序逻辑 ---
@@ -32,9 +32,9 @@ function handleSetSort(key: SortableKey) {
 }
 
 const displayData = computed(() => {
-  if (!userHoldings.value)
+  if (!userData.value?.holdings)
     return []
-  const data = [...userHoldings.value]
+  const data = [...userData.value.holdings]
 
   if (sortKey.value) {
     data.sort((a, b) => {
@@ -77,9 +77,15 @@ const displayData = computed(() => {
       <p>加载持仓详情失败: {{ error.message }}</p>
     </div>
 
-    <!-- 列表数据渲染 -->
-    <div v-else-if="displayData.length > 0">
+    <!-- 统计栏与今日操作 -->
+    <div v-else-if="userData" class="space-y-6">
+      <PortfolioSummaryCard :summary="userData.summary" sse-status="CLOSED" />
+
+      <TodayTransactionsCard :user-id="userId" />
+
+      <!-- 列表数据渲染 -->
       <HoldingList
+        v-if="displayData.length > 0"
         :data="displayData"
         :sort-key="sortKey"
         :sort-order="sortOrder"
@@ -87,12 +93,12 @@ const displayData = computed(() => {
         :target-user-id="userId"
         @set-sort="handleSetSort"
       />
-    </div>
 
-    <!-- 空状态 -->
-    <div v-else class="text-gray-400 py-20 text-center card">
-      <div i-carbon-filter-remove class="text-5xl mx-auto mb-4 opacity-30" />
-      <p>该用户暂无持仓数据</p>
+      <!-- 持仓空状态 -->
+      <div v-else class="text-gray-400 py-20 text-center card">
+        <div i-carbon-filter-remove class="text-5xl mx-auto mb-4 opacity-30" />
+        <p>该用户暂无持仓数据</p>
+      </div>
     </div>
   </div>
 </template>

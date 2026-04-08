@@ -8,11 +8,14 @@ useHead({
   title: `持仓列表 - ${appName}`,
 })
 
+const authStore = useAuthStore()
 const holdingStore = useHoldingStore()
 const { holdings, summary, sseStatus, isRefreshing } = storeToRefs(holdingStore)
 
+const todayTxsRef = ref<any>(null)
+
 // 数据获取
-const { data: portfolioData, pending: isDataLoading, refresh } = await useAsyncData(
+const { data: portfolioData, pending: isDataLoading, refresh: _refreshHoldings } = await useAsyncData(
   'holdings',
   () => holdingStore.fetchHoldings(),
   { server: true },
@@ -191,6 +194,13 @@ async function handleExport() {
   await holdingStore.exportHoldings()
 }
 
+async function refresh() {
+  await _refreshHoldings()
+  if (todayTxsRef.value) {
+    todayTxsRef.value.refresh()
+  }
+}
+
 const { copy } = useClipboard({ legacy: true })
 async function handleCopyInfo() {
   try {
@@ -250,6 +260,9 @@ async function handleUpdateAttention(code: string, newLevel: number) {
     />
 
     <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
+
+    <!-- 插入今日操作组件 -->
+    <TodayTransactionsCard v-if="authStore.user" ref="todayTxsRef" :user-id="authStore.user.id" class="mb-8" />
 
     <div v-if="isDataLoading" class="card flex h-64 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
