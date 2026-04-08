@@ -98,6 +98,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
 
   // 4. 计算每个用户的资产状况
   const userMap = new Map<number, LeaderboardUser>()
+  const userCostMap = new Map<number, number>()
 
   for (const h of allHoldings) {
     if (!userMap.has(h.userId)) {
@@ -119,6 +120,10 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
 
     const user = userMap.get(h.userId)!
     const shares = new BigNumber(h.shares || 0)
+    const costPrice = new BigNumber(h.costPrice || 0)
+
+    // 累加计算用户的总投资持仓成本
+    userCostMap.set(h.userId, (userCostMap.get(h.userId) || 0) + shares.multipliedBy(costPrice).toNumber())
 
     // A. 计算当前市值 (Live Value)
     const yesterdayNav = Number(h.yesterdayNav)
@@ -169,6 +174,15 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
       u.periodProfitRate = 0
     }
 
+    // 总投资收益率 = (收益额 / 基金总投资成本)
+    const totalCost = userCostMap.get(u.id) || 0
+    if (totalCost > 0) {
+      u.periodProfitRateOnCost = Number(((u.periodProfit / totalCost) * 100).toFixed(2))
+    }
+    else {
+      u.periodProfitRateOnCost = 0
+    }
+
     // 格式化小数位
     u.totalAssets = Number(u.totalAssets.toFixed(2))
     u.fundValue = Number(u.fundValue.toFixed(2))
@@ -178,8 +192,8 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     return u
   })
 
-  // 按收益率降序排序
-  usersList.sort((a, b) => b.periodProfitRate - a.periodProfitRate)
+  // 默认按收益额降序排序
+  usersList.sort((a, b) => b.periodProfit - a.periodProfit)
 
   // 添加排名并截取前 50 名
   return usersList.slice(0, 50).map((u, index) => {

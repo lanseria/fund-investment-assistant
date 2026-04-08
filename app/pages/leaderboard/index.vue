@@ -4,7 +4,7 @@ import { appName } from '~/constants'
 import { formatCurrency as formatCurrencyUtil } from '~/utils/format'
 
 useHead({
-  title: `收益率排行榜 - ${appName}`,
+  title: `收益排行榜 - ${appName}`,
 })
 
 const periods: { label: string, value: LeaderboardPeriod }[] = [
@@ -33,6 +33,18 @@ const { data: leaderboardData, pending, error } = useAsyncData(
     watch: [activePeriod],
   },
 )
+
+const sortKey = ref<'periodProfit' | 'periodProfitRate' | 'periodProfitRateOnCost'>('periodProfit')
+
+const sortedLeaderboardData = computed(() => {
+  if (!leaderboardData.value)
+    return []
+  return [...leaderboardData.value].sort((a, b) => {
+    const valA = a[sortKey.value] || 0
+    const valB = b[sortKey.value] || 0
+    return valB - valA // 仅支持降序
+  }).map((u, i) => ({ ...u, rank: i + 1 })) // 重新根据当前排序赋名次
+})
 
 // --- 辅助函数 ---
 function getProfitRateClass(rate: number) {
@@ -86,7 +98,7 @@ function openStrategyModal(user: LeaderboardUser) {
   <div class="p-4 lg:p-8 sm:p-6">
     <header class="mb-6">
       <h1 class="text-2xl font-bold sm:text-3xl">
-        收益率排行榜
+        收益排行榜
       </h1>
       <p class="text-gray-500 mt-1 dark:text-gray-400">
         发现社区中的顶尖投资者
@@ -127,19 +139,39 @@ function openStrategyModal(user: LeaderboardUser) {
         <div class="pl-2 flex-grow">
           用户 / 资产分布
         </div>
-        <div class="flex gap-4 w-64 justify-end md:gap-8">
-          <div class="text-right w-24">
-            {{ getPeriodLabel(activePeriod) }}收益额
+        <div class="flex gap-3 w-auto justify-end md:gap-6 sm:gap-4">
+          <div
+            class="text-right flex shrink-0 w-20 cursor-pointer select-none transition-colors items-center justify-end hover:text-primary sm:w-24"
+            :class="{ 'text-primary font-bold': sortKey === 'periodProfit' }"
+            @click="sortKey = 'periodProfit'"
+          >
+            <span>{{ getPeriodLabel(activePeriod) }}收益</span>
+            <div v-if="sortKey === 'periodProfit'" class="i-carbon-arrow-down ml-0.5" />
           </div>
-          <div class="text-right w-24">
-            {{ getPeriodLabel(activePeriod) }}收益率
+          <div
+            class="text-right flex shrink-0 w-24 cursor-pointer select-none transition-colors items-center justify-end hover:text-primary sm:w-28"
+            :class="{ 'text-primary font-bold': sortKey === 'periodProfitRateOnCost' }"
+            title="收益额 / 基金总投资成本"
+            @click="sortKey = 'periodProfitRateOnCost'"
+          >
+            <span>总投资收益率</span>
+            <div v-if="sortKey === 'periodProfitRateOnCost'" class="i-carbon-arrow-down ml-0.5" />
+          </div>
+          <div
+            class="text-right flex shrink-0 w-24 cursor-pointer select-none transition-colors items-center justify-end hover:text-primary sm:w-28"
+            :class="{ 'text-primary font-bold': sortKey === 'periodProfitRate' }"
+            title="收益额 / 账户总资产(含现金)"
+            @click="sortKey = 'periodProfitRate'"
+          >
+            <span>总资产收益率</span>
+            <div v-if="sortKey === 'periodProfitRate'" class="i-carbon-arrow-down ml-0.5" />
           </div>
         </div>
         <div class="w-8" /> <!-- Chevron placeholder -->
       </div>
 
       <!-- User Rows -->
-      <div v-for="user in leaderboardData" :key="user.id" class="border-b last:border-b-0 dark:border-gray-700">
+      <div v-for="user in sortedLeaderboardData" :key="user.id" class="border-b last:border-b-0 dark:border-gray-700">
         <div
           class="px-4 py-3 flex cursor-pointer transition-colors items-center hover:bg-gray-50 dark:hover:bg-gray-700/30"
           @click="router.push(`/leaderboard/${user.id}`)"
@@ -229,14 +261,20 @@ function openStrategyModal(user: LeaderboardUser) {
           </div>
 
           <!-- Stats -->
-          <div class="flex flex-shrink-0 gap-4 w-64 justify-end md:gap-8">
-            <div class="flex flex-col w-24 items-end justify-center">
-              <span class="font-mono font-semibold tabular-nums" :class="getProfitRateClass(user.periodProfit)">
+          <div class="flex flex-shrink-0 gap-3 w-auto justify-end md:gap-6 sm:gap-4">
+            <div class="flex flex-col w-20 items-end justify-center sm:w-24">
+              <span class="text-sm font-mono font-semibold tabular-nums sm:text-base" :class="getProfitRateClass(user.periodProfit)">
                 {{ formatCurrency(user.periodProfit) }}
               </span>
             </div>
-            <div class="flex flex-col w-24 items-end justify-center">
-              <span class="text-lg font-bold font-mono tabular-nums" :class="getProfitRateClass(user.periodProfitRate)">
+            <div class="flex flex-col w-24 items-end justify-center sm:w-28">
+              <span v-if="user.periodProfitRateOnCost !== undefined" class="text-base font-bold font-mono tabular-nums sm:text-lg" :class="getProfitRateClass(user.periodProfitRateOnCost)">
+                {{ user.periodProfitRateOnCost > 0 ? '+' : '' }}{{ user.periodProfitRateOnCost.toFixed(2) }}%
+              </span>
+              <span v-else class="text-gray-400">-</span>
+            </div>
+            <div class="flex flex-col w-24 items-end justify-center sm:w-28">
+              <span class="text-base font-bold font-mono tabular-nums sm:text-lg" :class="getProfitRateClass(user.periodProfitRate)">
                 {{ user.periodProfitRate > 0 ? '+' : '' }}{{ user.periodProfitRate.toFixed(2) }}%
               </span>
             </div>

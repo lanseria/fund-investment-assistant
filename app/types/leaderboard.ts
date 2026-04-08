@@ -17,6 +17,7 @@ export interface LeaderboardUser {
   // 收益数据
   periodProfit: number // 区间盈亏额
   periodProfitRate: number // 区间收益率
+  periodProfitRateOnCost?: number // 基金总投资收益率
 
   // 辅助信息
   holdingCount: number
