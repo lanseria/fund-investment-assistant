@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Holding, SortableKey } from '~/types/holding'
+import BaseStrategyTooltip from '~/components/BaseStrategyTooltip.vue'
 import StrategyChartTooltip from '~/components/StrategyChartTooltip.vue'
 import HoldingListRow from './HoldingListRow.vue'
 import SectorEditModal from './SectorEditModal.vue'
@@ -169,10 +170,8 @@ function handleHideTooltip() {
           class="pointer-events-none transition-opacity fixed z-50"
           :style="tooltipStyle"
         >
-          <StrategyChartTooltip
-            :fund-code="hoveredFundCode"
-            :strategy-key="hoveredStrategyKey"
-          />
+          <BaseStrategyTooltip v-if="hoveredStrategyKey === 'base'" :fund-code="hoveredFundCode" />
+          <StrategyChartTooltip v-else :fund-code="hoveredFundCode" :strategy-key="hoveredStrategyKey" />
         </div>
       </Transition>
     </Teleport>

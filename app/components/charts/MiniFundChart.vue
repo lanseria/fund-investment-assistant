@@ -8,6 +8,33 @@ const props = defineProps<{
   transactions?: any[] // 交易记录属性
 }>()
 
+type TransactionType = 'buy' | 'sell' | 'convert_in' | 'convert_out'
+
+const transactionMeta: Record<TransactionType, { label: string, color: string, sign: 1 | -1 }> = {
+  buy: { label: '买入', color: '#ef4444', sign: 1 },
+  sell: { label: '卖出', color: '#22c55e', sign: -1 },
+  convert_in: { label: '转入', color: '#a855f7', sign: 1 },
+  convert_out: { label: '转出', color: '#3b82f6', sign: -1 },
+}
+
+function getTransactionAmount(tx: any) {
+  const candidates = [tx.confirmedAmount, tx.orderAmount]
+
+  for (const value of candidates) {
+    const amount = Number(value)
+    if (!Number.isNaN(amount) && amount > 0)
+      return amount
+  }
+
+  const shares = Number(tx.confirmedShares ?? tx.orderShares)
+  const nav = Number(tx.confirmedNav)
+
+  if (!Number.isNaN(shares) && !Number.isNaN(nav) && shares > 0 && nav > 0)
+    return shares * nav
+
+  return null
+}
+
 const chartOption = computed<EChartsOption>(() => {
   if (!props.history || props.history.length === 0)
     return {}
@@ -63,10 +90,20 @@ const chartOption = computed<EChartsOption>(() => {
         symbol = 'circle'
       }
       else {
-        if (firstType === 'buy') { color = '#ef4444' }
-        else if (firstType === 'sell') { color = '#22c55e'; symbolRotate = 180 }
-        else if (firstType === 'convert_in') { color = '#a855f7' }
-        else if (firstType === 'convert_out') { color = '#3b82f6'; symbolRotate = 180 }
+        if (firstType === 'buy') {
+          color = '#ef4444'
+        }
+        else if (firstType === 'sell') {
+          color = '#22c55e'
+          symbolRotate = 180
+        }
+        else if (firstType === 'convert_in') {
+          color = '#a855f7'
+        }
+        else if (firstType === 'convert_out') {
+          color = '#3b82f6'
+          symbolRotate = 180
+        }
       }
 
       let val = txList[0].confirmedNav ? Number(txList[0].confirmedNav) : null
@@ -92,16 +129,81 @@ const chartOption = computed<EChartsOption>(() => {
     return markPoints
   }
 
+  const buildTransactionBarSeries = () => {
+    const groupedAmounts = new Map<string, Partial<Record<TransactionType, number>>>()
+
+    ;(props.transactions || []).forEach((tx) => {
+      const type = tx.type as TransactionType
+      const meta = transactionMeta[type]
+      if (!meta || !tx.orderDate)
+        return
+
+      const amount = getTransactionAmount(tx)
+      if (!amount)
+        return
+
+      const signedAmount = amount * meta.sign
+      const day = tx.orderDate
+
+      if (!groupedAmounts.has(day))
+        groupedAmounts.set(day, {})
+
+      const current = groupedAmounts.get(day)!
+      current[type] = (current[type] || 0) + signedAmount
+    })
+
+    return (Object.keys(transactionMeta) as TransactionType[]).map((type) => {
+      const data = props.history.map(p => groupedAmounts.get(p.date)?.[type] ?? null)
+
+      return {
+        name: transactionMeta[type].label,
+        type: 'bar' as const,
+        xAxisIndex: 0,
+        yAxisIndex: 1,
+        data,
+        barMaxWidth: 10,
+        barCategoryGap: '48%',
+        itemStyle: {
+          color: transactionMeta[type].color,
+          opacity: 0.72,
+        },
+        emphasis: {
+          itemStyle: {
+            opacity: 0.95,
+          },
+        },
+        z: 1,
+      }
+    })
+  }
+
   return {
-    grid: { top: 10, right: 10, bottom: 10, left: 10 },
+    grid: { top: 8, right: 8, bottom: 16, left: 8 },
     xAxis: { type: 'category', show: false, data: props.history.map(p => p.date) },
-    yAxis: { type: 'value', show: false, scale: true },
+    yAxis: [
+      {
+        type: 'value',
+        scale: true,
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        splitLine: { lineStyle: { color: '#e5e7eb', opacity: 0.35 } },
+      },
+      {
+        type: 'value',
+        scale: true,
+        axisLabel: { show: false },
+        axisTick: { show: false },
+        splitLine: { show: false },
+        axisLine: { show: true },
+      },
+    ],
     tooltip: { show: false }, // 禁用交互
     series: [
       {
         name: '净值',
         type: 'line',
         data: props.history.map(p => p.nav),
+        yAxisIndex: 0,
         showSymbol: false,
         lineStyle: { color: mainColor, width: 2 },
         areaStyle: { color: mainColor, opacity: 0.1 },
@@ -114,9 +216,10 @@ const chartOption = computed<EChartsOption>(() => {
         },
       },
       // 简化均线
-      { name: 'MA5', type: 'line', data: props.history.map(p => p.ma5), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
-      { name: 'MA20', type: 'line', data: props.history.map(p => p.ma20), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
-      { name: 'MA120', type: 'line', data: props.history.map(p => p.ma120), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
+      { name: 'MA5', type: 'line', yAxisIndex: 0, data: props.history.map(p => p.ma5), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
+      { name: 'MA20', type: 'line', yAxisIndex: 0, data: props.history.map(p => p.ma20), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
+      { name: 'MA120', type: 'line', yAxisIndex: 0, data: props.history.map(p => p.ma120), showSymbol: false, lineStyle: { width: 1, type: 'dashed', opacity: 0.5 } },
+      ...buildTransactionBarSeries(),
     ],
   }
 })

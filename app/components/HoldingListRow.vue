@@ -118,6 +118,7 @@ function getBiasTagClass(bias: number) {
 }
 
 const strategiesForTags = {
+  base: '基础走势',
   rsi: 'RSI',
   bollinger_bands: '布林',
 }
@@ -282,7 +283,6 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- ... (后续的 td: 市值、收益、涨跌、更新时间、操作 保持不变) -->
     <!-- 2. 持有市值 / 份额 -->
     <td class="font-mono p-4 text-right">
       <template v-if="holding.holdingAmount !== null">

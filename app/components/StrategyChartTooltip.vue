@@ -49,7 +49,7 @@ const slicedChartData = computed(() => {
   const dayjs = useDayjs()
   const totalPoints = allDates.length
   const lastDate = allDates[totalPoints - 1]
-  const targetDate = dayjs(lastDate).subtract(3, 'months')
+  const targetDate = dayjs(lastDate).subtract(1, 'months')
   let startIndex = allDates.findIndex((d: string) => dayjs(d).isAfter(targetDate))
 
   // 如果找不到（所有数据都在3个月前），则从头开始
