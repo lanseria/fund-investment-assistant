@@ -141,11 +141,19 @@ const slicedData = computed(() => {
       <template v-if="fund.strategy === 'rsi'">
         <MiniRsiChart :data="slicedData as RsiChartData" />
       </template>
-      <template v-else>
+      <template v-else-if="fund.strategy === ''">
+        <!-- 基础走势：包含交易记录 -->
         <MiniFundChart
           :history="(slicedData as any).history"
           :signals="(slicedData as any).signals"
           :transactions="(slicedData as any).transactions"
+        />
+      </template>
+      <template v-else>
+        <!-- 其他策略 (如布林带)：保持纯粹，不混入交易记录 -->
+        <MiniFundChart
+          :history="(slicedData as any).history"
+          :signals="(slicedData as any).signals"
         />
       </template>
     </div>
