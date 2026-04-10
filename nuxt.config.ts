@@ -104,6 +104,7 @@ export default defineNuxtConfig({
         'dayjs/plugin/utc', // CJS
         'dayjs/plugin/isBetween.js', // CJS
         'bignumber.js',
+        'vue-echarts',
       ],
     },
   },
