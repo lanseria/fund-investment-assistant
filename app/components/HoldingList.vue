@@ -189,9 +189,9 @@ function handleHideTooltip() {
               编辑板块
             </h3>
             <SectorEditModal
-              fund-code="editingFund.code"
-              fund-name="editingFund.name"
-              current-sector="editingFund.sector"
+              :fund-code="editingFund.code"
+              :fund-name="editingFund.name"
+              :current-sector="editingFund.sector"
               @success="handleSectorEditSuccess"
               @cancel="sectorEditModal = false"
             />
