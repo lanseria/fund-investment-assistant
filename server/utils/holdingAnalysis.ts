@@ -177,8 +177,6 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   const signalsMap = new Map<string, Record<string, string>>()
   for (const s of latestSignalsRaw) {
-    if (s.strategyName === 'macd')
-      continue // 彻底忽略历史残留的 MACD 信号
     if (!signalsMap.has(s.fundCode))
       signalsMap.set(s.fundCode, {})
     signalsMap.get(s.fundCode)![s.strategyName] = s.signal

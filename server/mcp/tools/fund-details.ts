@@ -52,8 +52,10 @@ export default defineMcpTool({
     }
 
     // 3. 获取历史净值与均线
+    // 扩大查询窗口确保 MA 均线有足够数据点（MA60 需约 90 个交易日）
     const endDate = dayjs().format('YYYY-MM-DD')
-    const startDate = dayjs().subtract(days || 30, 'day').format('YYYY-MM-DD')
+    const queryDays = Math.max((days || 30) + 90, 120)
+    const startDate = dayjs().subtract(queryDays, 'day').format('YYYY-MM-DD')
 
     // 使用 'as' 关键字强制转换类型，告诉 TS 这里包含了 ma5/ma20 等字段
     const history = (await getHistoryWithMA(fundCode, startDate, endDate, [5, 20, 60])) as FundHistoryPoint[]

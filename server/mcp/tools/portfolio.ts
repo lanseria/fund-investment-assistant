@@ -1,8 +1,11 @@
+import { eq } from 'drizzle-orm'
+import { users } from '~~/server/database/schemas'
+import { useDb } from '~~/server/utils/db'
 import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
 
 export default defineMcpTool({
   name: 'get_portfolio',
-  description: '获取用户的当前基金持仓摘要、总资产和详细列表。列表包含基金代码、名称、板块、持有金额、收益率及策略信号建议。',
+  description: '获取用户的当前基金持仓摘要、总资产、可用现金、近期交易记录和详细列表。列表包含基金代码、名称、板块、持有金额、收益率、策略信号建议及近期交易记录。',
   // 不需要任何参数，直接从 Context 获取用户
   inputSchema: {},
   handler: async () => {
@@ -21,10 +24,18 @@ export default defineMcpTool({
     }
 
     try {
-      // 2. 获取数据
-      const { holdings, summary } = await getUserHoldingsAndSummary(userId)
+      const db = useDb()
+      const [portfolioData, userData] = await Promise.all([
+        getUserHoldingsAndSummary(userId),
+        db.query.users.findFirst({
+          where: eq(users.id, userId),
+          columns: { availableCash: true },
+        }),
+      ])
 
-      // 3. 简化持仓数据以减少 AI Context 占用
+      const { holdings, summary } = portfolioData
+
+      // 简化持仓数据，保留近期交易记录用于判断惩罚费率和做T条件
       const simplifiedHoldings = holdings.map(h => ({
         code: h.code,
         name: h.name,
@@ -33,6 +44,7 @@ export default defineMcpTool({
         profitRate: h.holdingProfitRate,
         todayChange: h.percentageChange,
         recommendation: h.signals?.rsi === '买入' ? 'RSI买入信号' : (h.signals?.rsi === '卖出' ? 'RSI卖出信号' : '持有'),
+        recentTransactions: h.recentTransactions,
       }))
 
       return {
@@ -43,6 +55,7 @@ export default defineMcpTool({
               totalAsset: summary.totalEstimateAmount,
               totalProfit: summary.totalProfitLoss,
               dayChangeRate: summary.totalPercentageChange,
+              availableCash: userData?.availableCash ? Number(userData.availableCash) : 0,
             },
             holdings: simplifiedHoldings,
           }, null, 2),
