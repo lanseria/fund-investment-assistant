@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "manage-mcp": {
+      "source": "mcp-toolkit.nuxt.dev",
+      "sourceType": "well-known",
+      "computedHash": "97724dd22d9d424e9654533c4f32888e8b5780f8fe5ce969095a967ba8a0bdbe"
+    }
+  }
+}
