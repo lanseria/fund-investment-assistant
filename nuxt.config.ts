@@ -72,6 +72,9 @@ export default defineNuxtConfig({
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
     openRouterBaseUrl: '', // NUXT_OPEN_ROUTER_BASE_URL
   },
+  devServer: {
+    port: 8888,
+  },
 
   experimental: {
     payloadExtraction: false,
@@ -134,5 +137,4 @@ export default defineNuxtConfig({
     route: '/mcp', // Default route for the MCP server
     dir: 'mcp', // Base directory for MCP definitions (relative to server/)
   },
-
 })

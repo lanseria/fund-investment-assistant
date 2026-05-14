@@ -1,6 +1,8 @@
-catalogMode: prefer
-
+shamefullyHoist: true
+strictPeerDependencies: false
 shellEmulator: true
+
+catalogMode: prefer
 
 trustPolicy: no-downgrade
 packages: []
