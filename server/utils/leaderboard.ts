@@ -27,6 +27,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
       fundName: funds.name,
       yesterdayNav: funds.yesterdayNav,
       todayEstimateNav: funds.todayEstimateNav,
+      todayEstimateUpdateTime: funds.todayEstimateUpdateTime,
     })
     .from(holdings)
     .innerJoin(users, sql`${holdings.userId} = ${users.id}`)
@@ -127,19 +128,25 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
 
     // A. 计算当前市值 (Live Value)
     const yesterdayNav = Number(h.yesterdayNav)
-    // 优先取今日实时估值，否则取昨日净值
-    const currentPrice = h.todayEstimateNav ? Number(h.todayEstimateNav) : yesterdayNav
+    // 判断估值是否为今日更新
+    const estimateIsFresh = h.todayEstimateUpdateTime
+      ? dayjs(h.todayEstimateUpdateTime).isSame(dayjs(), 'day')
+      : false
+    // 仅在估值新鲜时使用今日估值，否则回退到昨日净值
+    const currentPrice = h.todayEstimateNav && estimateIsFresh ? Number(h.todayEstimateNav) : yesterdayNav
     const holdingValue = shares.multipliedBy(currentPrice).toNumber()
 
     user.fundValue += holdingValue
     user.holdingCount += 1
 
     // B. 计算区间收益 (Profit)
-    // 逻辑：(当前价 - 期初价) * 份额
-    // 注意：这里的期初价是“当前持有份额在期初的价值”，忽略了期间交易导致的份额变化
-    // 这是一种静态回测算法，对于高频交易用户会有误差，但对大多数用户足够准确
     let startPrice = 0
     if (period === '1d') {
+      // 日榜：估值过期的基金不计入今日收益（收益为0）
+      if (!estimateIsFresh) {
+        // 不累加 profit，直接 continue
+        continue
+      }
       startPrice = yesterdayNav
     }
     else {

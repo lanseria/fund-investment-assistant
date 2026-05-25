@@ -1,6 +1,3 @@
-import { eq } from 'drizzle-orm'
-import { users } from '~~/server/database/schemas'
-import { useDb } from '~~/server/utils/db'
 import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
 
 export default defineMcpTool({
@@ -24,15 +21,7 @@ export default defineMcpTool({
     }
 
     try {
-      const db = useDb()
-      const [portfolioData, userData] = await Promise.all([
-        getUserHoldingsAndSummary(userId),
-        db.query.users.findFirst({
-          where: eq(users.id, userId),
-          columns: { availableCash: true },
-        }),
-      ])
-
+      const portfolioData = await getUserHoldingsAndSummary(userId)
       const { holdings, summary } = portfolioData
 
       // 计算板块暴露度和持仓集中度
@@ -85,11 +74,12 @@ export default defineMcpTool({
           type: 'text',
           text: JSON.stringify({
             summary: {
-              totalAsset: summary.totalEstimateAmount,
+              totalAssets: summary.totalAssets,
               totalProfit: summary.totalProfitLoss,
               dayChangeRate: summary.totalPercentageChange,
-              availableCash: userData?.availableCash ? Number(userData.availableCash) : 0,
+              availableCash: summary.cash,
               holdingCount: heldItems.length,
+              staleCount: summary.staleCount,
             },
             risk_metrics: {
               sector_exposure: sectorExposure,

@@ -1,7 +1,8 @@
 // server/utils/holdingAnalysis.ts
 import BigNumber from 'bignumber.js'
+import dayjs from 'dayjs'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { fundTransactions, holdings, navHistory, strategySignals } from '~~/server/database/schemas'
+import { fundTransactions, holdings, navHistory, strategySignals, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -87,10 +88,27 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
 }
 
 /**
+ * 判断基金的估值更新时间是否为今日
+ */
+function isEstimateFresh(updateTime: Date | null): boolean {
+  if (!updateTime)
+    return false
+  return dayjs(updateTime).isSame(dayjs(), 'day')
+}
+
+/**
  * 获取指定用户的所有持仓数据及其汇总信息
  */
 export async function getUserHoldingsAndSummary(userId: number) {
   const db = useDb()
+
+  // 获取用户信息（现金）
+  const userInfo = await db.query.users.findFirst({
+    where: eq(users.id, userId),
+    columns: { availableCash: true },
+  })
+  const userCash = new BigNumber(userInfo?.availableCash || 0)
+
   const userHoldings = await db.query.holdings.findMany({
     where: eq(holdings.userId, userId),
     with: {
@@ -155,7 +173,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
   if (userHoldings.length === 0) {
     return {
       holdings: [],
-      summary: { totalHoldingAmount: 0, totalEstimateAmount: 0, totalProfitLoss: 0, totalPercentageChange: 0, count: 0 },
+      summary: { totalHoldingAmount: 0, totalEstimateAmount: 0, totalProfitLoss: 0, totalPercentageChange: 0, count: 0, cash: userCash.toNumber(), totalAssets: userCash.toNumber(), staleCount: 0 },
     }
   }
 
@@ -187,6 +205,11 @@ export async function getUserHoldingsAndSummary(userId: number) {
   let totalEstimateAmount = new BigNumber(0)
   let heldCount = 0
 
+  // 今日有效收益相关（排除过期估值）
+  let freshHoldingAmount = new BigNumber(0)
+  let freshEstimateAmount = new BigNumber(0)
+  let staleCount = 0
+
   const formattedHoldings = userHoldings.map((h) => {
     const { fund: fundInfo } = h
     if (!fundInfo)
@@ -197,7 +220,9 @@ export async function getUserHoldingsAndSummary(userId: number) {
     let bias20: number | null = null
     const historyStats = historyStatsMap.get(fundInfo.code)
 
-    const currentPrice = fundInfo.todayEstimateNav
+    const estimateIsFresh = isEstimateFresh(fundInfo.todayEstimateUpdateTime)
+
+    const currentPrice = fundInfo.todayEstimateNav && estimateIsFresh
       ? Number(fundInfo.todayEstimateNav)
       : Number(fundInfo.yesterdayNav)
 
@@ -243,12 +268,21 @@ export async function getUserHoldingsAndSummary(userId: number) {
         ? holdingProfitAmount.dividedBy(totalCost).times(100)
         : new BigNumber(0)
 
-      const estimateAmount = fundInfo.todayEstimateNav
+      const estimateAmount = fundInfo.todayEstimateNav && estimateIsFresh
         ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
         : holdingAmount
 
       totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
       totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
+
+      // 今日有效收益统计
+      if (estimateIsFresh) {
+        freshHoldingAmount = freshHoldingAmount.plus(holdingAmount)
+        freshEstimateAmount = freshEstimateAmount.plus(estimateAmount)
+      }
+      else {
+        staleCount++
+      }
 
       holdingData = {
         ...holdingData,
@@ -289,10 +323,12 @@ export async function getUserHoldingsAndSummary(userId: number) {
     return a.code.localeCompare(b.code)
   })
 
-  const totalProfitLoss = totalEstimateAmount.minus(totalHoldingAmount)
-  const totalPercentageChange = totalHoldingAmount.isGreaterThan(0)
-    ? totalProfitLoss.dividedBy(totalHoldingAmount).times(100)
+  const totalProfitLoss = freshEstimateAmount.minus(freshHoldingAmount)
+  const totalPercentageChange = freshHoldingAmount.isGreaterThan(0)
+    ? totalProfitLoss.dividedBy(freshHoldingAmount).times(100)
     : new BigNumber(0)
+
+  const totalAssetsValue = totalEstimateAmount.plus(userCash)
 
   return {
     holdings: formattedHoldings,
@@ -302,6 +338,9 @@ export async function getUserHoldingsAndSummary(userId: number) {
       totalProfitLoss: totalProfitLoss.toNumber(),
       totalPercentageChange: totalPercentageChange.toNumber(),
       count: heldCount,
+      cash: userCash.toNumber(),
+      totalAssets: totalAssetsValue.toNumber(),
+      staleCount,
     },
   }
 }

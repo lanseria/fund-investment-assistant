@@ -8,47 +8,47 @@ trustPolicy: no-downgrade
 packages: []
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.16.1
+    '@nuxtjs/mcp-toolkit': ^0.17.2
     '@types/pg': ^8.20.0
     argon2: ^0.44.0
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.2
-    openai: ^6.37.0
-    pg: ^8.20.0
+    openai: ^6.39.0
+    pg: ^8.21.0
     secure-exec: ^0.2.1
   build:
     '@nuxt/eslint': ^1.15.2
     '@nuxtjs/color-mode': ^4.0.0
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.6.8
-    '@unocss/nuxt': ^66.6.8
+    '@unocss/eslint-config': ^66.7.0
+    '@unocss/nuxt': ^66.7.0
     '@vueuse/nuxt': ^14.3.0
     nuxt: ^4.4.2
-    unocss: ^66.6.8
+    unocss: ^66.7.0
     unplugin: ^3.0.0
   dev:
     '@antfu/eslint-config': ^8.2.0
-    eslint: ^10.3.0
+    eslint: ^10.4.0
     eslint-plugin-format: ^2.0.1
     typescript: ^5.9.3
-    vue-tsc: ^3.2.8
+    vue-tsc: ^3.3.1
   frontend:
     '@vueuse/components': ^14.3.0
     '@vueuse/core': ^14.3.0
-    echarts: ^6.0.0
+    echarts: ^6.1.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
     vue: ^3.5.34
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.20
+    '@iconify-json/carbon': ^1.2.22
     '@iconify-json/f7': ^1.2.2
     '@iconify-json/twemoji': ^1.2.5
   utils:
     bignumber.js: ^11.1.1
     dayjs-nuxt: ^2.1.11
-    es-toolkit: ^1.46.1
+    es-toolkit: ^1.47.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.6
     zod: ^4.4.3

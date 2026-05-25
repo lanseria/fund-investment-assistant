@@ -62,4 +62,10 @@ export interface HoldingSummary {
   totalProfitLoss: number
   totalPercentageChange: number
   count: number
+  /** 用户可用现金 */
+  cash: number
+  /** 总资产 = 现金 + 预估总市值 */
+  totalAssets: number
+  /** 估值未更新（非今日）的持仓数 */
+  staleCount: number
 }
