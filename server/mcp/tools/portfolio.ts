@@ -42,6 +42,7 @@ export default defineMcpTool({
           text: JSON.stringify({
             summary: {
               totalAssets: summary.totalAssets,
+              availableCash: summary.cash,
               totalProfit: summary.totalProfitLoss,
               dayChangeRate: summary.totalPercentageChange,
             },
