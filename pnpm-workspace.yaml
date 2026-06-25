@@ -1,10 +1,16 @@
+catalogMode: prefer
+
+minimumReleaseAgeExclude:
+  - openai@6.45.0
 shamefullyHoist: true
 strictPeerDependencies: false
 shellEmulator: true
 
-catalogMode: prefer
-
 trustPolicy: no-downgrade
+
+trustPolicyExclude:
+  - semver@6.3.1
+
 packages: []
 catalogs:
   backend:
@@ -14,41 +20,41 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.2
-    openai: ^6.39.0
-    pg: ^8.21.0
-    secure-exec: ^0.2.1
+    openai: ^6.45.0
+    pg: ^8.22.0
+    secure-exec: ^0.3.0
   build:
-    '@nuxt/eslint': ^1.15.2
-    '@nuxtjs/color-mode': ^4.0.0
+    '@nuxt/eslint': ^1.16.0
+    '@nuxtjs/color-mode': ^4.0.1
     '@pinia/nuxt': ^0.11.3
-    '@unocss/eslint-config': ^66.7.0
-    '@unocss/nuxt': ^66.7.0
+    '@unocss/eslint-config': ^66.7.2
+    '@unocss/nuxt': ^66.7.2
     '@vueuse/nuxt': ^14.3.0
-    nuxt: ^4.4.2
-    unocss: ^66.7.0
-    unplugin: ^3.0.0
+    nuxt: ^4.4.8
+    unocss: ^66.7.2
+    unplugin: ^3.2.0
   dev:
-    '@antfu/eslint-config': ^8.2.0
-    eslint: ^10.4.0
+    '@antfu/eslint-config': ^9.1.0
+    eslint: ^10.5.0
     eslint-plugin-format: ^2.0.1
-    typescript: ^5.9.3
-    vue-tsc: ^3.3.1
+    typescript: ^6.0.3
+    vue-tsc: ^3.3.5
   frontend:
     '@vueuse/components': ^14.3.0
     '@vueuse/core': ^14.3.0
     echarts: ^6.1.0
     nuxt-echarts: ^1.0.1
     pinia: ^3.0.4
-    vue: ^3.5.34
+    vue: ^3.5.38
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.22
+    '@iconify-json/carbon': ^1.2.23
     '@iconify-json/f7': ^1.2.2
     '@iconify-json/twemoji': ^1.2.5
   utils:
-    bignumber.js: ^11.1.1
+    bignumber.js: ^11.1.4
     dayjs-nuxt: ^2.1.11
-    es-toolkit: ^1.47.0
+    es-toolkit: ^1.48.1
     mitt: ^3.0.1
     paseto-ts: ^2.0.6
     zod: ^4.4.3
@@ -56,3 +62,9 @@ onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
   - unrs-resolver
+allowBuilds:
+  '@parcel/watcher': true
+  argon2: true
+  better-sqlite3: true
+  esbuild: true
+  unrs-resolver: true
