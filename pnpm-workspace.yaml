@@ -35,9 +35,11 @@ catalogs:
     unplugin: ^3.2.0
   dev:
     '@antfu/eslint-config': ^9.1.0
+    '@nuxt/test-utils': ^4.0.3
     eslint: ^10.5.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
+    vitest: ^4.1.9
     vue-tsc: ^3.3.5
   frontend:
     '@vueuse/components': ^14.3.0

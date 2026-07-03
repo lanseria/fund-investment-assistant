@@ -85,7 +85,7 @@ function getChangeClass(value: number | undefined) {
     </div>
 
     <!-- 第二行：预估总盈亏 + 预估涨跌幅 -->
-    <div class="gap-4 grid grid-cols-2 mt-2 border-t border-gray-100 pt-3 dark:border-gray-700">
+    <div class="mt-2 pt-3 border-t border-gray-100 gap-4 grid grid-cols-2 dark:border-gray-700">
       <div class="p-2">
         <p class="text-sm text-gray-500 dark:text-gray-400">
           预估总盈亏

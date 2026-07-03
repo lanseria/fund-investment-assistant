@@ -202,10 +202,47 @@ pnpm lint              # ESLint 检查并修复
 pnpm typecheck         # TypeScript 类型检查
 pnpm coverage          # Vitest 测试覆盖率
 
+# 测试
+pnpm vitest run        # 运行所有测试
+pnpm vitest            # 进入 watch 模式(开发时)
+
 # 数据库
 pnpm db:generate       # 生成 Drizzle 迁移文件
 pnpm db:migrate        # 应用数据库迁移
 ```
+
+## 🧪 测试
+
+本项目使用 [Vitest](https://vitest.dev/) 作为测试框架,重点覆盖**涉及资金安全的核心逻辑**。
+
+### 测试策略
+
+| 模块         | 测试文件                                                  | 覆盖内容                                                                                 |
+| ------------ | --------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| AI 交易风控  | `server/utils/__tests__/aiTrader.test.ts`                 | 转换配对兜底(`enforceConvertPairs`)、资金超支拦截、份额精度截断、Markdown 清洗、Zod 校验 |
+| FIFO 手续费  | `server/utils/__tests__/transactionCalc.test.ts`          | 持仓批次重建(`buildFifoLots`)、7 天惩罚费计算(`calculatePenaltyFee`)                     |
+| 交易确认任务 | `server/tasks/fund/__tests__/processTransactions.test.ts` | 买入扣款/卖出回款、净值缺失跳过、持仓不足失败、先卖后买排序                              |
+
+### 运行测试
+
+```bash
+# 运行全部测试(一次性)
+pnpm vitest run
+
+# 仅运行某类测试
+npx vitest run server/utils/__tests__/   # 纯函数测试
+npx vitest run server/tasks/             # 任务流程测试
+
+# 生成覆盖率报告
+pnpm coverage
+```
+
+### 新增测试指引
+
+1. **测试目录约定**:在被测文件旁创建 `__tests__/` 子目录,文件命名为 `<被测名>.test.ts`。例如测 `server/utils/foo.ts` → `server/utils/__tests__/foo.test.ts`
+2. **纯函数优先**:涉及计算/校验/转换的逻辑应抽离为纯函数(无副作用、不依赖数据库),用单元测试直接覆盖数值与边界,无需 mock
+3. **隔离外部依赖**:测试不连接真实数据库/Redis/LLM,通过 `vi.mock` 替换外部模块、用 `vi.hoisted` 注入 Nitro 自动导入的全局函数(`defineTask`/`useRuntimeConfig` 等)
+4. **配置参考**:测试基础设施见 [vitest.config.ts](./vitest.config.ts),刻意使用 `node` 环境而非完整 Nuxt 实例,保持测试快速(38 个测试 < 0.5s)
 
 ## 📚 API 文档
 

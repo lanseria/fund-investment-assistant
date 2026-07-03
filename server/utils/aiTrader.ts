@@ -239,7 +239,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
  * - 孤立的 convert_out：直接剔除（避免下游因 relatedIndex 无效抛 400）。
  * - 缺失或无效的 relatedIndex：自动回填到最近一个尚未配对的 convert_out。
  */
-function enforceConvertPairs(actions: TradeDecision[]): TradeDecision[] {
+export function enforceConvertPairs(actions: TradeDecision[]): TradeDecision[] {
   const result: TradeDecision[] = []
   // 记录 result 中尚未被 convert_in 引用的 convert_out 索引
   const unmatchedOuts: number[] = []

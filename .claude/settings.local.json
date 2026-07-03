@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(*)"
-    ],
-    "defaultMode": "acceptEdits",
-    "disableBypassPermissionsMode": "disable"
-  }
-}

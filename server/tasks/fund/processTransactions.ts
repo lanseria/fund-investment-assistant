@@ -1,9 +1,9 @@
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
 import { and, eq, inArray, lt, sql } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas' // [修改] 导入 users
 import { useDb } from '~~/server/utils/db'
+import { buildFifoLots, calculatePenaltyFee } from '~~/server/utils/transactionCalc'
 
 export default defineTask({
   meta: {
@@ -117,7 +117,7 @@ export default defineTask({
           confirmedShares = orderShares
           let rawAmount = orderShares.multipliedBy(nav) // 未扣费前的金额
 
-          // === FIFO 逻辑开始 ===
+          // === FIFO 逻辑开始(计算逻辑抽离至 transactionCalc.ts) ===
           // 1. 获取所有历史已确认的“增加份额”的交易 (买入/转入)，按时间正序
           const historyBuys = await db.query.fundTransactions.findMany({
             where: and(
@@ -142,60 +142,14 @@ export default defineTask({
             orderBy: [sql`${fundTransactions.orderDate} ASC`, sql`${fundTransactions.createdAt} ASC`],
           })
 
-          // 3. 构建当前的持仓批次队列 (Lots)
-          // 结构: { date: string, shares: BigNumber }
-          const lots: { date: string, shares: BigNumber }[] = []
+          // 3. 重建当前持仓的 FIFO 批次队列(已扣除历史卖出消耗)
+          const lots = buildFifoLots(
+            historyBuys.map(h => ({ date: h.orderDate, shares: h.confirmedShares || 0 })),
+            historySells.map(h => ({ shares: h.confirmedShares || 0 })),
+          )
 
-          // 3.1 填充买入
-          for (const hBuy of historyBuys) {
-            lots.push({
-              date: hBuy.orderDate,
-              shares: new BigNumber(hBuy.confirmedShares || 0),
-            })
-          }
-
-          // 3.2 模拟历史卖出消耗 (FIFO)
-          let totalHistorySold = historySells.reduce((acc, s) => acc.plus(new BigNumber(s.confirmedShares || 0)), new BigNumber(0))
-
-          while (totalHistorySold.gt(0) && lots.length > 0) {
-            const head = lots[0]!
-            if (head.shares.lte(totalHistorySold)) {
-              // 这一批次全部卖完了
-              totalHistorySold = totalHistorySold.minus(head.shares)
-              lots.shift() // 移除队头
-            }
-            else {
-              // 这一批次只卖了一部分
-              head.shares = head.shares.minus(totalHistorySold)
-              totalHistorySold = new BigNumber(0)
-            }
-          }
-
-          // 4. 计算本次卖出的惩罚
-          let sharesToSell = new BigNumber(confirmedShares)
-          let totalPenaltyFee = new BigNumber(0)
-          const sellDate = dayjs(tx.orderDate)
-
-          // 从剩下的批次中扣减
-          for (const lot of lots) {
-            if (sharesToSell.lte(0))
-              break
-
-            const take = BigNumber.min(lot.shares, sharesToSell)
-            const buyDate = dayjs(lot.date)
-            // 计算持有天数 (diff)
-            const diffDays = sellDate.diff(buyDate, 'day')
-
-            // 如果持有不足 7 天，对这一部分 (take) 收取手续费
-            if (diffDays < 7) {
-              const partValue = take.multipliedBy(nav)
-              const partFee = partValue.multipliedBy(0.015) // 1.5%
-              totalPenaltyFee = totalPenaltyFee.plus(partFee)
-              console.log(`[FIFO Penalty] 扣减批次 ${lot.date} (持有${diffDays}天): 份额 ${take.toFixed(2)}, 费用 ${partFee.toFixed(2)}`)
-            }
-
-            sharesToSell = sharesToSell.minus(take)
-          }
+          // 4. 计算本次卖出在持有<7天部分的惩罚手续费
+          const { penaltyFee: totalPenaltyFee } = calculatePenaltyFee(lots, confirmedShares, tx.orderDate, nav)
 
           // 5. 应用手续费
           if (totalPenaltyFee.gt(0)) {

@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { marketGroups } from '~~/shared/market'
 import { getCachedMarketData } from '~~/server/utils/market'
+import { marketGroups } from '~~/shared/market'
 
 export default defineMcpTool({
   name: 'get_market_index',
@@ -65,13 +65,13 @@ export default defineMcpTool({
             }
           })
           .filter(Boolean) as Array<{
-            code: string
-            name: string
-            price: number
-            changeAmount: number
-            changeRate: number
-            time: string
-          }>
+          code: string
+          name: string
+          price: number
+          changeAmount: number
+          changeRate: number
+          time: string
+        }>
       }
 
       return {

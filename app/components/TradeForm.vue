@@ -1,7 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
-import { useDayjs } from '#imports'
 import BigNumber from 'bignumber.js'
+import { useDayjs } from '#imports'
 
 const props = defineProps<{
   fundCode: string
