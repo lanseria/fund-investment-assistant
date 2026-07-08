@@ -1,8 +1,8 @@
 import type { TradeDecision } from '../aiTrader'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- import 被测模块 ---
-import { enforceConvertPairs, getAiTradeDecisions } from '../aiTrader'
+import { enforceConvertPairs, getAiTradeDecisions, isRetryableError, withRetry } from '../aiTrader'
 
 // --- Mock 外部依赖(必须在 import 被测模块之前) ---
 
@@ -236,14 +236,14 @@ describe('getAiTradeDecisions', () => {
     expect(result.decisions[0].amount).toBe(1000)
   })
 
-  it('场景6: 非法 action 应因 Zod 校验失败而抛错', async () => {
-    mockResponse([
-      makeDecision({ action: 'invalid_action' as any }),
-    ])
+  it('场景6: LLM 返回的响应无法通过校验时应抛错', async () => {
+    // 用不可重试的错误(400)验证 getAiTradeDecisions 对错误的透传上抛。
+    // (Zod/JSON 错误的重试行为由下方 withRetry 测试块单独覆盖)
+    mockCreate.mockRejectedValue({ status: 400, message: 'bad request' })
     await expect(getAiTradeDecisions([], {
       availableCash: 10000,
       aiSystemPrompt: 'test strategy',
-    })).rejects.toThrow()
+    })).rejects.toMatchObject({ status: 400 })
   })
 
   it('场景7: 未配置 OpenRouter API Key 应抛错', async () => {
@@ -259,5 +259,98 @@ describe('getAiTradeDecisions', () => {
       availableCash: 10000,
       aiSystemPrompt: '',
     })).rejects.toThrow('AI 策略提示词')
+  })
+})
+
+// ============ C. withRetry 指数退避重试测试 ============
+describe('withRetry', () => {
+  // baseDelayMs:0 时仍有最多 500ms 随机抖动,这里固定 random=0 让测试瞬间完成
+  const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0)
+
+  it('首次成功应直接返回,不重试', async () => {
+    const fn = vi.fn().mockResolvedValue('ok')
+    const result = await withRetry(fn, { maxRetries: 3, baseDelayMs: 0 })
+    expect(result).toBe('ok')
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('可重试错误应重试到成功为止', async () => {
+    // 前两次抛 429(可重试),第三次成功
+    const fn = vi.fn()
+      .mockRejectedValueOnce({ status: 429, message: 'rate limited' })
+      .mockRejectedValueOnce({ status: 429, message: 'rate limited' })
+      .mockResolvedValueOnce('recovered')
+    const result = await withRetry(fn, { maxRetries: 3, baseDelayMs: 0 })
+    expect(result).toBe('recovered')
+    expect(fn).toHaveBeenCalledTimes(3)
+  })
+
+  it('超过最大重试次数应抛出最后的错误', async () => {
+    const fn = vi.fn().mockRejectedValue({ status: 429, message: 'rate limited' })
+    await expect(withRetry(fn, { maxRetries: 2, baseDelayMs: 0 }))
+      .rejects
+      .toMatchObject({ status: 429 })
+    // 首次 + 2 次重试 = 3 次
+    expect(fn).toHaveBeenCalledTimes(3)
+  })
+
+  it('不可重试错误应立即抛出,不重试', async () => {
+    // 400 是客户端错误,不在可重试范围
+    const fn = vi.fn().mockRejectedValue({ status: 400, message: 'bad request' })
+    await expect(withRetry(fn, { maxRetries: 3, baseDelayMs: 0 }))
+      .rejects
+      .toMatchObject({ status: 400 })
+    expect(fn).toHaveBeenCalledTimes(1)
+  })
+
+  it('onRetry 回调应在每次重试时被调用', async () => {
+    const onRetry = vi.fn()
+    const fn = vi.fn()
+      .mockRejectedValueOnce({ status: 500, message: 'server error' })
+      .mockResolvedValueOnce('ok')
+    await withRetry(fn, { maxRetries: 2, baseDelayMs: 0, onRetry })
+    expect(onRetry).toHaveBeenCalledTimes(1)
+    // 回调参数:attempt=1, error, delay
+    expect(onRetry).toHaveBeenCalledWith(1, expect.any(Object), expect.any(Number))
+  })
+
+  // 恢复 Math.random,避免影响后续测试
+  afterAll(() => randomSpy.mockRestore())
+})
+
+// ============ D. isRetryableError 判定测试 ============
+describe('isRetryableError', () => {
+  it('429 限流应可重试', () => {
+    expect(isRetryableError({ status: 429 })).toBe(true)
+  })
+
+  it('5xx 服务端错误应可重试', () => {
+    expect(isRetryableError({ status: 500 })).toBe(true)
+    expect(isRetryableError({ status: 503 })).toBe(true)
+  })
+
+  it('4xx 客户端错误(非 429)不可重试', () => {
+    expect(isRetryableError({ status: 400 })).toBe(false)
+    expect(isRetryableError({ status: 401 })).toBe(false)
+    expect(isRetryableError({ status: 404 })).toBe(false)
+  })
+
+  it('网络层错误(连接重置/超时)应可重试', () => {
+    expect(isRetryableError({ message: 'fetch failed' })).toBe(true)
+    expect(isRetryableError({ message: 'socket hang up' })).toBe(true)
+    expect(isRetryableError({ message: 'connect ETIMEDOUT' })).toBe(true)
+  })
+
+  it('jSON 解析错误应可重试(模型偶发输出异常)', () => {
+    expect(isRetryableError(new SyntaxError('Unexpected token'))).toBe(true)
+  })
+
+  it('zod 校验错误应可重试', () => {
+    const zodErr = Object.assign(new Error('validation failed'), { name: 'ZodError' })
+    expect(isRetryableError(zodErr)).toBe(true)
+  })
+
+  it('无 status 的普通业务错误不可重试', () => {
+    expect(isRetryableError(new Error('系统未配置 OpenRouter API Key'))).toBe(false)
   })
 })

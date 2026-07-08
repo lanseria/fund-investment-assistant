@@ -284,6 +284,68 @@ export function enforceConvertPairs(actions: TradeDecision[]): TradeDecision[] {
   return result
 }
 
+/**
+ * 判断错误是否值得重试。
+ * - 网络层错误(连接重置/超时/Socket 挂起)→ 可重试
+ * - HTTP 429(限流)/ 5xx(服务端错误)→ 可重试(OpenAI SDK 内部已部分处理,但兜底)
+ * - 业务错误(JSON 解析失败、Zod 校验失败)→ 可重试(可能是模型偶发输出异常)
+ * - 配置错误(无 API Key、用户未配置 prompt)→ 不可重试
+ */
+export function isRetryableError(error: any): boolean {
+  // OpenAI SDK 的 APIError:类型 + status
+  const status = error?.status ?? error?.response?.status
+  if (status === 429 || (status >= 500 && status < 600))
+    return true
+
+  // 网络层错误(无 status,通常是连接级故障)
+  if (!status) {
+    const msg = String(error?.message || error?.cause?.message || '')
+    if (/timeout|ECONNRESET|ENOTFOUND|EAI_AGAIN|socket hang up|fetch failed|ETIMEDOUT|connect ETIMEDOUT/i.test(msg))
+      return true
+    // 模型偶发输出异常(JSON 解析/Zod 校验),重试有机会拿到正常输出
+    if (error instanceof SyntaxError)
+      return true
+    if (error?.name === 'ZodError')
+      return true
+  }
+
+  return false
+}
+
+/** 毫秒级 sleep */
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
+
+/**
+ * 通用指数退避重试封装。
+ * - 覆盖网络抖动、限流(429)、服务端错误(5xx)、偶发格式错误等可重试场景。
+ * - 总尝试次数 = maxRetries + 1(首次 + 重试次数)。
+ * - 退避:baseDelay × 2^attempt + 随机抖动(避免多个客户端同时重试引发雪崩)。
+ */
+export async function withRetry<T>(
+  fn: () => Promise<T>,
+  options: { maxRetries?: number, baseDelayMs?: number, onRetry?: (attempt: number, error: any, delay: number) => void } = {},
+): Promise<T> {
+  const { maxRetries = 2, baseDelayMs = 2000, onRetry } = options
+  let lastError: any
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await fn()
+    }
+    catch (error: any) {
+      lastError = error
+      if (attempt < maxRetries && isRetryableError(error)) {
+        const delay = baseDelayMs * 2 ** attempt + Math.random() * 500
+        onRetry?.(attempt + 1, error, delay)
+        await sleep(delay)
+        continue
+      }
+      break
+    }
+  }
+  throw lastError
+}
+
 export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<AiTradeResult> {
   const config = useRuntimeConfig()
 
@@ -297,89 +359,99 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   // 5. 确定使用的模型
   const targetModel = userConfig.model || 'glm-5.2'
 
-  try {
-    const openai = new OpenAI({
-      baseURL: config.openRouterBaseUrl,
-      apiKey: config.openRouterApiKey,
-    })
+  // SDK 内部 maxRetries=3(覆盖 429/5xx),外层 withRetry 再叠加指数退避
+  // (覆盖网络抖动、偶发 JSON/Zod 错误等 SDK 不处理的场景)。
+  // 整个"调用 + 清洗 + 解析"放在重试范围内,模型偶发输出异常也能重试。
+  const openai = new OpenAI({
+    baseURL: config.openRouterBaseUrl,
+    apiKey: config.openRouterApiKey,
+    maxRetries: 3,
+  })
 
-    const completion = await openai.chat.completions.create({
-      model: targetModel, // 使用系统统一配置的模型
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt },
-      ],
-      temperature: 0.3, // 降低随机性
-    })
+  const { rawContent, validated } = await withRetry(
+    async () => {
+      const completion = await openai.chat.completions.create({
+        model: targetModel, // 使用系统统一配置的模型
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userPrompt },
+        ],
+        temperature: 0.3, // 降低随机性
+      })
 
-    const rawContent = completion.choices[0]?.message?.content || '{}'
+      const content = completion.choices[0]?.message?.content || '{}'
+      // 清洗 Markdown 代码块标记
+      const jsonString = content
+        .replace(/```json/g, '')
+        .replace(/```/g, '')
+        .trim()
 
-    // 清洗 Markdown 代码块标记
-    const jsonString = rawContent
+      const parsed = JSON.parse(jsonString)
+      const validatedInner = AiResponseSchema.parse(parsed)
+      return { rawContent: content, validated: validatedInner }
+    },
+    {
+      maxRetries: 2,
+      baseDelayMs: 2000,
+      onRetry: (attempt, error, delay) => {
+        console.warn(`[AI Trader] 第 ${attempt} 次决策失败,${delay.toFixed(0)}ms 后重试。错误: ${error?.message ?? error}`)
+      },
+    },
+  ).catch((error: any) => {
+    console.error(`AI 决策分析失败 (User Configured Strategy):`, error.message)
+    throw error
+  })
 
-      .replace(/```json/g, '')
+  // 过滤掉 hold 操作
+  const actions = validated.decisions
 
-      .replace(/```/g, '')
-      .trim()
+  // [最后一道防线] 代码层面的资金硬性校验
+  const budgetLimit = userConfig.availableCash
+  let currentTotalBuy = 0
 
-    const parsed = JSON.parse(jsonString)
-    const validated = AiResponseSchema.parse(parsed)
+  // 过滤后的有效交易列表
+  const validActions: TradeDecision[] = []
 
-    // 过滤掉 hold 操作
-    const actions = validated.decisions
-
-    // [最后一道防线] 代码层面的资金硬性校验
-    const budgetLimit = userConfig.availableCash
-    let currentTotalBuy = 0
-
-    // 过滤后的有效交易列表
-    const validActions: TradeDecision[] = []
-
-    for (const action of actions) {
-      if (action.action === 'buy') {
-        const amount = action.amount || 0
-        if (currentTotalBuy + amount > budgetLimit) {
-          console.warn(`[AI Trader] 触发资金风控拦截！`)
-          const remaining = budgetLimit - currentTotalBuy
-          if (remaining > 10) {
-            action.amount = Math.floor(remaining)
-            action.reason += ` [系统风控: 剩余预算不足,修正金额至 ${action.amount}]`
-            currentTotalBuy += action.amount
-            validActions.push(action)
-          }
-        }
-        else {
-          currentTotalBuy += amount
+  for (const action of actions) {
+    if (action.action === 'buy') {
+      const amount = action.amount || 0
+      if (currentTotalBuy + amount > budgetLimit) {
+        console.warn(`[AI Trader] 触发资金风控拦截！`)
+        const remaining = budgetLimit - currentTotalBuy
+        if (remaining > 10) {
+          action.amount = Math.floor(remaining)
+          action.reason += ` [系统风控: 剩余预算不足,修正金额至 ${action.amount}]`
+          currentTotalBuy += action.amount
           validActions.push(action)
         }
       }
-      else if (action.action === 'sell') {
-        if (action.shares) {
-          action.shares = Math.floor(action.shares * 10000) / 10000
-        }
-        validActions.push(action)
-      }
-      else if (action.action === 'convert_out' || action.action === 'convert_in') {
-        if (action.shares) {
-          action.shares = Math.floor(action.shares * 10000) / 10000
-        }
+      else {
+        currentTotalBuy += amount
         validActions.push(action)
       }
     }
-
-    // [配对兜底] 基金转换必须 convert_out + convert_in 成对出现且 out 在 in 之前，
-    // 否则下游写入会因 relatedIndex 失效而抛 400。这里剔除孤立项并补全 relatedIndex。
-    const finalActions = enforceConvertPairs(validActions)
-
-    // 返回详细结果对象
-    return {
-      decisions: finalActions,
-      fullPrompt: fullPromptLog,
-      rawResponse: rawContent,
+    else if (action.action === 'sell') {
+      if (action.shares) {
+        action.shares = Math.floor(action.shares * 10000) / 10000
+      }
+      validActions.push(action)
+    }
+    else if (action.action === 'convert_out' || action.action === 'convert_in') {
+      if (action.shares) {
+        action.shares = Math.floor(action.shares * 10000) / 10000
+      }
+      validActions.push(action)
     }
   }
-  catch (error: any) {
-    console.error(`AI 决策分析失败 (User Configured Strategy):`, error.message)
-    throw error
+
+  // [配对兜底] 基金转换必须 convert_out + convert_in 成对出现且 out 在 in 之前，
+  // 否则下游写入会因 relatedIndex 失效而抛 400。这里剔除孤立项并补全 relatedIndex。
+  const finalActions = enforceConvertPairs(validActions)
+
+  // 返回详细结果对象
+  return {
+    decisions: finalActions,
+    fullPrompt: fullPromptLog,
+    rawResponse: rawContent,
   }
 }
