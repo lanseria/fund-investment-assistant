@@ -1,6 +1,6 @@
 import BigNumber from 'bignumber.js'
 import { and, eq } from 'drizzle-orm'
-import { funds, holdings } from '~~/server/database/schemas'
+import { fundFees, funds, holdings } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 
@@ -44,6 +44,11 @@ export default defineEventHandler(async (event) => {
     holdingProfitRate = totalCost.gt(0) ? currentAmount.minus(totalCost).div(totalCost).times(100).toNumber() : 0
   }
 
+  // 查询基金费率(仅前端展示用)
+  const feesInfo = await db.query.fundFees.findFirst({
+    where: eq(fundFees.fundCode, code),
+  })
+
   return {
     code: fundInfo.code,
     name: fundInfo.name,
@@ -58,5 +63,6 @@ export default defineEventHandler(async (event) => {
     holdingAmount,
     holdingProfitAmount,
     holdingProfitRate,
+    fees: feesInfo || null,
   }
 })

@@ -330,3 +330,35 @@ export const sectorDailyStats = fundSchema.table('sector_daily_stats', {
     unqDateSector: unique('unq_date_sector').on(table.date, table.sector),
   }
 })
+
+/**
+ * 基金费率表 (fund_fees)
+ * 存储基金的申购/赎回/管理/托管费率信息，仅用于前端展示。
+ * 数据来源于 Python 接口(fund/info)，在新增基金时一并获取。
+ */
+export const fundFees = fundSchema.table('fund_fees', {
+  /** 基金代码 (主键, 外键关联 funds 表) */
+  fundCode: varchar('fund_code', { length: 10 }).primaryKey().references(() => funds.code, { onDelete: 'cascade' }),
+  /** 申购费率 (文本, 如 "0.15%") */
+  purchaseFee: text('purchase_fee'),
+  /** 赎回费阶梯 (JSONB 数组, 如 [{holdingPeriod:"<7天", rate:"1.50%"}, ...]) */
+  redemptionFees: jsonb('redemption_fees'),
+  /** 管理费 (文本, 如 "0.60%/年") */
+  managementFee: text('management_fee'),
+  /** 托管费 (文本, 如 "0.15%/年") */
+  custodyFee: text('custody_fee'),
+  /** 原始费率说明文本 (兜底展示) */
+  rawText: text('raw_text'),
+  /** 更新时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * 基金费率关联 (fundFees 一对一 funds)
+ */
+export const fundFeesRelations = relations(fundFees, ({ one }) => ({
+  fund: one(funds, {
+    fields: [fundFees.fundCode],
+    references: [funds.code],
+  }),
+}))

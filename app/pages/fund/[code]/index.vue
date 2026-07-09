@@ -316,6 +316,8 @@ watch(data, (newData) => {
           <span v-if="fundDetail.sector">板块: {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundDetail.sector) }}</span>
           <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? dayjs(fundDetail.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}</span>
         </div>
+        <!-- 基金费率信息(仅展示) -->
+        <FundFeesCard :fees="fundDetail.fees" />
       </div>
 
       <!-- 核心指标统计 -->

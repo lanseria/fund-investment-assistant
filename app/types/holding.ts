@@ -20,6 +20,22 @@ export interface RecentTransaction {
   nav: number | null // 确认净值
 }
 
+/** 赎回费阶梯项 */
+export interface RedemptionFeeItem {
+  holdingPeriod: string
+  rate: string
+}
+
+/** 基金费率信息(仅前端展示用) */
+export interface FundFees {
+  fundCode: string
+  purchaseFee: string | null
+  redemptionFees: RedemptionFeeItem[] | null
+  managementFee: string | null
+  custodyFee: string | null
+  rawText: string | null
+}
+
 export interface Holding {
   code: string
   name: string
@@ -43,6 +59,8 @@ export interface Holding {
   pendingTransactions?: PendingTransaction[]
   // 最近的交易历史 (已确认)
   recentTransactions?: RecentTransaction[]
+  /** 基金费率信息(仅展示用,可能为 null) */
+  fees?: FundFees | null
 }
 
 export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'bias20'

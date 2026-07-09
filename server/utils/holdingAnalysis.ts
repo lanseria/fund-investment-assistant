@@ -2,7 +2,7 @@
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { fundTransactions, holdings, navHistory, strategySignals, users } from '~~/server/database/schemas'
+import { fundFees, fundTransactions, holdings, navHistory, strategySignals, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -201,6 +201,12 @@ export async function getUserHoldingsAndSummary(userId: number) {
   }
   const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
 
+  // 批量获取持仓基金的费率信息(仅前端展示用)
+  const feesRecords = await db.query.fundFees.findMany({
+    where: inArray(fundFees.fundCode, holdingCodes),
+  })
+  const feesMap = new Map(feesRecords.map(f => [f.fundCode, f]))
+
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
   let heldCount = 0
@@ -253,6 +259,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
       bias20,
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
       recentTransactions: historyTxMap.get(fundInfo.code) || [],
+      fees: feesMap.get(fundInfo.code) || null,
     }
 
     if (isHeld) {

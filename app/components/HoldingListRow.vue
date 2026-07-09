@@ -27,6 +27,32 @@ function toggleAttention() {
   emit('update-attention', props.holding.code, nextLevel)
 }
 
+// 赎回费率提示(仅展示 redemptionFees),0.00% 档按持有期阈值上色
+const redemptionFeeTags = computed(() => {
+  const fees = props.holding.fees?.redemptionFees
+  if (!fees || fees.length === 0)
+    return null
+  return fees.map((f) => {
+    // 从 holdingPeriod 提取天数阈值(如"大于等于7天"→7、"小于30天"→30),用于配色
+    const dayMatch = f.holdingPeriod.match(/(\d+)\s*天/)
+    const days = dayMatch ? Number(dayMatch[1]) : null
+    const isZero = f.rate === '0.00%'
+
+    // 仅对 0.00% 档着色:7天绿色、30天黄色,其余默认灰
+    let colorClass = 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:text-gray-500 dark:bg-gray-800'
+    if (isZero && days === 7)
+      colorClass = 'border-green-200 text-green-600 bg-green-50 dark:border-green-800/50 dark:text-green-400 dark:bg-green-900/20'
+    else if (isZero && days === 30)
+      colorClass = 'border-amber-200 text-amber-600 bg-amber-50 dark:border-amber-800/50 dark:text-amber-400 dark:bg-amber-900/20'
+
+    return { text: `${f.holdingPeriod}${f.rate}`, colorClass }
+  })
+})
+
+// 默认只展示最后一档(通常为 0.00% 免赎回费档),点击展开全部
+const lastRedemptionTag = computed(() => redemptionFeeTags.value?.at(-1) ?? null)
+const feesExpanded = ref(false)
+
 const { getLabel } = useDictStore()
 const dayjs = useDayjs()
 
@@ -280,6 +306,37 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         >
           BIAS: {{ holding.bias20 > 0 ? '+' : '' }}{{ holding.bias20.toFixed(2) }}%
         </span>
+      </div>
+
+      <!-- 赎回费率提示 (默认仅显示最后一档,点击展开全部) -->
+      <div v-if="lastRedemptionTag" class="mt-2 flex flex-wrap gap-1.5 items-center">
+        <template v-if="!feesExpanded">
+          <span
+            class="text-[10px] font-mono px-1.5 py-0.5 border rounded inline-flex gap-1 cursor-pointer transition-opacity items-center hover:opacity-70"
+            :class="lastRedemptionTag.colorClass"
+            title="点击查看完整赎回费率"
+            @click="feesExpanded = true"
+          >
+            {{ lastRedemptionTag.text }}
+          </span>
+        </template>
+        <template v-else>
+          <span
+            v-for="(tag, i) in redemptionFeeTags"
+            :key="i"
+            class="text-[10px] font-mono px-1.5 py-0.5 border rounded inline-flex gap-1 items-center"
+            :class="tag.colorClass"
+          >
+            {{ tag.text }}
+          </span>
+          <button
+            class="text-[10px] text-gray-400 cursor-pointer transition-opacity dark:text-gray-500 hover:opacity-70"
+            title="收起"
+            @click="feesExpanded = false"
+          >
+            收起
+          </button>
+        </template>
       </div>
     </td>
 
