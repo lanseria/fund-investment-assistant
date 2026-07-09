@@ -45,13 +45,17 @@ const redemptionFeeTags = computed(() => {
     else if (isZero && days === 30)
       colorClass = 'border-amber-200 text-amber-600 bg-amber-50 dark:border-amber-800/50 dark:text-amber-400 dark:bg-amber-900/20'
 
-    return { text: `${f.holdingPeriod}${f.rate}`, colorClass }
+    return { holdingPeriod: f.holdingPeriod, rate: f.rate, days, isZero, colorClass }
   })
 })
 
-// 默认只展示最后一档(通常为 0.00% 免赎回费档),点击展开全部
-const lastRedemptionTag = computed(() => redemptionFeeTags.value?.at(-1) ?? null)
-const feesExpanded = ref(false)
+// 默认只展示最后一档(通常为 0.00% 免赎回费档),点击弹出完整费率详情对话框
+const lastRedemptionTag = computed(() => {
+  const last = redemptionFeeTags.value?.at(-1)
+  return last ? { ...last, text: `${last.holdingPeriod}${last.rate}` } : null
+})
+// 费率详情对话框显示状态
+const feesDialogOpen = ref(false)
 
 const { getLabel } = useDictStore()
 const dayjs = useDayjs()
@@ -220,6 +224,18 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           <span class="font-bold">{{ lastBuyStatus.label }}</span>
         </div>
 
+        <!-- 赎回费率提示 (默认仅显示最后一档,点击弹出完整费率详情对话框) -->
+        <span
+          v-if="lastRedemptionTag"
+          class="text-[10px] font-mono px-1.5 py-0.5 border rounded inline-flex gap-1 cursor-pointer transition-opacity items-center hover:opacity-70"
+          :class="lastRedemptionTag.colorClass"
+          title="点击查看完整费率详情"
+          @click="feesDialogOpen = true"
+        >
+          <div class="i-carbon-currency text-xs" />
+          {{ lastRedemptionTag.text }}
+        </span>
+
         <!-- 交易热点图 (Visual Timeline) -->
         <div v-if="holding.recentTransactions?.length" class="flex flex-row-reverse gap-[-2px] items-center">
           <div
@@ -306,37 +322,6 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         >
           BIAS: {{ holding.bias20 > 0 ? '+' : '' }}{{ holding.bias20.toFixed(2) }}%
         </span>
-      </div>
-
-      <!-- 赎回费率提示 (默认仅显示最后一档,点击展开全部) -->
-      <div v-if="lastRedemptionTag" class="mt-2 flex flex-wrap gap-1.5 items-center">
-        <template v-if="!feesExpanded">
-          <span
-            class="text-[10px] font-mono px-1.5 py-0.5 border rounded inline-flex gap-1 cursor-pointer transition-opacity items-center hover:opacity-70"
-            :class="lastRedemptionTag.colorClass"
-            title="点击查看完整赎回费率"
-            @click="feesExpanded = true"
-          >
-            {{ lastRedemptionTag.text }}
-          </span>
-        </template>
-        <template v-else>
-          <span
-            v-for="(tag, i) in redemptionFeeTags"
-            :key="i"
-            class="text-[10px] font-mono px-1.5 py-0.5 border rounded inline-flex gap-1 items-center"
-            :class="tag.colorClass"
-          >
-            {{ tag.text }}
-          </span>
-          <button
-            class="text-[10px] text-gray-400 cursor-pointer transition-opacity dark:text-gray-500 hover:opacity-70"
-            title="收起"
-            @click="feesExpanded = false"
-          >
-            收起
-          </button>
-        </template>
       </div>
     </td>
 
@@ -460,4 +445,78 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
   </tr>
+
+  <!-- 费率详情对话框 (Teleport 至 body,避免表格内非法 DOM 结构) -->
+  <Teleport to="body">
+    <Modal v-model="feesDialogOpen" :title="`费率详情 · ${holding.name}`">
+    <div v-if="holding.fees" class="space-y-4">
+      <!-- 基金标识 -->
+      <div class="text-xs text-gray-500 font-mono dark:text-gray-400">
+        {{ holding.code }}
+      </div>
+
+      <!-- 持有期状态提示 -->
+      <div
+        v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
+        class="text-xs px-3 py-2 border rounded flex gap-2 items-center"
+        :class="lastBuyStatus.isSafe
+          ? 'border-green-200 text-green-700 bg-green-50 dark:border-green-800/50 dark:bg-green-900/20 dark:text-green-400'
+          : 'border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400'"
+      >
+        <div :class="lastBuyStatus.isSafe ? 'i-carbon-shield-check' : 'i-carbon-warning-alt'" />
+        <span>
+          最近买入于 <span class="font-mono font-semibold">{{ lastBuyStatus.date }}</span>,
+          已持有 <span class="font-bold">{{ lastBuyStatus.days }}</span> 天。
+          <template v-if="lastBuyStatus.isSafe">当前赎回费率较低。</template>
+          <template v-else>现在赎回可能面临惩罚性费率!</template>
+        </span>
+      </div>
+
+      <!-- 赎回费阶梯表 -->
+      <div v-if="redemptionFeeTags && redemptionFeeTags.length">
+        <div class="text-sm font-semibold mb-2">
+          赎回费阶梯
+        </div>
+        <div class="flex flex-col gap-1.5">
+          <div
+            v-for="(tag, i) in redemptionFeeTags"
+            :key="i"
+            class="flex justify-between items-center text-xs font-mono px-3 py-1.5 border rounded tabular-nums"
+            :class="tag.colorClass"
+          >
+            <span>{{ tag.holdingPeriod }}</span>
+            <span class="font-bold">{{ tag.rate }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 其他费用 -->
+      <div class="flex flex-wrap gap-x-6 gap-y-2 text-xs">
+        <div v-if="holding.fees.purchaseFee">
+          <span class="text-gray-500 dark:text-gray-400">申购费</span>
+          <span class="font-mono ml-1.5 font-semibold">{{ holding.fees.purchaseFee }}</span>
+        </div>
+        <div v-if="holding.fees.managementFee">
+          <span class="text-gray-500 dark:text-gray-400">管理费</span>
+          <span class="font-mono ml-1.5 font-semibold">{{ holding.fees.managementFee }}</span>
+        </div>
+        <div v-if="holding.fees.custodyFee">
+          <span class="text-gray-500 dark:text-gray-400">托管费</span>
+          <span class="font-mono ml-1.5 font-semibold">{{ holding.fees.custodyFee }}</span>
+        </div>
+      </div>
+
+      <!-- 原始费率说明文本 -->
+      <details v-if="holding.fees.rawText" class="text-xs text-gray-500 dark:text-gray-400">
+        <summary class="cursor-pointer select-none">
+          原始费率说明
+        </summary>
+        <pre class="mt-2 p-2 rounded bg-gray-50 dark:bg-gray-900/50 whitespace-pre-wrap font-mono">{{ holding.fees.rawText }}</pre>
+      </details>
+    </div>
+    <div v-else class="text-sm text-gray-400 py-4 text-center">
+      暂无费率信息
+    </div>
+  </Modal>
+  </Teleport>
 </template>
