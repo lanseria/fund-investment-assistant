@@ -1,4 +1,5 @@
 <script setup lang="ts">
+defineProps<{ loading?: boolean }>()
 const emit = defineEmits(['submit', 'cancel'])
 
 const selectedFile = ref<File | null>(null)
@@ -48,11 +49,15 @@ function handleSubmit() {
       </div>
     </div>
     <div class="mt-6 flex justify-end space-x-3">
-      <button type="button" class="text-sm text-gray-700 font-medium px-4 py-2 rounded-md bg-gray-100" @click="emit('cancel')">
+      <button type="button" class="text-sm text-gray-700 font-medium px-4 py-2 rounded-md bg-gray-100" :disabled="loading" @click="emit('cancel')">
         取消
       </button>
-      <button type="submit" class="btn" :disabled="!selectedFile">
-        确认导入
+      <button type="submit" class="btn flex items-center justify-center" :disabled="!selectedFile || loading">
+        <span v-if="loading" class="flex gap-2 items-center">
+          <div class="i-carbon-circle-dash animate-spin" />
+          导入中...
+        </span>
+        <span v-else>确认导入</span>
       </button>
     </div>
   </form>

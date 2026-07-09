@@ -137,3 +137,85 @@ describe('calculatePenaltyFee', () => {
     expect(penaltyFee.toNumber()).toBeCloseTo(1.5, 4)
   })
 })
+
+// ============ C. calculatePenaltyFee(真实费率阶梯) ============
+describe('calculatePenaltyFee - 真实费率阶梯', () => {
+  // 典型股票型基金阶梯:<7天 1.5%、7-30天 0.5%、≥30天 0%
+  const tiers = [
+    { holdingPeriod: '小于7天', rate: '1.50%' },
+    { holdingPeriod: '大于等于7天，小于30天', rate: '0.50%' },
+    { holdingPeriod: '大于等于30天', rate: '0.00%' },
+  ]
+
+  it('阶梯场景1: 全部持有≥30天(0%档),赎回费为0', () => {
+    // 买入 1-01,卖出 2-01,持有 31 天 → 0% 档
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee, breakdown } = calculatePenaltyFee(lots, 100, '2026-02-01', 1.5, tiers)
+    expect(penaltyFee.toNumber()).toBe(0)
+    expect(breakdown).toHaveLength(0)
+  })
+
+  it('阶梯场景2: 全部持有<7天(1.5%档),按阶梯费率计费', () => {
+    // 买入 1-01,卖出 1-05,持有 4 天 → 1.5% 档
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee } = calculatePenaltyFee(lots, 100, '2026-01-05', 1.5, tiers)
+    // 100 × 1.5 × 0.015 = 2.25
+    expect(penaltyFee.toNumber()).toBeCloseTo(2.25, 4)
+  })
+
+  it('阶梯场景3: 全部持有7-29天(0.5%档),按0.5%计费', () => {
+    // 买入 1-01,卖出 1-15,持有 14 天 → 0.5% 档
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee } = calculatePenaltyFee(lots, 100, '2026-01-15', 2.0, tiers)
+    // 100 × 2.0 × 0.005 = 1.0
+    expect(penaltyFee.toNumber()).toBeCloseTo(1.0, 4)
+  })
+
+  it('阶梯场景4: 跨三档混合,各档分别计费并累加', () => {
+    // 批次1: 1-01 买 100(卖出 2-01,持有31天 → 0%档,不计费)
+    // 批次2: 1-15 买 100(卖出 2-01,持有17天 → 0.5%档)
+    // 批次3: 1-29 买 100(卖出 2-01,持有3天 → 1.5%档)
+    // 卖出 300 跨三档
+    const lots = buildFifoLots(
+      [
+        { date: '2026-01-01', shares: 100 },
+        { date: '2026-01-15', shares: 100 },
+        { date: '2026-01-29', shares: 100 },
+      ],
+      [],
+    )
+    const { penaltyFee, breakdown } = calculatePenaltyFee(lots, 300, '2026-02-01', 1.0, tiers)
+    // 批次2: 100 × 1.0 × 0.005 = 0.5
+    // 批次3: 100 × 1.0 × 0.015 = 1.5
+    // 合计 2.0
+    expect(penaltyFee.toNumber()).toBeCloseTo(2.0, 4)
+    // breakdown 只含计费批次(0%档不计入)
+    expect(breakdown).toHaveLength(2)
+    expect(breakdown[0].holdingDays).toBe(17)
+    expect(breakdown[0].rate).toBeCloseTo(0.005, 6)
+    expect(breakdown[1].holdingDays).toBe(3)
+    expect(breakdown[1].rate).toBeCloseTo(0.015, 6)
+  })
+
+  it('阶梯场景5: 恰好持有7天,落入0.5%档(边界)', () => {
+    // 1-01 买入,1-08 卖出,持有 7 天 → [7,30) 即 0.5% 档
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee } = calculatePenaltyFee(lots, 100, '2026-01-08', 1.0, tiers)
+    // 100 × 1.0 × 0.005 = 0.5
+    expect(penaltyFee.toNumber()).toBeCloseTo(0.5, 4)
+  })
+
+  it('阶梯场景6: 恰好持有30天,落入0%档(边界,不计费)', () => {
+    // 1-01 买入,1-31 卖出,持有 30 天 → ≥30 即 0% 档
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee } = calculatePenaltyFee(lots, 100, '2026-01-31', 1.0, tiers)
+    expect(penaltyFee.toNumber()).toBe(0)
+  })
+
+  it('阶梯场景7: 不传阶梯时回退硬编码(向后兼容)', () => {
+    // 持有 14 天:阶梯模式应 0.5%,但无阶梯时硬编码为 0(<7天才计费)
+    const lots = buildFifoLots([{ date: '2026-01-01', shares: 100 }], [])
+    const { penaltyFee } = calculatePenaltyFee(lots, 100, '2026-01-15', 1.0)
+    expect(penaltyFee.toNumber()).toBe(0)
+  })
+})

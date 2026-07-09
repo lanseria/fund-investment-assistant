@@ -1,7 +1,7 @@
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
 import { and, eq, inArray, lt, sql } from 'drizzle-orm'
-import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas' // [修改] 导入 users
+import { funds, fundFees, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas' // [修改] 导入 users
 import { useDb } from '~~/server/utils/db'
 import { buildFifoLots, calculatePenaltyFee } from '~~/server/utils/transactionCalc'
 
@@ -148,13 +148,18 @@ export default defineTask({
             historySells.map(h => ({ shares: h.confirmedShares || 0 })),
           )
 
-          // 4. 计算本次卖出在持有<7天部分的惩罚手续费
-          const { penaltyFee: totalPenaltyFee } = calculatePenaltyFee(lots, confirmedShares, tx.orderDate, nav)
+          // 4. 查询该基金的赎回费阶梯(若有),按真实费率计算赎回费
+          const feeRecord = await db.query.fundFees.findFirst({
+            where: eq(fundFees.fundCode, tx.fundCode),
+          })
+          const rateTiers = (feeRecord?.redemptionFees as { holdingPeriod: string, rate: string }[] | null) ?? null
 
-          // 5. 应用手续费
-          if (totalPenaltyFee.gt(0)) {
-            rawAmount = rawAmount.minus(totalPenaltyFee)
-            note += ` | 持有<7天惩罚: -¥${totalPenaltyFee.toFixed(2)}`
+          const { penaltyFee: totalRedemptionFee } = calculatePenaltyFee(lots, confirmedShares, tx.orderDate, nav, rateTiers)
+
+          // 5. 应用赎回费
+          if (totalRedemptionFee.gt(0)) {
+            rawAmount = rawAmount.minus(totalRedemptionFee)
+            note += ` | 赎回费: -¥${totalRedemptionFee.toFixed(2)}`
           }
           // === FIFO 逻辑结束 ===
 

@@ -2,6 +2,7 @@
 import type { Holding } from '~/types/holding'
 import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
+import { matchRateForHoldingDays, parseRateValue } from '~~/shared/redemptionFee'
 
 const props = defineProps<{
   holding: Holding
@@ -27,7 +28,7 @@ function toggleAttention() {
   emit('update-attention', props.holding.code, nextLevel)
 }
 
-// 赎回费率提示(仅展示 redemptionFees),0.00% 档按持有期阈值上色
+// 赎回费率提示(仅展示 redemptionFees),按持有期阈值着色:7天绿、30天黄、其余灰
 const redemptionFeeTags = computed(() => {
   const fees = props.holding.fees?.redemptionFees
   if (!fees || fees.length === 0)
@@ -36,16 +37,7 @@ const redemptionFeeTags = computed(() => {
     // 从 holdingPeriod 提取天数阈值(如"大于等于7天"→7、"小于30天"→30),用于配色
     const dayMatch = f.holdingPeriod.match(/(\d+)\s*天/)
     const days = dayMatch ? Number(dayMatch[1]) : null
-    const isZero = f.rate === '0.00%'
-
-    // 仅对 0.00% 档着色:7天绿色、30天黄色,其余默认灰
-    let colorClass = 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:text-gray-500 dark:bg-gray-800'
-    if (isZero && days === 7)
-      colorClass = 'border-green-200 text-green-600 bg-green-50 dark:border-green-800/50 dark:text-green-400 dark:bg-green-900/20'
-    else if (isZero && days === 30)
-      colorClass = 'border-amber-200 text-amber-600 bg-amber-50 dark:border-amber-800/50 dark:text-amber-400 dark:bg-amber-900/20'
-
-    return { holdingPeriod: f.holdingPeriod, rate: f.rate, days, isZero, colorClass }
+    return { holdingPeriod: f.holdingPeriod, rate: f.rate, days, colorClass: tierColorClass(days, f.rate) }
   })
 })
 
@@ -62,18 +54,45 @@ const dayjs = useDayjs()
 
 // --- 辅助函数 ---
 
+// 按持有期天数阈值着色:7天绿、30天黄、其余灰
+function tierColorClass(days: number | null, rate: string) {
+  const rateVal = parseRateValue(rate)
+  // 0.00% 档按天数阈值配色:7天绿、30天黄,其余默认灰
+  if (rateVal === 0) {
+    if (days === 7)
+      return 'border-green-200 text-green-600 bg-green-50 dark:border-green-800/50 dark:text-green-400 dark:bg-green-900/20'
+    if (days === 30)
+      return 'border-amber-200 text-amber-600 bg-amber-50 dark:border-amber-800/50 dark:text-amber-400 dark:bg-amber-900/20'
+  }
+  return 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:text-gray-500 dark:bg-gray-800'
+}
+
+// 根据当前持有天数匹配赎回费率档位,返回该档 { rate(字符串), rateValue(数值), holdingPeriod }
+function matchRedemptionTier(diffDays: number): { rate: string, rateValue: number, holdingPeriod: string } | null {
+  const tiers = props.holding.fees?.redemptionFees
+  if (!tiers || tiers.length === 0)
+    return null
+
+  for (const t of tiers) {
+    const rateValue = matchRateForHoldingDays([t], diffDays)
+    if (rateValue !== null)
+      return { rate: t.rate, rateValue, holdingPeriod: t.holdingPeriod }
+  }
+  return null
+}
+
 // 计算最近一次买入的持有状态
 const lastBuyStatus = computed(() => {
   const txs = props.holding.recentTransactions
   if (!txs || txs.length === 0)
-    return { isSafe: true, label: '无近买', days: 7 }
+    return { isSafe: true, label: '无近买', days: 7, rate: null, date: null, title: '无近期买入记录' }
 
   // 找到最近的一笔买入交易（包含普通买入和转换转入）
   const lastBuy = txs.find(t => t.type === 'buy' || t.type === 'convert_in')
 
   // 如果最近7笔没有买入，说明买入很久了，肯定是安全的
   if (!lastBuy)
-    return { isSafe: true, label: '7天+', days: 8, date: null }
+    return { isSafe: true, label: '7天+', days: 8, rate: null, date: null, title: '近期无买入,持有期充足' }
 
   const buyDate = dayjs(lastBuy.date)
   // 计算持有天数 (今天 - 买入日期)
@@ -81,12 +100,49 @@ const lastBuyStatus = computed(() => {
   // 这里做简单计算：当前日期 - 订单日期。如果刚好卡在临界点，建议用户去券商APP确认。
   const diffDays = dayjs().diff(buyDate, 'day')
 
-  return {
-    isSafe: diffDays >= 7,
-    label: diffDays >= 7 ? '7天+' : `${diffDays}天`,
-    days: diffDays,
-    date: lastBuy.date,
+  // 优先用真实赎回费率档位判定当前适用费率
+  const matched = matchRedemptionTier(diffDays)
+  if (matched) {
+    // 0% 即视为安全(免赎回费)
+    const isSafe = matched.rateValue === 0
+    const label = `${diffDays}天`
+    const title = isSafe
+      ? `安全: 最近买入于 ${lastBuy.date},已持有 ${diffDays} 天,当前赎回费率 ${matched.rate} (免赎回费)`
+      : `警告: 最近买入于 ${lastBuy.date},仅持有 ${diffDays} 天,当前赎回费率 ${matched.rate}!`
+    return { isSafe, label, days: diffDays, rate: matched.rate, date: lastBuy.date, title }
   }
+
+  // 无费率数据时回退到 7 天启发式
+  const isSafe = diffDays >= 7
+  const label = diffDays >= 7 ? '7天+' : `${diffDays}天`
+  const title = isSafe
+    ? `安全: 最近买入于 ${lastBuy.date},已持有 ${diffDays} 天。赎回费率较低。`
+    : `警告: 最近买入于 ${lastBuy.date},仅持有 ${diffDays} 天!现在卖出可能面临 1.5% 惩罚性费率。`
+  return { isSafe, label, days: diffDays, rate: null, date: lastBuy.date, title }
+})
+
+// 持有期提示标签的配色:按实际持有天数的固定阈值判断
+// < 7天(1.5%档)红、[7,30)天(0.5%档)黄、≥30天 灰
+const holdingBadgeClass = computed(() => {
+  const { days, isSafe } = lastBuyStatus.value
+  if (isSafe || days >= 30)
+    return 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500'
+  if (days < 7)
+    return 'border-red-200 text-red-600 bg-red-50 animate-pulse dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400'
+  return 'border-amber-200 text-amber-600 bg-amber-50 animate-pulse dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400'
+})
+const holdingBadgeIcon = computed(() =>
+  lastBuyStatus.value.days >= 30 ? 'i-carbon-shield-check' : 'i-carbon-hourglass',
+)
+
+// 对话框内持有期提示配色(文字色加深,适合大区域显示)
+const dialogHoldingStatusClass = computed(() => {
+  const { days, isSafe } = lastBuyStatus.value
+  if (isSafe || days >= 30)
+    return 'border-gray-200 text-gray-600 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400'
+  if (days < 7)
+    return 'border-red-200 text-red-700 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20 dark:text-red-400'
+  return 'border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400'
 })
 
 // [优化] 格式化交易详情 tooltip
@@ -204,24 +260,22 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           {{ holding.code }}
         </div>
 
-        <!-- 分隔线 -->
-        <div v-if="holding.recentTransactions?.length" class="bg-gray-300 h-3 w-[1px] dark:bg-gray-600" />
+        <!-- 分隔线 (持有期提示或赎回费率存在时显示) -->
+        <div
+          v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in') || lastRedemptionTag"
+          class="bg-gray-300 h-3 w-[1px] dark:bg-gray-600"
+        />
 
-        <!-- 7天持有期提示 (仅在有近期买入且不足7天时高亮) -->
+        <!-- 持有期提示 (按当前适用赎回费率着色:≥1% 红、>0% 黄、0% 灰) -->
         <div
           v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
           class="text-[10px] px-1.5 py-0.5 border rounded flex gap-1 cursor-help items-center"
-          :class="lastBuyStatus.isSafe
-            ? 'border-gray-200 text-gray-400 bg-gray-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-500' // 安全状态：低调显示
-            : 'border-amber-200 text-amber-600 bg-amber-50 animate-pulse dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400' // 警告状态：高亮显示
-          "
-          :title="lastBuyStatus.isSafe
-            ? `安全: 最近买入于 ${lastBuyStatus.date}，已持有 ${lastBuyStatus.days} 天。赎回费率较低。`
-            : `警告: 最近买入于 ${lastBuyStatus.date}，仅持有 ${lastBuyStatus.days} 天！现在卖出可能面临 1.5% 惩罚性费率。`
-          "
+          :class="holdingBadgeClass"
+          :title="lastBuyStatus.title"
         >
-          <div :class="lastBuyStatus.isSafe ? 'i-carbon-shield-check' : 'i-carbon-hourglass'" />
+          <div :class="holdingBadgeIcon" />
           <span class="font-bold">{{ lastBuyStatus.label }}</span>
+          <span v-if="lastBuyStatus.rate" class="font-mono">{{ lastBuyStatus.rate }}</span>
         </div>
 
         <!-- 赎回费率提示 (默认仅显示最后一档,点击弹出完整费率详情对话框) -->
@@ -235,7 +289,13 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           <div class="i-carbon-currency text-xs" />
           {{ lastRedemptionTag.text }}
         </span>
+      </div>
 
+      <!-- 交易热点图 + 待确认交易 -->
+      <div
+        v-if="holding.recentTransactions?.length || (holding.pendingTransactions && holding.pendingTransactions.length > 0)"
+        class="mt-2 flex flex-wrap gap-x-2 gap-y-1 items-center"
+      >
         <!-- 交易热点图 (Visual Timeline) -->
         <div v-if="holding.recentTransactions?.length" class="flex flex-row-reverse gap-[-2px] items-center">
           <div
@@ -266,10 +326,8 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
             </div>
           </div>
         </div>
-      </div>
 
-      <!-- 待确认交易展示区 -->
-      <div v-if="holding.pendingTransactions && holding.pendingTransactions.length > 0" class="mt-2 space-y-1">
+        <!-- 待确认交易标签 -->
         <div
           v-for="tx in holding.pendingTransactions"
           :key="tx.id"
@@ -455,20 +513,17 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         {{ holding.code }}
       </div>
 
-      <!-- 持有期状态提示 -->
+      <!-- 持有期状态提示 (按当前适用费率着色) -->
       <div
         v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
         class="text-xs px-3 py-2 border rounded flex gap-2 items-center"
-        :class="lastBuyStatus.isSafe
-          ? 'border-green-200 text-green-700 bg-green-50 dark:border-green-800/50 dark:bg-green-900/20 dark:text-green-400'
-          : 'border-amber-200 text-amber-700 bg-amber-50 dark:border-amber-800/50 dark:bg-amber-900/20 dark:text-amber-400'"
+        :class="dialogHoldingStatusClass"
       >
         <div :class="lastBuyStatus.isSafe ? 'i-carbon-shield-check' : 'i-carbon-warning-alt'" />
         <span>
           最近买入于 <span class="font-mono font-semibold">{{ lastBuyStatus.date }}</span>,
-          已持有 <span class="font-bold">{{ lastBuyStatus.days }}</span> 天。
-          <template v-if="lastBuyStatus.isSafe">当前赎回费率较低。</template>
-          <template v-else>现在赎回可能面临惩罚性费率!</template>
+          已持有 <span class="font-bold">{{ lastBuyStatus.days }}</span> 天,
+          当前适用赎回费率 <span class="font-mono font-bold">{{ lastBuyStatus.rate || '未知' }}</span>。
         </span>
       </div>
 

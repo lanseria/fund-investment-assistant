@@ -475,6 +475,7 @@ watch(data, (newData) => {
         :current-shares="availableShares"
         :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
         :recent-transactions="tradeTargetTransactions"
+        :fees="tradeTarget.fees"
         @submit="handleTradeSubmit"
         @cancel="isTradeModalOpen = false"
       />

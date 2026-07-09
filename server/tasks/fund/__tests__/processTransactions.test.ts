@@ -104,6 +104,10 @@ const mockDb = {
       // 返回数据池中第一条基金信息
       findFirst: vi.fn(async () => mockData.funds[0]),
     },
+    fundFees: {
+      // 卖出时查询赎回费阶梯;测试隔离 FIFO 费率计算,返回 undefined(无阶梯,回退硬编码)
+      findFirst: vi.fn(async () => undefined),
+    },
   },
   update: (_tableRef: any) => ({
     set: (setValues: any) => ({

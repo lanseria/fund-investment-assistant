@@ -42,10 +42,13 @@ const {
 const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
+const isHoldingSubmitting = ref(false)
 
 // 交易模态框状态
 const isTradeModalOpen = ref(false)
 const isConvertModalOpen = ref(false)
+const isTradeSubmitting = ref(false)
+const isConvertSubmitting = ref(false)
 const tradeTarget = ref<Holding | null>(null)
 const tradeType = ref<'buy' | 'sell'>('buy')
 const availableShares = ref(0)
@@ -78,6 +81,7 @@ function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
 
 // 处理转换提交
 async function handleConvertSubmit(payload: any) {
+  isConvertSubmitting.value = true
   try {
     await holdingStore.submitConversion(payload)
     isConvertModalOpen.value = false
@@ -87,9 +91,13 @@ async function handleConvertSubmit(payload: any) {
   catch (e) {
     console.error(e)
   }
+  finally {
+    isConvertSubmitting.value = false
+  }
 }
 
 async function handleTradeSubmit(payload: any) {
+  isTradeSubmitting.value = true
   try {
     await holdingStore.submitTrade(payload)
     isTradeModalOpen.value = false
@@ -98,6 +106,9 @@ async function handleTradeSubmit(payload: any) {
   }
   catch (e) {
     console.error(e)
+  }
+  finally {
+    isTradeSubmitting.value = false
   }
 }
 
@@ -129,6 +140,7 @@ function closeModal() {
 }
 
 async function handleSubmit(formData: any) {
+  isHoldingSubmitting.value = true
   try {
     if (editingHolding.value)
       await holdingStore.updateHolding(formData.code, { shares: formData.shares, costPrice: formData.costPrice })
@@ -139,6 +151,9 @@ async function handleSubmit(formData: any) {
   catch (error) {
     console.error(error)
     alert('操作失败，请查看控制台获取更多信息。')
+  }
+  finally {
+    isHoldingSubmitting.value = false
   }
 }
 
@@ -190,6 +205,7 @@ async function handleProcessTransactions() {
 }
 
 const isImportModalOpen = ref(false)
+const isImportSubmitting = ref(false)
 async function handleExport() {
   await holdingStore.exportHoldings()
 }
@@ -215,10 +231,20 @@ async function handleCopyInfo() {
 }
 
 async function handleImportSubmit({ file, overwrite }: { file: File, overwrite: boolean }) {
-  const result = await holdingStore.importHoldings(file, overwrite)
-  isImportModalOpen.value = false
-  if (result)
-    alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
+  isImportSubmitting.value = true
+  try {
+    const result = await holdingStore.importHoldings(file, overwrite)
+    isImportModalOpen.value = false
+    if (result)
+      alert(`导入完成！成功: ${result.imported}, 跳过: ${result.skipped}`)
+  }
+  catch (error) {
+    console.error(error)
+    alert('导入失败，请查看控制台获取更多信息。')
+  }
+  finally {
+    isImportSubmitting.value = false
+  }
 }
 
 async function handleUpdateAttention(code: string, newLevel: number) {
@@ -294,6 +320,7 @@ async function handleUpdateAttention(code: string, newLevel: number) {
     <Modal v-model="isModalOpen" :title="modalTitle">
       <AddEditHoldingForm
         :initial-data="editingHolding"
+        :loading="isHoldingSubmitting"
         @submit="handleSubmit"
         @cancel="closeModal"
       />
@@ -307,6 +334,8 @@ async function handleUpdateAttention(code: string, newLevel: number) {
         :current-shares="availableShares"
         :current-market-value="tradeTarget.todayEstimateAmount || tradeTarget.holdingAmount || 0"
         :recent-transactions="tradeTargetTransactions"
+        :fees="tradeTarget.fees"
+        :loading="isTradeSubmitting"
         @submit="handleTradeSubmit"
         @cancel="isTradeModalOpen = false"
       />
@@ -319,13 +348,14 @@ async function handleUpdateAttention(code: string, newLevel: number) {
         :current-shares="availableShares"
         :available-funds="holdings"
         :recent-transactions="tradeTargetTransactions"
+        :loading="isConvertSubmitting"
         @submit="handleConvertSubmit"
         @cancel="isConvertModalOpen = false"
       />
     </Modal>
 
     <Modal v-model="isImportModalOpen" title="导入持仓数据">
-      <ImportHoldingForm @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
+      <ImportHoldingForm :loading="isImportSubmitting" @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
     </Modal>
   </div>
 </template>

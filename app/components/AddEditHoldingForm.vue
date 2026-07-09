@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 
-const props = defineProps<{ initialData?: Holding | null }>()
+const props = defineProps<{ initialData?: Holding | null, loading?: boolean }>()
 const emit = defineEmits(['submit', 'cancel'])
 
 const formData = reactive({
@@ -143,16 +143,21 @@ function handleSubmit() {
       <button
         type="button"
         class="text-sm text-gray-700 font-medium px-4 py-2 rounded-md bg-gray-100 dark:text-gray-200 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500"
+        :disabled="loading"
         @click="emit('cancel')"
       >
         取消
       </button>
       <button
         type="submit"
-        class="btn"
-        :disabled="!canSubmit"
+        class="btn flex items-center justify-center"
+        :disabled="!canSubmit || loading"
       >
-        {{ isEditing ? '保存更改' : '确认添加' }}
+        <span v-if="loading" class="flex gap-2 items-center">
+          <div class="i-carbon-circle-dash animate-spin" />
+          {{ isEditing ? '保存中...' : '添加中...' }}
+        </span>
+        <span v-else>{{ isEditing ? '保存更改' : '确认添加' }}</span>
       </button>
     </div>
   </form>

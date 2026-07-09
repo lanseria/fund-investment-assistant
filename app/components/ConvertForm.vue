@@ -13,6 +13,7 @@ const props = defineProps<{
   availableFunds: Holding[]
   // 交易记录
   recentTransactions?: any[]
+  loading?: boolean
 }>()
 
 const emit = defineEmits(['submit', 'cancel'])
@@ -224,16 +225,21 @@ function handleSubmit() {
       <button
         type="button"
         class="text-sm text-gray-700 font-medium px-4 py-2 rounded-md bg-gray-100 dark:text-gray-200 dark:bg-gray-600 hover:bg-gray-200 dark:hover:bg-gray-500"
+        :disabled="loading"
         @click="emit('cancel')"
       >
         取消
       </button>
       <button
         type="submit"
-        class="btn text-white bg-blue-600 hover:bg-blue-700"
-        :disabled="!canSubmit"
+        class="btn text-white bg-blue-600 flex items-center justify-center hover:bg-blue-700"
+        :disabled="!canSubmit || loading"
       >
-        确认转换
+        <span v-if="loading" class="flex gap-2 items-center">
+          <div class="i-carbon-circle-dash animate-spin" />
+          转换中...
+        </span>
+        <span v-else>确认转换</span>
       </button>
     </div>
   </form>
