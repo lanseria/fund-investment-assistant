@@ -262,13 +262,13 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
         <!-- 分隔线 (持有期提示或赎回费率存在时显示) -->
         <div
-          v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in') || lastRedemptionTag"
+          v-if="(holding.holdingAmount !== null && holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')) || lastRedemptionTag"
           class="bg-gray-300 h-3 w-[1px] dark:bg-gray-600"
         />
 
         <!-- 持有期提示 (按当前适用赎回费率着色:≥1% 红、>0% 黄、0% 灰) -->
         <div
-          v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
+          v-if="holding.holdingAmount !== null && holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
           class="text-[10px] px-1.5 py-0.5 border rounded flex gap-1 cursor-help items-center"
           :class="holdingBadgeClass"
           :title="lastBuyStatus.title"
@@ -515,7 +515,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
         <!-- 持有期状态提示 (按当前适用费率着色) -->
         <div
-          v-if="holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
+          v-if="holding.holdingAmount !== null && holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')"
           class="text-xs px-3 py-2 border rounded flex gap-2 items-center"
           :class="dialogHoldingStatusClass"
         >

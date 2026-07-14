@@ -10,6 +10,8 @@ const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
+// 清理 AI 用户灰尘份额: 每天 10:00 (在 9:00 处理交易之后)
+const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
 
 // 只有当环境变量中设置了有效的 Cron 表达式时，才添加任务
 if (syncHistoryCron) {
@@ -26,6 +28,9 @@ if (processTransactionsCron) {
 }
 if (runAiTradeCron) {
   scheduledTasks[runAiTradeCron] = ['ai:runAutoTrade']
+}
+if (cleanDustSharesCron) {
+  scheduledTasks[cleanDustSharesCron] = ['fund:cleanDustShares']
 }
 
 export default defineNuxtConfig({
