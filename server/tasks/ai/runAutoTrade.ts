@@ -35,68 +35,77 @@ export default defineTask({
     const processUser = async (user: typeof aiUsers[number]): Promise<number> => {
       console.log(`正在分析用户 ${user.username} (ID: ${user.id})...`)
 
-      // 获取用户持仓数据(已包含策略信号 signals 和指标)
-      const { holdings } = await getUserHoldingsAndSummary(user.id)
-      if (holdings.length === 0)
-        return 0
+      // 标记该账号为「AI 操作中」,供 /leaderboard 与 /daily-ops 展示
+      await db.update(users).set({ aiOperating: true }).where(eq(users.id, user.id))
 
-      // 计算可用资金:数据库余额 - 今日已生成的 Pending 买入金额(防止多次运行重复使用资金)
-      const pendingBuyAmount = await db.select({
-        total: sql<string>`SUM(order_amount)`,
-      })
-        .from(fundTransactions)
-        .where(and(
-          eq(fundTransactions.userId, user.id),
-          inArray(fundTransactions.status, ['pending', 'draft']),
-          eq(fundTransactions.type, 'buy'),
-        ))
+      try {
+        // 获取用户持仓数据(已包含策略信号 signals 和指标)
+        const { holdings } = await getUserHoldingsAndSummary(user.id)
+        if (holdings.length === 0)
+          return 0
 
-      const currentCash = Number(user.availableCash || 0)
-      const frozenCash = Number(pendingBuyAmount[0]?.total || 0)
-      const realAvailableCash = Math.max(0, currentCash - frozenCash)
+        // 计算可用资金:数据库余额 - 今日已生成的 Pending 买入金额(防止多次运行重复使用资金)
+        const pendingBuyAmount = await db.select({
+          total: sql<string>`SUM(order_amount)`,
+        })
+          .from(fundTransactions)
+          .where(and(
+            eq(fundTransactions.userId, user.id),
+            inArray(fundTransactions.status, ['pending', 'draft']),
+            eq(fundTransactions.type, 'buy'),
+          ))
 
-      const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
-        availableCash: realAvailableCash,
-        aiSystemPrompt: user.aiSystemPrompt,
-      })
+        const currentCash = Number(user.availableCash || 0)
+        const frozenCash = Number(pendingBuyAmount[0]?.total || 0)
+        const realAvailableCash = Math.max(0, currentCash - frozenCash)
 
-      // 保存执行日志
-      const todayStr = new Date().toISOString().split('T')[0]
-      await db.insert(aiExecutionLogs).values({
-        userId: user.id,
-        date: todayStr ?? '',
-        prompt: fullPrompt,
-        response: rawResponse,
-      })
-
-      if (decisions.length === 0) {
-        console.log(`  -> AI 建议观望 (Hold)`)
-        return 0
-      }
-
-      // 将决策转换为数据库交易记录 (Pending / Draft 状态)
-      let userTrades = 0
-      for (const decision of decisions) {
-        if (decision.action === 'buy' && !decision.amount)
-          continue
-        if (decision.action === 'sell' && !decision.shares)
-          continue
-
-        await db.insert(fundTransactions).values({
-          userId: user.id,
-          fundCode: decision.fundCode,
-          type: decision.action as 'buy' | 'sell',
-          status: user.aiMode === 'auto' ? 'pending' : 'draft',
-          orderAmount: decision.amount ? String(decision.amount) : null,
-          orderShares: decision.shares ? String(decision.shares) : null,
-          orderDate: todayStr ?? '',
-          note: `[AI操作] ${decision.reason}`,
+        const { decisions, fullPrompt, rawResponse } = await getAiTradeDecisions(holdings, {
+          availableCash: realAvailableCash,
+          aiSystemPrompt: user.aiSystemPrompt,
         })
 
-        console.log(`  -> 生成交易: ${decision.action} ${decision.fundCode}, 原因: ${decision.reason}`)
-        userTrades++
+        // 保存执行日志
+        const todayStr = new Date().toISOString().split('T')[0]
+        await db.insert(aiExecutionLogs).values({
+          userId: user.id,
+          date: todayStr ?? '',
+          prompt: fullPrompt,
+          response: rawResponse,
+        })
+
+        if (decisions.length === 0) {
+          console.log(`  -> AI 建议观望 (Hold)`)
+          return 0
+        }
+
+        // 将决策转换为数据库交易记录 (Pending / Draft 状态)
+        let userTrades = 0
+        for (const decision of decisions) {
+          if (decision.action === 'buy' && !decision.amount)
+            continue
+          if (decision.action === 'sell' && !decision.shares)
+            continue
+
+          await db.insert(fundTransactions).values({
+            userId: user.id,
+            fundCode: decision.fundCode,
+            type: decision.action as 'buy' | 'sell',
+            status: user.aiMode === 'auto' ? 'pending' : 'draft',
+            orderAmount: decision.amount ? String(decision.amount) : null,
+            orderShares: decision.shares ? String(decision.shares) : null,
+            orderDate: todayStr ?? '',
+            note: `[AI操作] ${decision.reason}`,
+          })
+
+          console.log(`  -> 生成交易: ${decision.action} ${decision.fundCode}, 原因: ${decision.reason}`)
+          userTrades++
+        }
+        return userTrades
       }
-      return userTrades
+      finally {
+        // 无论成功/失败/观望,都标记操作结束
+        await db.update(users).set({ aiOperating: false }).where(eq(users.id, user.id))
+      }
     }
 
     let totalTrades = 0

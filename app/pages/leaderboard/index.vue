@@ -187,6 +187,14 @@ function openStrategyModal(user: LeaderboardUser) {
             <div class="flex flex-wrap gap-2 items-center">
               <span class="font-bold truncate">{{ user.username }}</span>
               <AiAgentBadge v-if="user.aiMode !== 'off'" :mode="user.aiMode" />
+              <span
+                v-if="user.aiOperating"
+                class="text-[10px] text-blue-500 flex flex-shrink-0 gap-0.5 items-center"
+                title="AI 操作中"
+              >
+                <div class="i-carbon-circle-dash animate-spin" />
+                <span>操作中</span>
+              </span>
               <button
                 v-if="user.aiSystemPrompt"
                 class="icon-btn text-gray-400 flex-shrink-0 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"

@@ -1,5 +1,5 @@
 import { relations } from 'drizzle-orm'
-import { bigint, bigserial, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
+import { bigint, bigserial, boolean, date, integer, jsonb, numeric, pgSchema, primaryKey, real, text, timestamp, unique, varchar } from 'drizzle-orm/pg-core'
 
 // 使用 'fund_app' 作为 schema 名称
 export const fundSchema = pgSchema('fund_app')
@@ -29,6 +29,8 @@ export const users = fundSchema.table('users', {
   role: userRoleEnum('role').notNull().default('user'),
   /** AI 自动操作模式 ('auto', 'draft' 或 'off') */
   aiMode: aiModeEnum('ai_mode').default('off').notNull(),
+  /** AI 账号是否正在执行操作 (定时任务或 AI修正期间为 true) */
+  aiOperating: boolean('ai_operating').default(false).notNull(),
   /** 自定义 System Prompt (如果为空则使用系统默认) */
   aiSystemPrompt: text('ai_system_prompt'),
   /** 账户可用现金余额 (用于买入扣款和卖出回款) */

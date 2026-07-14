@@ -225,6 +225,13 @@
       "when": 1783580518068,
       "tag": "0031_magical_night_nurse",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1784013227236,
+      "tag": "0032_futuristic_catseye",
+      "breakpoints": true
     }
   ]
 }

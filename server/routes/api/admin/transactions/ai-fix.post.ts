@@ -3,7 +3,6 @@ import type { AiModel } from '~~/shared/ai-models'
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
-import { getAiFixStatus, setAiFixStatus } from '~~/server/utils/aiFixStatus'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
@@ -43,6 +42,7 @@ export default defineEventHandler(async (event) => {
       availableCash: true,
       aiSystemPrompt: true,
       aiMode: true,
+      aiOperating: true,
     },
   })
 
@@ -54,20 +54,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ status: 400, statusText: 'Target user has no AI system prompt configured' })
   }
 
-  const existingStatus = await getAiFixStatus(date, userId)
-  if (existingStatus?.loading) {
+  if (targetUser.aiOperating) {
     return { loading: true }
   }
 
-  const startedAt = new Date().toISOString()
-  await setAiFixStatus(date, userId, {
-    loading: true,
-    model,
-    startedAt,
-  })
+  await db.update(users).set({ aiOperating: true }).where(eq(users.id, userId))
 
   const runAiFix = async () => {
-    let errorMessage: string | undefined
     try {
       const { holdings } = await getUserHoldingsAndSummary(userId)
 
@@ -154,17 +147,10 @@ export default defineEventHandler(async (event) => {
       })
     }
     catch (err: any) {
-      errorMessage = err?.message || 'Unknown error'
       console.error(`[AI Fix] Failed for user ${userId}:`, err)
     }
     finally {
-      await setAiFixStatus(date, userId, {
-        loading: false,
-        model,
-        startedAt,
-        finishedAt: new Date().toISOString(),
-        error: errorMessage,
-      })
+      await db.update(users).set({ aiOperating: false }).where(eq(users.id, userId))
     }
   }
 

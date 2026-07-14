@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."users" ADD COLUMN "ai_operating" boolean DEFAULT false NOT NULL;

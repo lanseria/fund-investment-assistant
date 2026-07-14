@@ -265,6 +265,14 @@ async function handleApproveDraft(userId: number, username: string) {
                         {{ group.user.username }}
                       </span>
                       <AiAgentBadge v-if="group.user.aiMode !== 'off'" :mode="group.user.aiMode" />
+                      <span
+                        v-if="group.loading"
+                        class="text-xs text-blue-500 flex gap-0.5 items-center"
+                        title="AI 操作中"
+                      >
+                        <div class="i-carbon-circle-dash animate-spin" />
+                        <span>操作中</span>
+                      </span>
                       <button
                         v-if="group.user.aiSystemPrompt"
                         class="icon-btn text-gray-400 transition-colors dark:text-gray-500 hover:text-primary dark:hover:text-primary"

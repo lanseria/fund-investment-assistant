@@ -7,6 +7,7 @@ export interface LeaderboardUser {
   rank: number
   username: string
   aiMode: 'auto' | 'draft' | 'off'
+  aiOperating?: boolean
   aiSystemPrompt?: string | null
 
   // 核心资产数据
