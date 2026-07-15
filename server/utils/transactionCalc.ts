@@ -1,9 +1,9 @@
+import type { RedemptionFeeTier } from '~~/shared/redemptionFee'
 // server/utils/transactionCalc.ts
 // 交易确认的纯计算逻辑,从 processTransactions 任务中抽离以便单元测试。
 // 注意:所有数值运算使用 bignumber.js,与原任务逻辑保持精度一致。
 import BigNumber from 'bignumber.js'
 import dayjs from 'dayjs'
-import type { RedemptionFeeTier } from '~~/shared/redemptionFee'
 import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
 
 /** FIFO 持仓批次(一次买入形成的份额单元) */

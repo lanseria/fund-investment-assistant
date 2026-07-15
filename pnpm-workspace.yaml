@@ -12,6 +12,9 @@ trustPolicyExclude:
   - semver@6.3.1
 
 packages: []
+catalog:
+  '@types/markdown-it': ^14.1.2
+  markdown-it: ^14.3.0
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.17.2
@@ -57,6 +60,7 @@ catalogs:
     bignumber.js: ^11.1.5
     dayjs-nuxt: ^2.1.11
     es-toolkit: ^1.49.0
+    markdown-it: ^14.1.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.6
     zod: ^4.4.3

@@ -364,3 +364,59 @@ export const fundFeesRelations = relations(fundFees, ({ one }) => ({
     references: [funds.code],
   }),
 }))
+
+/**
+ * AI 对话会话表 (chat_sessions)
+ * 存储用户与 AI 助手的会话元信息
+ */
+export const chatSessions = fundSchema.table('chat_sessions', {
+  /** 会话ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 用户ID (外键关联 users 表) */
+  userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 会话标题 (自动取首条消息摘要) */
+  title: text('title').notNull().default('新对话'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  /** 更新时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * AI 对话消息表 (chat_messages)
+ * 存储会话中的每一条消息 (user / assistant / tool)
+ */
+export const chatMessages = fundSchema.table('chat_messages', {
+  /** 消息ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 会话ID (外键关联 chat_sessions 表) */
+  sessionId: bigint('session_id', { mode: 'number' }).notNull().references(() => chatSessions.id, { onDelete: 'cascade' }),
+  /** 消息角色: 'user'(用户输入) | 'assistant'(AI回复) | 'tool'(工具执行结果) */
+  role: text('role').notNull(),
+  /** 文本内容 (tool 消息存工具结果摘要) */
+  content: text('content'),
+  /** assistant 发起的工具调用数组 [{ id, name, arguments }] */
+  toolCalls: jsonb('tool_calls'),
+  /** tool 消息回填的对应 tool_call_id */
+  toolCallId: text('tool_call_id'),
+  /** 工具名称 (便于 UI 折叠展示) */
+  toolName: text('tool_name'),
+  /** 是否为错误消息 (工具执行失败或 LLM 异常) */
+  isError: boolean('is_error').default(false).notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * 会话与消息关联 (chatSessions 一对多 chatMessages)
+ */
+export const chatSessionsRelations = relations(chatSessions, ({ many }) => ({
+  messages: many(chatMessages),
+}))
+
+export const chatMessagesRelations = relations(chatMessages, ({ one }) => ({
+  session: one(chatSessions, {
+    fields: [chatMessages.sessionId],
+    references: [chatSessions.id],
+  }),
+}))

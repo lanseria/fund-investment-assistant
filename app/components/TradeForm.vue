@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import type { FundFees } from '~/types/holding'
 import BigNumber from 'bignumber.js'
-import { useDayjs } from '#imports'
 import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
+import { useDayjs } from '#imports'
 
 const props = defineProps<{
   fundCode: string
@@ -216,22 +216,22 @@ function handleSubmit() {
           <div
             v-for="(t, i) in feeAnalysis.tiers"
             :key="i"
-            class="flex justify-between items-center"
+            class="flex items-center justify-between"
             :class="t.rate >= 1 ? 'text-red-700 dark:text-red-400' : ''"
           >
             <span>
               <b>{{ t.shares.toFixed(2) }}</b> 份 ×
-              <span class="font-mono font-bold">{{ t.rate }}%</span>
+              <span class="font-bold font-mono">{{ t.rate }}%</span>
             </span>
             <span class="font-mono">-¥{{ t.fee.toFixed(2) }}</span>
           </div>
         </div>
         <!-- 合计 -->
-        <div class="flex justify-between items-center font-bold mt-2 pt-2 border-t border-amber-200 dark:border-amber-800">
+        <div class="font-bold mt-2 pt-2 border-t border-amber-200 flex items-center justify-between dark:border-amber-800">
           <span>预估赎回费合计</span>
           <span class="font-mono">-¥{{ feeAnalysis.totalFee.toFixed(2) }}</span>
         </div>
-        <p class="text-[10px] text-amber-600 dark:text-amber-500 mt-1 opacity-80">
+        <p class="text-[10px] text-amber-600 mt-1 opacity-80 dark:text-amber-500">
           * 基于近期交易估算,实际以确认时后端计算为准。
         </p>
       </div>

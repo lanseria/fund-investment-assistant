@@ -43,6 +43,7 @@
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
+    "markdown-it": "catalog:",
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
@@ -58,6 +59,9 @@
     "vue-echarts": "catalog:frontend",
     "vue-tsc": "catalog:dev",
     "zod": "catalog:utils"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "catalog:"
   },
   "resolutions": {
     "chokidar": "^5.0.0",
