@@ -9,8 +9,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits([
-  'refresh-client', // 客户端更新 (User Scope)
-  'refresh-server-user', // 后端更新 (User Scope)
+  'refresh-server-user', // 同步我的基金估值 (User Scope,后端执行)
   'refresh-data',
   'process-transactions',
   'toggle-held',
@@ -44,14 +43,14 @@ function handleServerUpdate() {
         <button
           class="px-2 border-r border-gray-300 rounded-l-md bg-gray-100 flex h-8 transition-colors items-center dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-gray-600"
           :disabled="isRefreshing"
-          title="客户端极速同步 (仅我的基金)"
-          @click="emit('refresh-client')"
+          title="同步我的基金估值 (后端执行)"
+          @click="handleServerUpdate"
         >
           <div i-carbon-update-now :class="{ 'animate-spin': isRefreshing }" class="mr-1.5" />
           <span class="text-sm font-medium">同步</span>
         </button>
         <button
-          class="px-1 rounded-r-md bg-gray-100 flex h-8 transition-colors items-center dark:bg-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-gray-600"
+          class="px-1 rounded-r-md bg-gray-100 flex h-8 transition-colors items-center dark:border-gray-700 hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed dark:hover:bg-gray-600"
           :disabled="isRefreshing"
           @click="isSyncMenuOpen = !isSyncMenuOpen"
         >

@@ -274,7 +274,6 @@ async function handleUpdateAttention(code: string, newLevel: number) {
       :is-data-loading="!!isDataLoading"
       :is-processing-transactions="isProcessingTransactions"
       :is-held-only="isHeldOnly"
-      @refresh-client="holdingStore.triggerClientUpdate(true)"
       @refresh-server-user="holdingStore.refreshServerEstimates('user')"
       @refresh-data="refresh"
       @process-transactions="handleProcessTransactions"

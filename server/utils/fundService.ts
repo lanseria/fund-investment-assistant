@@ -31,7 +31,8 @@ interface FundInfoResponse {
  *
  * 新基金时通过 Python 接口(NUXT_STRATEGY_API_URL/fund/info/{code})一次性获取
  * 基本信息 + 历史净值 + 费率,不再直连天天基金/东方财富。
- * 实时估值刷新(syncSingleFundEstimate)仍走原外部接口。
+ * 实时估值刷新(syncSingleFundEstimate)改走 Python 服务
+ * (NUXT_STRATEGY_API_URL/fund/realtime/{code},底层东财盘中估值表,60s 缓存)。
  */
 export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
   const db = useDb()

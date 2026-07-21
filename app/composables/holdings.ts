@@ -1,8 +1,6 @@
 /* eslint-disable no-alert */
 import type { Holding, HoldingSummary } from '~/types/holding'
 import { acceptHMRUpdate, defineStore } from 'pinia'
-import { isTradingDay, isTradingHours } from '~~/shared/market'
-import { fetchClientEstimate } from '~/utils/quote'
 
 export const useHoldingStore = defineStore('holding', () => {
   // --- State ---
@@ -322,98 +320,8 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
 
-  // --- 客户端轮询相关 ---
-  let clientPollingTimer: NodeJS.Timeout | null = null
-
-  /**
-   * 执行一次客户端估值更新
-   * @param force 是否强制执行（忽略交易时间限制）
-   */
-  async function triggerClientUpdate(force = false) {
-    if (!force) {
-      // [重构] 使用共享的、更精确的交易时间判断函数
-      const { isTrading } = isTradingDay()
-      const inTradingHours = isTradingHours()
-
-      if (!isTrading || !inTradingHours)
-        return
-    }
-
-    isRefreshing.value = true // 设置加载状态
-
-    // 提取所有持仓的 code (包括仅关注的)
-    const codes = holdings.value.map(h => h.code)
-    if (codes.length === 0) {
-      isRefreshing.value = false
-      return
-    }
-
-    const updates: any[] = []
-    const promises = codes.map(async (code) => {
-      const data = await fetchClientEstimate(code)
-      // console.warn('data', data)
-      if (data) {
-        // 1. 收集数据准备上报
-        updates.push({
-          code: data.fundcode,
-          estimate: data.gsz,
-          rate: data.gszzl,
-          time: data.gztime,
-        })
-
-        // 2. 立即更新本地 Store (乐观更新)
-        const holding = holdings.value.find(h => h.code === data.fundcode)
-        if (holding) {
-          holding.todayEstimateNav = Number(data.gsz)
-          holding.percentageChange = Number(data.gszzl)
-          holding.todayEstimateUpdateTime = data.gztime
-          // 重新计算关联数据
-          if (holding.holdingAmount !== null && holding.shares !== null) {
-            const estimateAmt = holding.shares * Number(data.gsz)
-            holding.todayEstimateAmount = estimateAmt
-          }
-        }
-      }
-    })
-
-    // 并发执行所有请求
-    await Promise.all(promises)
-    console.warn('updates', updates)
-    // 3. 批量上报服务端
-    if (updates.length > 0) {
-      try {
-        await apiFetch('/api/fund/utils/update-batch', {
-          method: 'POST',
-          body: { updates },
-        })
-      }
-      catch (e) {
-        console.error('[ClientPolling] Failed to report updates:', e)
-      }
-    }
-    isRefreshing.value = false
-  }
-
-  /**
-   * 启动客户端轮询 (每分钟执行一次)
-   */
-  async function startClientPolling() {
-    // 如果已经有定时器，先清除
-    if (clientPollingTimer)
-      clearInterval(clientPollingTimer)
-
-    // 立即执行一次 (非强制，遵守交易时间)
-    triggerClientUpdate(false)
-    // 启动定时器 (60秒)
-    clientPollingTimer = setInterval(triggerClientUpdate, 60000, false)
-  }
-
-  function stopClientPolling() {
-    if (clientPollingTimer) {
-      clearInterval(clientPollingTimer)
-      clientPollingTimer = null
-    }
-  }
+  // 注:盘中实时估值统一由服务端 cron 任务 `fund:syncEstimate`(每分钟)刷新
+  // 并通过 SSE 推送,客户端不再发起轮询。
 
   return {
     holdings,
@@ -432,14 +340,11 @@ export const useHoldingStore = defineStore('holding', () => {
     exportHoldings,
     importHoldings,
     refreshServerEstimates,
-    triggerClientUpdate,
     syncHistory,
     runStrategiesForFund,
     submitTrade,
     deleteTransaction,
     submitConversion,
-    startClientPolling,
-    stopClientPolling,
   }
 })
 

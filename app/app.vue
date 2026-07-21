@@ -13,17 +13,15 @@ useHead({
 // 2. 监听认证状态的变化
 watch(() => authStore.isAuthenticated, (isAuth) => {
   if (isAuth) {
-    // 如果用户已认证，则启动 SSE 连接 和 客户端轮询
-    console.warn('[Global] 用户已认证，正在启动 SSE 及客户端轮询...')
+    // 如果用户已认证，则启动 SSE 连接 (盘中估值由服务端 cron 刷新并经 SSE 推送)
+    console.warn('[Global] 用户已认证，正在启动 SSE...')
     holdingStore.startSseUpdates()
-    holdingStore.startClientPolling() // 启动客户端轮询
     marketStore.startMarketUpdates()
   }
   else {
-    // 如果用户未认证（或已登出），则关闭 SSE 连接 和 轮询
+    // 如果用户未认证（或已登出），则关闭 SSE 连接
     console.warn('[Global] 用户未认证，正在关闭服务...')
     holdingStore.stopSseUpdates()
-    holdingStore.stopClientPolling() // 停止客户端轮询
     marketStore.stopMarketUpdates()
   }
 }, {
@@ -33,7 +31,6 @@ watch(() => authStore.isAuthenticated, (isAuth) => {
 // 3. (可选但推荐) 在应用卸载时（例如关闭标签页）也进行清理
 onUnmounted(() => {
   holdingStore.stopSseUpdates()
-  holdingStore.stopClientPolling()
   marketStore.stopMarketUpdates()
 })
 </script>
