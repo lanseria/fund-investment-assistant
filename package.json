@@ -2,7 +2,7 @@
   "name": "fund-investment-assistant",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.15.1",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
@@ -43,7 +43,7 @@
     "eslint": "catalog:dev",
     "eslint-plugin-format": "catalog:dev",
     "iconv-lite": "catalog:backend",
-    "markdown-it": "catalog:",
+    "markdown-exit": "catalog:frontend",
     "mitt": "catalog:utils",
     "nuxt": "catalog:build",
     "nuxt-echarts": "catalog:frontend",
@@ -59,13 +59,5 @@
     "vue-echarts": "catalog:frontend",
     "vue-tsc": "catalog:dev",
     "zod": "catalog:utils"
-  },
-  "devDependencies": {
-    "@types/markdown-it": "catalog:"
-  },
-  "resolutions": {
-    "chokidar": "^5.0.0",
-    "unplugin": "catalog:build",
-    "vite": "^8.0.14"
   }
 }

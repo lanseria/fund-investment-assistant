@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import type { ChatMessage } from '~/composables/useChatStore'
-import MarkdownIt from 'markdown-it'
+import MarkdownIt from 'markdown-exit'
 import { useChatStore } from '~/composables/useChatStore'
 
 const chatStore = useChatStore()
 
-// markdown-it 实例（安全配置：禁用原始 HTML，把换行渲染为 <br>）
+// markdown-exit 实例（安全配置：禁用原始 HTML，把换行渲染为 <br>）
 const md = new MarkdownIt({
   html: false, // 禁止原始 HTML（防 XSS）
   breaks: true, // 单个换行 → <br>
@@ -90,7 +90,7 @@ async function handleSelectSession(id: number) {
 }
 
 // 极简 Markdown 渲染（转义 + 常见语法），避免引入新依赖
-// 使用 markdown-it 渲染（标题/列表/粗体/代码块/链接等完整语法）
+// 使用 markdown-exit 渲染（标题/列表/粗体/代码块/链接等完整语法）
 function renderMarkdown(text: string): string {
   if (!text)
     return ''

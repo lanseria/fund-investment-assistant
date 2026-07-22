@@ -12,45 +12,43 @@ trustPolicyExclude:
   - semver@6.3.1
 
 packages: []
-catalog:
-  '@types/markdown-it': ^14.1.2
-  markdown-it: ^14.3.0
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.17.2
+    '@nuxtjs/mcp-toolkit': ^0.18.0
     '@types/pg': ^8.20.0
-    argon2: ^0.44.0
+    argon2: ^0.45.0
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^6.45.0
+    openai: ^6.48.0
     pg: ^8.22.0
     secure-exec: ^0.3.3
   build:
     '@nuxt/eslint': ^1.16.0
     '@nuxtjs/color-mode': ^4.0.1
-    '@pinia/nuxt': ^0.11.3
+    '@pinia/nuxt': ^1.0.1
     '@unocss/eslint-config': ^66.7.5
     '@unocss/nuxt': ^66.7.5
     '@vueuse/nuxt': ^14.3.0
-    nuxt: ^4.4.8
+    nuxt: ^4.5.0
     unocss: ^66.7.5
     unplugin: ^3.3.0
   dev:
     '@antfu/eslint-config': ^9.1.0
     '@nuxt/test-utils': ^4.0.3
-    eslint: ^10.6.0
+    eslint: ^10.7.0
     eslint-plugin-format: ^2.0.1
-    typescript: ^6.0.3
+    typescript: ^7.0.2
     vitest: ^4.1.10
     vue-tsc: ^3.3.7
   frontend:
     '@vueuse/components': ^14.3.0
     '@vueuse/core': ^14.3.0
     echarts: ^6.1.0
+    markdown-exit: ^1.1.0-beta.2
     nuxt-echarts: ^1.0.1
-    pinia: ^3.0.4
-    vue: ^3.5.39
+    pinia: ^4.0.2
+    vue: ^3.5.40
     vue-echarts: ^8.0.1
   icons:
     '@iconify-json/carbon': ^1.2.24
@@ -60,7 +58,6 @@ catalogs:
     bignumber.js: ^11.1.5
     dayjs-nuxt: ^2.1.11
     es-toolkit: ^1.49.0
-    markdown-it: ^14.1.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.6
     zod: ^4.4.3
