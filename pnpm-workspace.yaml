@@ -16,7 +16,7 @@ catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.18.0
     '@types/pg': ^8.20.0
-    argon2: ^0.45.0
+    argon2: ^0.45.1
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
@@ -34,7 +34,7 @@ catalogs:
     unocss: ^66.7.5
     unplugin: ^3.3.0
   dev:
-    '@antfu/eslint-config': ^9.1.0
+    '@antfu/eslint-config': ^9.2.0
     '@nuxt/test-utils': ^4.0.3
     eslint: ^10.7.0
     eslint-plugin-format: ^2.0.1
