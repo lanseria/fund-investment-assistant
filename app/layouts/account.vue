@@ -5,6 +5,7 @@ const { cycleTheme, currentTheme } = useTheme()
 const menuItems = computed(() => [
   { to: '/account/personal-info', icon: 'i-carbon-user-avatar', label: '个人信息', admin: false },
   { to: '/account/users', icon: 'i-carbon-group-account', label: '用户管理', admin: true },
+  { to: '/account/funds', icon: 'i-carbon-currency', label: '基金管理', admin: true },
   { to: '/account/dictionaries', icon: 'i-carbon-book', label: '字典管理', admin: true },
 ])
 </script>
