@@ -319,14 +319,35 @@ export async function getUserHoldingsAndSummary(userId: number) {
     const aIsHeld = a.holdingAmount !== null
     const bIsHeld = b.holdingAmount !== null
 
+    // 第一优先级：已持仓的排前面
     if (aIsHeld && !bIsHeld)
       return -1
     if (!aIsHeld && bIsHeld)
       return 1
 
+    // 都已持仓：按持有市值降序
     if (aIsHeld && bIsHeld)
       return b.holdingAmount! - a.holdingAmount!
 
+    // 以下都是未持仓（关注）的基金
+    // 第二优先级：有待处理交易（即将买入）的排前面，纯关注的排后面
+    const aPendingCount = a.pendingTransactions?.length ?? 0
+    const bPendingCount = b.pendingTransactions?.length ?? 0
+
+    if (aPendingCount > 0 && bPendingCount === 0)
+      return -1
+    if (aPendingCount === 0 && bPendingCount > 0)
+      return 1
+
+    // 都有待处理交易：按最新待处理交易时间降序（最近操作的排前面）
+    if (aPendingCount > 0 && bPendingCount > 0) {
+      const aTime = a.pendingTransactions?.[0]?.createdAt
+      const bTime = b.pendingTransactions?.[0]?.createdAt
+      if (aTime && bTime)
+        return new Date(bTime).getTime() - new Date(aTime).getTime()
+    }
+
+    // 都是纯关注基金：按基金代码升序
     return a.code.localeCompare(b.code)
   })
 
