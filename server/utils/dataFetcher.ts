@@ -10,17 +10,23 @@ interface FundRealtimeData {
   updateTime: string
 }
 
-// Python 服务 /fund/realtime/{code} 的返回结构
-interface StrategyRealtimeResponse {
+// PowerCloud 盘中估值接口 /api/fund/{code} 返回的 basic 结构
+interface PowerCloudFundBasic {
   code: string
   name: string
-  estimateNav: string | null // 估算单位净值(4 位小数字符串)
-  estimateGrowthRate: number | null // 估算涨跌幅(%)
-  estimateDate: string // 估值日期(仅日级)
-  publishedNav: string | null // 当日官方净值(盘前为 null,收盘后公布)
-  publishedGrowthRate: number | null // 当日官方涨跌幅(%)
-  yesterdayNav: string | null // 上一交易日官方净值
-  yesterdayDate: string
+  dwjz: string // 上一交易日(官方)单位净值
+  jzrq: string // 净值日期
+  gsz: string // 估算净值
+  gszzl: string // 估算涨跌幅(%)
+  gztime: string // 估值时间(分钟级, 如 "2026-07-24 15:20:00")
+  confirmed_nav: string // 当日官方净值(盘前为空字符串,收盘后公布)
+  confirmed_change: string // 当日官方涨跌幅(%)(盘前为空字符串)
+  nav_confirmed: boolean // 净值是否已公布确认
+  success: boolean
+}
+
+interface PowerCloudFundResponse {
+  basic: PowerCloudFundBasic
 }
 
 // 天天基金网历史净值API返回的类型
@@ -92,41 +98,43 @@ export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeD
 /**
  * 获取开放式基金的盘中实时估值。
  *
- * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/fund/realtime/{code}`，
- * 底层调用东方财富盘中估值表，进程内缓存 60s)。
+ * 数据来源为第三方接口 `monitor.powercloud.work/api/fund/{code}`(底层东方财富盘中估值表)。
+ * 该接口直接返回分钟级 `gztime`(如 "2026-07-24 15:20:00"),相比旧的日级时间戳更精确。
  *
  * 注意:旧的天天基金 JSONP 接口 `fundgz.1234567.com.cn/js/{code}.js` 已废弃失效。
- * 注意:QDII/货币型/部分小众基金不在东财盘中估值列表,接口会返回 404,这里优雅降级为 null。
+ * 注意:QDII/货币型/部分小众基金不在东财盘中估值列表,接口会返回非成功结果,这里优雅降级为 null。
  */
 export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundRealtimeData | null> {
-  const config = useRuntimeConfig()
-  const url = `${config.strategyApiUrl}/fund/realtime/${fundCode}`
+  const url = `https://monitor.powercloud.work/api/fund/${fundCode}`
 
   try {
-    const data = await $fetch<StrategyRealtimeResponse>(url)
+    const response = await $fetch<PowerCloudFundResponse>(url, {
+      headers: { Referer: 'https://monitor.powercloud.work/' },
+    })
 
-    // 涨跌幅优先取已公布的官方值(收盘后),否则取估算值
-    const growthRate = data.publishedGrowthRate ?? data.estimateGrowthRate
-    // 净值优先取已公布的官方值(收盘后),否则取估算值
-    const nav = data.publishedNav ?? data.estimateNav
+    const basic = response?.basic
+    // success=false 或缺少 basic 视为该基金不在盘中估值列表(QDII/货币型等),优雅降级
+    if (!basic || basic.success === false) {
+      console.warn(`[RealtimeEstimate] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
+      return null
+    }
 
-    // 估值日期仅到日级,无分钟级时间戳;用服务端当前时刻以保留"X 分钟前更新"语义
+    // 净值与涨跌幅均优先取已公布的官方值(收盘后 nav_confirmed=true),否则取估算值
+    const nav = basic.confirmed_nav || basic.gsz
+    const growthRate = basic.confirmed_change || basic.gszzl
+
     return {
-      name: data.name,
-      code: data.code,
-      yesterdayNav: data.yesterdayNav ?? '',
+      name: basic.name,
+      code: basic.code,
+      yesterdayNav: basic.dwjz ?? '',
       estimateNav: nav ?? '',
-      percentageChange: growthRate != null ? String(growthRate) : '',
-      updateTime: new Date().toISOString(),
+      percentageChange: growthRate ?? '',
+      // 接口提供分钟级时间戳,优先使用;缺失时回退服务端当前时刻
+      updateTime: basic.gztime ? new Date(basic.gztime).toISOString() : new Date().toISOString(),
     }
   }
   catch (error: any) {
-    // 404 = 该基金不在盘中估值列表(QDII/货币型等),属于预期情况,降级为 warn
-    const status = error?.response?.status || error?.statusCode
-    if (status === 404)
-      console.warn(`[RealtimeEstimate] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
-    else
-      console.error(`[RealtimeEstimate] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
+    console.error(`[RealtimeEstimate] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
     return null
   }
 }

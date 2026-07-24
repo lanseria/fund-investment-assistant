@@ -113,6 +113,7 @@ export default defineNuxtConfig({
         'dayjs/plugin/isBetween.js', // CJS
         'bignumber.js',
         'vue-echarts',
+        'markdown-exit',
       ],
     },
   },
