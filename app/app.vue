@@ -41,6 +41,8 @@ onUnmounted(() => {
   </NuxtLayout>
   <!-- 全局 AI 对话助手悬浮入口（仅登录用户可见） -->
   <AiChatWidget v-if="authStore.isAuthenticated" />
+  <!-- 全局 Toast 通知容器 -->
+  <ToastContainer />
 </template>
 
 <style>

@@ -211,7 +211,7 @@ function changeText(change: number | null): string {
           class="input-base pl-9"
         >
       </div>
-      <div class="flex items-center gap-2">
+      <div class="flex gap-2 items-center">
         <span class="text-sm text-gray-500">类型</span>
         <select v-model="filterType" class="input-base">
           <option value="all">
@@ -246,16 +246,16 @@ function changeText(change: number | null): string {
             <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[30%] uppercase">
               名称
             </th>
-            <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[10%] text-center uppercase">
+            <th class="text-xs text-gray-500 font-semibold px-4 py-3 text-center w-[10%] uppercase">
               类型
             </th>
-            <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[12%] text-right uppercase">
+            <th class="text-xs text-gray-500 font-semibold px-4 py-3 text-right w-[12%] uppercase">
               昨日净值
             </th>
-            <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[12%] text-right uppercase">
+            <th class="text-xs text-gray-500 font-semibold px-4 py-3 text-right w-[12%] uppercase">
               估算涨跌
             </th>
-            <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[10%] text-center uppercase">
+            <th class="text-xs text-gray-500 font-semibold px-4 py-3 text-center w-[10%] uppercase">
               持仓/关注
             </th>
             <th class="text-xs text-gray-500 font-semibold px-4 py-3 text-right w-[8%] uppercase">
@@ -272,7 +272,7 @@ function changeText(change: number | null): string {
           >
             <!-- 代码 -->
             <td class="px-4 py-3 align-middle">
-              <NuxtLink :to="`/fund/${fund.code}`" class="text-sm font-mono font-medium text-primary hover:underline">
+              <NuxtLink :to="`/fund/${fund.code}`" class="text-sm text-primary font-medium font-mono hover:underline">
                 {{ fund.code }}
               </NuxtLink>
             </td>
@@ -280,12 +280,12 @@ function changeText(change: number | null): string {
             <!-- 名称 + 板块 -->
             <td class="px-4 py-3 align-middle">
               <div class="flex flex-col gap-1 min-w-0">
-                <span class="text-sm font-medium text-gray-900 truncate dark:text-gray-100">
+                <span class="text-sm text-gray-900 font-medium truncate dark:text-gray-100">
                   {{ fund.name }}
                 </span>
                 <span
                   v-if="fund.sector"
-                  class="text-[10px] text-blue-700 bg-blue-50 inline-block w-fit px-1.5 py-0.5 rounded dark:bg-blue-900/30 dark:text-blue-300"
+                  class="text-[10px] text-blue-700 px-1.5 py-0.5 rounded bg-blue-50 w-fit inline-block dark:text-blue-300 dark:bg-blue-900/30"
                 >
                   {{ dictStore.getLabel(SECTOR_DICT_TYPE, fund.sector) || fund.sector }}
                 </span>
@@ -306,7 +306,7 @@ function changeText(change: number | null): string {
 
             <!-- 昨日净值 -->
             <td class="px-4 py-3 text-right align-middle">
-              <span class="text-sm font-mono tabular-nums text-gray-700 dark:text-gray-200">
+              <span class="text-sm text-gray-700 font-mono tabular-nums dark:text-gray-200">
                 {{ fund.yesterdayNav }}
               </span>
             </td>
@@ -320,11 +320,11 @@ function changeText(change: number | null): string {
 
             <!-- 持仓/关注人数 -->
             <td class="px-4 py-3 text-center align-middle">
-              <div class="flex gap-1 text-xs justify-center">
-                <span class="px-1.5 py-0.5 rounded bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300" title="持仓人数">
+              <div class="text-xs flex gap-1 justify-center">
+                <span class="text-blue-700 px-1.5 py-0.5 rounded bg-blue-50 dark:text-blue-300 dark:bg-blue-900/20" title="持仓人数">
                   持 {{ fund.holderCount }}
                 </span>
-                <span class="px-1.5 py-0.5 rounded bg-gray-50 text-gray-500 dark:bg-gray-800 dark:text-gray-400" title="关注人数">
+                <span class="text-gray-500 px-1.5 py-0.5 rounded bg-gray-50 dark:text-gray-400 dark:bg-gray-800" title="关注人数">
                   关 {{ fund.watcherCount }}
                 </span>
               </div>
@@ -432,7 +432,7 @@ function changeText(change: number | null): string {
     <Modal v-model="isDeleteModalOpen" title="⚠️ 危险操作：删除基金">
       <form @submit.prevent="handleDeleteFund">
         <div class="space-y-4">
-          <div class="p-3 rounded bg-red-50 text-red-800 text-sm space-y-1 dark:bg-red-900/20 dark:text-red-300">
+          <div class="text-sm text-red-800 p-3 rounded bg-red-50 space-y-1 dark:text-red-300 dark:bg-red-900/20">
             <p class="font-bold">
               即将删除基金：{{ deletingFund?.code }} {{ deletingFund?.name }}
             </p>
@@ -447,7 +447,7 @@ function changeText(change: number | null): string {
           </div>
           <div>
             <label class="text-sm font-medium mb-1 block">
-              请输入基金代码 <span class="font-mono font-bold">{{ deletingFund?.code }}</span> 以确认删除
+              请输入基金代码 <span class="font-bold font-mono">{{ deletingFund?.code }}</span> 以确认删除
             </label>
             <input
               v-model="deleteConfirmCode"

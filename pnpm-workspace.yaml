@@ -32,13 +32,12 @@ catalogs:
     '@vueuse/nuxt': ^14.3.0
     nuxt: ^4.5.0
     unocss: ^66.7.5
-    unplugin: ^3.3.0
   dev:
     '@antfu/eslint-config': ^9.2.0
     '@nuxt/test-utils': ^4.0.3
     eslint: ^10.7.0
     eslint-plugin-format: ^2.0.1
-    typescript: ^7.0.2
+    typescript: ^6.0.3
     vitest: ^4.1.10
     vue-tsc: ^3.3.7
   frontend:

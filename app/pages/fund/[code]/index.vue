@@ -353,6 +353,64 @@ watch(data, (newData) => {
       </div>
     </div>
 
+    <!-- 我的持仓详情卡片（补全份额/成本/乖离率/待确认交易等核心字段） -->
+    <div v-if="currentHolding" class="mb-8 p-5 card">
+      <h3 class="text-sm text-gray-500 font-semibold mb-4 dark:text-gray-400">
+        我的持仓
+      </h3>
+      <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
+        <StatCard
+          label="持有份额"
+          :value="currentHolding.shares !== null ? `${Number(currentHolding.shares).toFixed(2)} 份` : '-'"
+        />
+        <StatCard
+          label="成本价"
+          :value="currentHolding.costPrice !== null ? `¥${Number(currentHolding.costPrice).toFixed(4)}` : '-'"
+        />
+        <StatCard
+          label="乖离率 BIAS20"
+          :value="currentHolding.bias20 !== null ? `${currentHolding.bias20 > 0 ? '+' : ''}${currentHolding.bias20.toFixed(2)}%` : '-'"
+          :colored="true"
+          hint="正偏高估/负偏低估"
+        />
+        <StatCard
+          label="关注度"
+          :value="['', '普通', '重点', '核心'][currentHolding.attentionLevel] || '-'"
+        />
+        <StatCard
+          label="待确认交易"
+          :value="(currentHolding.pendingTransactions?.length || 0)"
+          :hint="(currentHolding.pendingTransactions?.length || 0) > 0 ? '有进行中的交易' : '无'"
+        />
+      </div>
+
+      <!-- 待确认交易列表（可撤销） -->
+      <div
+        v-if="currentHolding.pendingTransactions && currentHolding.pendingTransactions.length > 0"
+        class="mt-4 p-3 border border-amber-100 rounded-md bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
+      >
+        <p class="text-xs text-amber-700 font-semibold mb-2 dark:text-amber-300">
+          待确认交易 ({{ currentHolding.pendingTransactions.length }}笔)
+        </p>
+        <div class="space-y-1.5">
+          <div
+            v-for="tx in currentHolding.pendingTransactions"
+            :key="tx.id"
+            class="text-xs flex gap-3 items-center"
+          >
+            <span class="px-1.5 py-0.5 border rounded" :class="tx.type === 'buy' ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20' : 'text-green-600 border-green-200 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'">
+              {{ tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'convert_in' ? '转入' : '转出' }}
+            </span>
+            <span class="text-gray-500">{{ tx.orderDate }}</span>
+            <span class="text-gray-700 font-mono dark:text-gray-300">
+              {{ tx.orderAmount ? formatCurrency(tx.orderAmount) : `${Number(tx.orderShares).toFixed(2)} 份` }}
+            </span>
+            <span class="text-gray-400">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 顶部数据卡片区域 -->
     <div class="mb-8 p-4 card">
       <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">

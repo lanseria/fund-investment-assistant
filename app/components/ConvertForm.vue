@@ -1,8 +1,9 @@
 <!-- eslint-disable no-alert -->
 <!-- app/components/ConvertForm.vue -->
 <script setup lang="ts">
-import type { Holding } from '~/types/holding'
+import type { FundFees, Holding } from '~/types/holding'
 import BigNumber from 'bignumber.js'
+import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
 import { useDayjs } from '#imports'
 
 const props = defineProps<{
@@ -13,6 +14,8 @@ const props = defineProps<{
   availableFunds: Holding[]
   // 交易记录
   recentTransactions?: any[]
+  // 基金费率信息(含赎回费阶梯),用于按真实阶梯估算赎回费（与 TradeForm 保持一致）
+  fees?: FundFees | null
   loading?: boolean
 }>()
 
@@ -29,6 +32,9 @@ const formData = reactive({
   toCode: null as string | null,
 })
 
+// 赎回费阶梯（来自真实费率数据，与 TradeForm 一致）
+const rateTiers = computed(() => props.fees?.redemptionFees ?? null)
+
 // 过滤掉源基金自己
 const targetOptions = computed(() => {
   return props.availableFunds
@@ -39,37 +45,97 @@ const targetOptions = computed(() => {
     }))
 })
 
-// 安全份额计算
+/**
+ * 基于 FIFO 计算免赎回费的安全份额。
+ * 与 TradeForm 保持一致：优先用真实费率阶梯判断，无阶梯时回退硬编码 7 天阈值。
+ */
 const safeShares = computed(() => {
-  if (!props.currentShares)
-    return 0
-  if (!formData.date)
+  if (!props.currentShares || !formData.date)
     return 0
 
   const sellDate = dayjs(formData.date)
-  const recentBuysWithin7Days = (props.recentTransactions || [])
-    .filter((t) => {
-      const isBuy = t.type === 'buy' || t.type === 'convert_in'
-      if (!isBuy)
-        return false
-      const diff = sellDate.diff(dayjs(t.date), 'day')
-      return diff < 7
-    })
-    .reduce((sum, t) => sum + (Number(t.shares) || 0), 0)
+  const tiers = rateTiers.value
 
-  return Math.max(0, props.currentShares - recentBuysWithin7Days)
+  // 重建 FIFO 买入批次队列(仅基于可见的近期交易,按时间正序)
+  const buyLots = (props.recentTransactions || [])
+    .filter(t => (t.type === 'buy' || t.type === 'convert_in') && Number(t.shares) > 0)
+    .map(t => ({ date: t.date, shares: Number(t.shares) }))
+    .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+
+  let safe = new BigNumber(0)
+  for (const lot of buyLots) {
+    const diffDays = sellDate.diff(dayjs(lot.date), 'day')
+    if (tiers && tiers.length > 0) {
+      // 有阶梯:按持有天数匹配档位，未命中档位或费率为 0 视为免赎回费
+      const matchedRate = matchRateForHoldingDays(tiers, diffDays)
+      if (matchedRate === null || matchedRate === 0)
+        safe = safe.plus(lot.shares)
+    }
+    else {
+      // 无阶梯数据:回退硬编码(<7天视为需收费)
+      if (diffDays >= 7)
+        safe = safe.plus(lot.shares)
+    }
+  }
+
+  return BigNumber.min(safe.toNumber(), props.currentShares).toNumber()
 })
 
-// 计算 FIFO 惩罚
-const penaltyAnalysis = computed(() => {
+// 赎回费档位明细（用于展示，与 TradeForm 一致）
+interface FeeTierBreakdown {
+  rate: number
+  shares: number
+}
+const penaltyAnalysis = computed<{ isShortTerm: boolean, penaltyShares: number, tiers: FeeTierBreakdown[] }>(() => {
   if (!formData.date || !formData.shares)
-    return { isShortTerm: false, penaltyShares: 0 }
+    return { isShortTerm: false, penaltyShares: 0, tiers: [] }
 
-  const sharesSubjectToPenalty = Math.max(0, formData.shares - safeShares.value)
+  const sellDate = dayjs(formData.date)
+  const tiers = rateTiers.value
+  const sharesToSell = new BigNumber(formData.shares)
+
+  // 用 FIFO 计算需收费的份额
+  const buyLots = (props.recentTransactions || [])
+    .filter(t => (t.type === 'buy' || t.type === 'convert_in') && Number(t.shares) > 0)
+    .map(t => ({ date: t.date, shares: Number(t.shares) }))
+    .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+
+  const tierMap = new Map<number, BigNumber>()
+  let remaining = sharesToSell
+
+  for (const lot of buyLots) {
+    if (remaining.lte(0))
+      break
+    const take = BigNumber.min(lot.shares, remaining)
+    const diffDays = sellDate.diff(dayjs(lot.date), 'day')
+
+    if (tiers && tiers.length > 0) {
+      const matchedRate = matchRateForHoldingDays(tiers, diffDays)
+      const rate = matchedRate !== null ? matchedRate : 0
+      if (rate > 0) {
+        const prev = tierMap.get(rate) || new BigNumber(0)
+        tierMap.set(rate, prev.plus(take))
+      }
+    }
+    else {
+      // 无阶梯回退
+      if (diffDays < 7) {
+        const prev = tierMap.get(1.5) || new BigNumber(0)
+        tierMap.set(1.5, prev.plus(take))
+      }
+    }
+    remaining = remaining.minus(take)
+  }
+
+  const tierBreakdown = [...tierMap.entries()]
+    .map(([rate, shares]) => ({ rate, shares: shares.toNumber() }))
+    .sort((a, b) => b.rate - a.rate)
+  const totalPenalty = tierBreakdown.reduce((sum, t) => sum + t.shares, 0)
 
   return {
-    isShortTerm: sharesSubjectToPenalty > 0.0001,
-    penaltyShares: sharesSubjectToPenalty,
+    isShortTerm: totalPenalty > 0.0001,
+    penaltyShares: totalPenalty,
+    tiers: tierBreakdown,
   }
 })
 
@@ -104,9 +170,12 @@ const canSubmit = computed(() => {
 
 function handleSubmit() {
   if (canSubmit.value) {
-    // 7天惩罚二次确认
+    // 赎回费二次确认（展示真实费率档位）
     if (penaltyAnalysis.value.isShortTerm) {
-      if (!confirm(`⚠️ 警告：检测到转出份额中有 ${penaltyAnalysis.value.penaltyShares.toFixed(2)} 份持有不足 7 天！\n\n转出将扣除 1.5% 的惩罚性手续费。\n\n确定要继续转换吗？`))
+      const tierText = penaltyAnalysis.value.tiers
+        .map(t => `${t.rate}% 费率档: ${t.shares.toFixed(2)} 份`)
+        .join('\n')
+      if (!confirm(`⚠️ 警告：检测到转出份额中有 ${penaltyAnalysis.value.penaltyShares.toFixed(2)} 份将产生赎回费！\n\n${tierText}\n\n确定要继续转换吗？`))
         return
     }
 
@@ -134,7 +203,7 @@ function handleSubmit() {
         </p>
       </div>
 
-      <!-- 7天惩罚提示 -->
+      <!-- 赎回费提示（基于真实费率阶梯） -->
       <div
         v-if="penaltyAnalysis.isShortTerm"
         class="text-xs text-red-700 p-3 border border-red-200 rounded bg-red-50 animate-pulse dark:text-red-300 dark:border-red-800 dark:bg-red-900/20"
@@ -144,9 +213,13 @@ function handleSubmit() {
           持有期警告 (FIFO)
         </div>
         <p class="mt-1">
-          有 <b>{{ penaltyAnalysis.penaltyShares.toFixed(2) }}</b> 份不足7天。
-          转出将扣除 <span class="font-bold">1.5%</span> 费用，导致实际转入金额减少。
+          有 <b>{{ penaltyAnalysis.penaltyShares.toFixed(2) }}</b> 份将产生赎回费：
         </p>
+        <ul class="ml-4 mt-1 list-disc">
+          <li v-for="(t, i) in penaltyAnalysis.tiers" :key="i">
+            {{ t.rate }}% 费率档: {{ t.shares.toFixed(2) }} 份
+          </li>
+        </ul>
       </div>
 
       <!-- 源基金 -->

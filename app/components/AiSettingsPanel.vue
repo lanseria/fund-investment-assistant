@@ -12,8 +12,8 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  'update:aiMode': [value: 'auto' | 'draft' | 'off']
-  'update:aiSystemPrompt': [value: string]
+  'update:ai-mode': [value: 'auto' | 'draft' | 'off']
+  'update:ai-system-prompt': [value: string]
   'change-mode': [value: 'auto' | 'draft' | 'off'] // 仅 immediate 模式使用
   'save-config': [] // 仅 immediate 模式使用
 }>()
@@ -26,7 +26,7 @@ const isEditingConfig = ref(false)
 watch(() => props.aiSystemPrompt, val => localPrompt.value = val || '')
 
 // 监听本地变化同步回父组件 (v-model 支持)
-watch(localPrompt, val => emit('update:aiSystemPrompt', val))
+watch(localPrompt, val => emit('update:ai-system-prompt', val))
 
 // 默认模板逻辑
 const DEFAULT_PROMPT_TEMPLATE = `#### 1. Role & Profile
@@ -92,7 +92,7 @@ function handleModeChange(m: 'auto' | 'draft' | 'off') {
     emit('change-mode', m)
   }
   else {
-    emit('update:aiMode', m)
+    emit('update:ai-mode', m)
   }
 }
 </script>

@@ -4,7 +4,7 @@ const props = defineProps<{
   modelValue: string // 格式: YYYY-MM-DD
 }>()
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:model-value'])
 
 const dayjs = useDayjs()
 const viewDate = ref(dayjs(props.modelValue)) // 当前视图显示的月份
@@ -49,12 +49,12 @@ function changeMonth(delta: number) {
 
 function selectDate(dateStr: string) {
   if (dateStr)
-    emit('update:modelValue', dateStr)
+    emit('update:model-value', dateStr)
 }
 
 function jumpToToday() {
   const today = dayjs().format('YYYY-MM-DD')
-  emit('update:modelValue', today)
+  emit('update:model-value', today)
   viewDate.value = dayjs()
 }
 </script>

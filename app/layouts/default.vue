@@ -3,6 +3,14 @@ const authStore = useAuthStore()
 const { cycleTheme, currentTheme } = useTheme()
 const colorMode = useColorMode()
 
+// 主导航项（收益分析提升为一级导航——核心价值页）
+const navItems = [
+  { to: '/profit-analysis', label: '收益分析', icon: 'i-carbon-chart-line-data' },
+  { to: '/charts-overview', label: '策略视图', icon: 'i-carbon-analytics' },
+  { to: '/daily-ops', label: '每日操作', icon: 'i-carbon-calendar' },
+  { to: '/leaderboard', label: '排行榜', icon: 'i-carbon-trophy' },
+]
+
 // 下拉菜单状态控制
 const isUserMenuOpen = ref(false)
 const userMenuRef = ref(null)
@@ -24,20 +32,23 @@ function handleLogout() {
 
 <template>
   <main class="text-gray-800 font-sans bg-gray-50 min-h-screen dark:text-gray-200 dark:bg-gray-900">
-    <!-- 简单的导航栏 -->
+    <!-- 导航栏 -->
     <header class="p-4 bg-white flex shadow-sm items-center justify-between dark:bg-gray-800">
-      <NuxtLink to="/" class="text-xl font-bold">
+      <NuxtLink to="/" class="text-xl font-bold flex gap-2 items-center">
+        <div i-carbon-finance class="text-primary" />
         基金助手
       </NuxtLink>
-      <div v-if="authStore.isAuthenticated" class="flex gap-4 items-center">
-        <NuxtLink to="/daily-ops" class="hover:text-primary-hover">
-          每日操作
-        </NuxtLink>
-        <NuxtLink to="/charts-overview" class="hover:text-primary-hover">
-          策略视图
-        </NuxtLink>
-        <NuxtLink to="/leaderboard" class="hover:text-primary-hover">
-          排行榜
+      <div v-if="authStore.isAuthenticated" class="flex gap-1 items-center">
+        <!-- 主导航 -->
+        <NuxtLink
+          v-for="item in navItems"
+          :key="item.to"
+          :to="item.to"
+          class="text-sm font-medium px-3 py-1.5 rounded-md flex gap-1.5 transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700"
+          active-class="bg-primary/10 text-primary"
+        >
+          <div v-if="item.icon" :class="item.icon" class="text-base" />
+          {{ item.label }}
         </NuxtLink>
         <!-- 下拉菜单区域 -->
         <div ref="userMenuRef" class="relative">

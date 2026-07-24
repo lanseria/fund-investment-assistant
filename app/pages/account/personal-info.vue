@@ -9,7 +9,12 @@ definePageMeta({
 })
 
 const authStore = useAuthStore()
+const holdingStore = useHoldingStore()
+const toast = useToast()
 const isToggling = ref(false)
+
+// 投资概览数据：复用持仓 store 的 summary（含总资产/市值/盈亏/持仓数）
+const { summary, isRefreshing } = storeToRefs(holdingStore)
 
 // 表单数据 (直接绑定到组件，但独立于 authStore 以便编辑)
 const aiForm = reactive({
@@ -43,9 +48,10 @@ async function saveCash() {
       authStore.user.availableCash = String(localAvailableCash.value)
     }
     isEditingCash.value = false
+    toast.success('可用现金已更新')
   }
   catch (e: any) {
-    alert(`保存失败: ${e.message}`)
+    toast.error(`保存失败: ${e.message}`)
   }
   finally {
     isSavingCash.value = false
@@ -66,9 +72,10 @@ async function handleChangeMode(newState: 'auto' | 'draft' | 'off') {
     if (authStore.user)
       authStore.user.aiMode = newState
     aiForm.aiMode = newState
+    toast.success(`AI 模式已切换为 ${newState}`)
   }
   catch (e: any) {
-    alert(`操作失败: ${e.data?.statusMessage || '未知错误'}`)
+    toast.error(`操作失败: ${e.data?.statusMessage || '未知错误'}`)
   }
   finally {
     isToggling.value = false
@@ -85,10 +92,10 @@ async function handleSaveConfig() {
         aiSystemPrompt: aiForm.aiSystemPrompt || null,
       },
     })
-    alert('AI 配置已保存成功！')
+    toast.success('AI 配置已保存')
   }
   catch (e: any) {
-    alert(`保存失败: ${e.message}`)
+    toast.error(`保存失败: ${e.message}`)
   }
   finally {
     isToggling.value = false
@@ -103,6 +110,50 @@ async function handleSaveConfig() {
     </h1>
 
     <div v-if="authStore.user" class="space-y-4">
+      <!-- 投资概览（信息对称：补全用户自己的总资产/持仓数） -->
+      <div class="p-4 border rounded-lg bg-white dark:border-gray-700 dark:bg-gray-800">
+        <div class="mb-3 flex items-center justify-between">
+          <h2 class="text-sm text-gray-500 font-semibold dark:text-gray-400">
+            投资概览
+          </h2>
+          <span
+            v-if="summary"
+            class="text-xs text-gray-400"
+            :class="{ 'animate-pulse': isRefreshing }"
+          >
+            {{ isRefreshing ? '同步中...' : '基于最新持仓估算' }}
+          </span>
+        </div>
+        <div v-if="summary" class="gap-4 grid grid-cols-2 md:grid-cols-4">
+          <StatCard
+            label="总资产"
+            :value="formatCurrency(summary.totalAssets)"
+            hint="现金 + 持仓市值"
+          />
+          <StatCard
+            label="持仓市值"
+            :value="formatCurrency(summary.totalEstimateAmount)"
+            :hint="`持仓 ${summary.count} 只`"
+          />
+          <StatCard
+            label="累计盈亏"
+            :value="formatCurrency(summary.totalProfitLoss)"
+            :colored="true"
+            :hint="`${summary.totalPercentageChange > 0 ? '+' : ''}${summary.totalPercentageChange.toFixed(2)}%`"
+          />
+          <StatCard
+            label="可用现金"
+            :value="formatCurrency(authStore.user.availableCash)"
+          />
+        </div>
+        <EmptyState
+          v-else
+          icon="i-carbon-chart-bar"
+          message="暂无持仓数据"
+          description="添加基金后将在此展示投资概览"
+        />
+      </div>
+
       <!-- 基础信息卡片 -->
       <div class="p-4 border rounded-lg bg-white space-y-3 dark:border-gray-700 dark:bg-gray-800">
         <div class="flex items-center">
@@ -130,7 +181,7 @@ async function handleSaveConfig() {
               {{ formatCurrency(authStore.user.availableCash) }}
             </span>
             <button
-              class="text-xs icon-btn text-primary opacity-0 transition-opacity group-hover:opacity-100"
+              class="text-xs icon-btn text-primary opacity-0 transition-opacity group-hover:opacity-100 sm:opacity-100"
               title="修改现金余额"
               @click="isEditingCash = true"
             >

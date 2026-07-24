@@ -3,6 +3,7 @@
 import type { Holding } from '~/types/holding'
 import DashboardHeader from '~/components/dashboard/Header.vue'
 import { appName } from '~/constants'
+import { formatCurrency } from '~/utils/format'
 
 useHead({
   title: `持仓列表 - ${appName}`,
@@ -37,6 +38,17 @@ const {
   handleSetSort,
   toggleHeldFilter,
 } = useDashboardData(holdings)
+
+// --- 待办区：聚合所有持仓的待确认交易 ---
+const pendingTodos = computed(() => {
+  return holdings.value
+    .filter(h => h.pendingTransactions && h.pendingTransactions.length > 0)
+    .flatMap(h => (h.pendingTransactions || []).map(tx => ({ ...tx, fundName: h.name, fundCode: h.code })))
+})
+const pendingCount = computed(() => pendingTodos.value.length)
+
+// --- 市场概览折叠状态 ---
+const isMarketOpen = ref(false)
 
 // --- 模态框状态管理 ---
 const isModalOpen = ref(false)
@@ -267,7 +279,24 @@ async function handleUpdateAttention(code: string, newLevel: number) {
 
 <template>
   <div class="p-4 lg:p-8 sm:p-6">
-    <MarketOverview />
+    <!-- 市场概览（默认折叠，降低噪音） -->
+    <div class="mb-6">
+      <button
+        class="px-4 py-2 card flex w-full transition-colors items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
+        @click="isMarketOpen = !isMarketOpen"
+      >
+        <span class="text-sm text-gray-600 font-semibold flex gap-2 items-center dark:text-gray-300">
+          <div i-carbon-dashboard />
+          市场速览
+        </span>
+        <div i-carbon-chevron-down class="text-gray-400 transition-transform" :class="{ 'rotate-180': isMarketOpen }" />
+      </button>
+      <Transition name="collapse">
+        <div v-show="isMarketOpen" class="mt-2">
+          <MarketOverview />
+        </div>
+      </Transition>
+    </div>
 
     <DashboardHeader
       :is-refreshing="isRefreshing"
@@ -285,6 +314,43 @@ async function handleUpdateAttention(code: string, newLevel: number) {
     />
 
     <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
+
+    <!-- 待办区：有待确认交易时高亮提示（用户真正需要行动的信息） -->
+    <div
+      v-if="pendingCount > 0"
+      class="mb-6 p-4 border border-amber-200 rounded-lg bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
+    >
+      <div class="flex items-center justify-between">
+        <div class="flex gap-2 items-center">
+          <div i-carbon-warning-alt class="text-lg text-amber-600 dark:text-amber-400" />
+          <span class="text-sm text-amber-800 font-semibold dark:text-amber-300">
+            待办：{{ pendingCount }} 笔交易待确认
+          </span>
+        </div>
+        <button
+          class="text-xs text-amber-700 font-medium underline dark:text-amber-400 hover:text-amber-900"
+          @click="handleProcessTransactions"
+        >
+          处理待确认交易
+        </button>
+      </div>
+      <!-- 待确认交易明细（折叠，最多展示3条） -->
+      <div class="mt-3 space-y-1">
+        <div
+          v-for="tx in pendingTodos.slice(0, 3)"
+          :key="tx.id"
+          class="text-xs text-amber-700 flex gap-2 items-center dark:text-amber-400"
+        >
+          <span class="px-1 py-0.5 border border-amber-300 rounded dark:border-amber-700">{{ tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'convert_in' ? '转入' : '转出' }}</span>
+          <span>{{ tx.fundName }}</span>
+          <span class="font-mono">{{ tx.orderAmount ? formatCurrency(tx.orderAmount) : `${Number(tx.orderShares).toFixed(2)} 份` }}</span>
+          <span class="text-amber-500">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
+        </div>
+        <p v-if="pendingCount > 3" class="text-xs text-amber-500 pt-1">
+          …还有 {{ pendingCount - 3 }} 笔
+        </p>
+      </div>
+    </div>
 
     <!-- 插入今日操作组件 -->
     <TodayTransactionsCard v-if="authStore.user" ref="todayTxsRef" :user-id="authStore.user.id" class="mb-8" />
@@ -347,6 +413,7 @@ async function handleUpdateAttention(code: string, newLevel: number) {
         :current-shares="availableShares"
         :available-funds="holdings"
         :recent-transactions="tradeTargetTransactions"
+        :fees="tradeTarget.fees"
         :loading="isConvertSubmitting"
         @submit="handleConvertSubmit"
         @cancel="isConvertModalOpen = false"
@@ -358,3 +425,24 @@ async function handleUpdateAttention(code: string, newLevel: number) {
     </Modal>
   </div>
 </template>
+
+<style scoped>
+/* 市场概览折叠动画 */
+.collapse-enter-active,
+.collapse-leave-active {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.collapse-enter-from,
+.collapse-leave-to {
+  opacity: 0;
+  max-height: 0;
+}
+
+.collapse-enter-to,
+.collapse-leave-from {
+  opacity: 1;
+  max-height: 1000px;
+}
+</style>

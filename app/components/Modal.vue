@@ -4,11 +4,11 @@ const props = defineProps<{
   title: string
 }>()
 
-const emit = defineEmits(['update:modelValue'])
+const emit = defineEmits(['update:model-value'])
 
 // 点击背景或按 Esc 键关闭模态框
 function closeModal() {
-  emit('update:modelValue', false)
+  emit('update:model-value', false)
 }
 
 // 监听 Esc 键

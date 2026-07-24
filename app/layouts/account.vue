@@ -3,10 +3,14 @@ const authStore = useAuthStore()
 const { cycleTheme, currentTheme } = useTheme()
 
 const menuItems = computed(() => [
+  { to: '/account', icon: 'i-carbon-dashboard', label: '账户总览', admin: false },
   { to: '/account/personal-info', icon: 'i-carbon-user-avatar', label: '个人信息', admin: false },
-  { to: '/account/users', icon: 'i-carbon-group-account', label: '用户管理', admin: true },
-  { to: '/account/funds', icon: 'i-carbon-currency', label: '基金管理', admin: true },
-  { to: '/account/dictionaries', icon: 'i-carbon-book', label: '字典管理', admin: true },
+])
+
+const adminMenuItems = computed(() => [
+  { to: '/account/users', icon: 'i-carbon-group-account', label: '用户管理' },
+  { to: '/account/funds', icon: 'i-carbon-currency', label: '基金管理' },
+  { to: '/account/dictionaries', icon: 'i-carbon-book', label: '字典管理' },
 ])
 </script>
 
@@ -34,10 +38,31 @@ const menuItems = computed(() => [
     <div class="p-4 flex flex-col gap-8 lg:p-8 sm:p-6 md:flex-row">
       <!-- 侧边栏 -->
       <aside class="flex-shrink-0 md:w-56">
-        <nav class="space-y-2">
-          <template v-for="item in menuItems" :key="item.to">
+        <nav class="space-y-1">
+          <!-- 个人区 -->
+          <p class="text-xs text-gray-400 font-semibold px-3 pb-1 pt-2">
+            个人
+          </p>
+          <NuxtLink
+            v-for="item in menuItems"
+            :key="item.to"
+            :to="item.to"
+            class="p-3 rounded-md flex gap-3 transition-colors items-center"
+            active-class="bg-primary/10 text-primary font-semibold"
+            hover="bg-gray-200 dark:bg-gray-700"
+          >
+            <div :class="item.icon" class="text-xl" />
+            <span>{{ item.label }}</span>
+          </NuxtLink>
+
+          <!-- 管理区（仅管理员） -->
+          <template v-if="authStore.isAdmin">
+            <p class="text-xs text-gray-400 font-semibold px-3 pb-1 pt-4">
+              管理
+            </p>
             <NuxtLink
-              v-if="!item.admin || authStore.isAdmin"
+              v-for="item in adminMenuItems"
+              :key="item.to"
               :to="item.to"
               class="p-3 rounded-md flex gap-3 transition-colors items-center"
               active-class="bg-primary/10 text-primary font-semibold"

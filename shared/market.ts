@@ -74,8 +74,6 @@ export const HOLIDAYS_CONFIG: [string, string][] = [
  * 规则:
  * 1. 非周末 (周一至周五)
  * 2. 不在法定节假日区间内
- * @param date - 要检查的日期 (默认为当前时间)
- * @returns { isTrading: boolean, reason?: string }
  */
 export function isTradingDay(date?: dayjs.Dayjs | Date | string): { isTrading: boolean, reason?: string } {
   const targetDate = dayjs(date)
