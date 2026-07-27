@@ -1,6 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
+import type { FundRealtimeDetail } from '~/types/realtime'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
@@ -25,6 +26,21 @@ const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
     params: targetUserId ? { userId: targetUserId } : undefined,
   }),
 )
+
+// 盘中分时估值(仅开放式基金展示;qdii_lof 走场内价格,无盘中分时)
+// 失败/QDII 时优雅降级:隐藏该卡片,不影响主页面
+const isRealtimeApplicable = computed(() => fundDetail.value?.fundType !== 'qdii_lof')
+const { data: realtimeDetail } = await useAsyncData(
+  `fund-realtime-${code}`,
+  () => isRealtimeApplicable.value
+    ? apiFetch<FundRealtimeDetail>(`/api/fund/realtime/${code}`).catch(() => null)
+    : Promise.resolve(null),
+  {
+    watch: [isRealtimeApplicable],
+    default: () => null,
+  },
+)
+const showRealtimePanel = computed(() => isRealtimeApplicable.value && realtimeDetail.value !== null)
 
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
@@ -409,6 +425,11 @@ watch(data, (newData) => {
           </div>
         </div>
       </div>
+    </div>
+
+    <!-- 盘中分时估值(仅开放式基金,QDII/LOF 走场内价格无盘中分时;失败优雅降级) -->
+    <div v-if="showRealtimePanel && realtimeDetail" class="mb-8">
+      <RealtimeEstimatePanel :data="realtimeDetail" :show-header="false" />
     </div>
 
     <!-- 顶部数据卡片区域 -->

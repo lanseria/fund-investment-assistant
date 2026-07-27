@@ -10,17 +10,31 @@ interface FundRealtimeData {
   updateTime: string
 }
 
-// Python 服务 /fund/realtime/{code} 的返回结构
-interface StrategyRealtimeResponse {
+/** 盘中分时数据点(time 格式取决于数据源,通常为 HH:mm) */
+export interface IntradayPoint {
+  time: string
+  value: number
+  [key: string]: unknown
+}
+
+/**
+ * Python 服务 /fund/realtime/{code} 的完整返回结构。
+ * 行为变化(2026-07):数据源改为 powercloud 聚合接口后,新增 quoteSource/message 状态标识
+ * 与 intraday 分时数据,publishedNav 恢复官方净值填充。
+ */
+export interface StrategyRealtimeResponse {
   code: string
   name: string
-  estimateNav: string | null // 估算单位净值(4 位小数字符串)
+  estimateNav: string | null // 估算单位净值(4 位小数字符串,来自 powercloud basic.gsz 原值)
   estimateGrowthRate: number | null // 估算涨跌幅(%)
-  estimateDate: string // 估值日期(仅日级)
-  publishedNav: string | null // 当日官方净值(盘前为 null,收盘后公布)
-  publishedGrowthRate: number | null // 当日官方涨跌幅(%)
-  yesterdayNav: string | null // 上一交易日官方净值
-  yesterdayDate: string
+  estimateDate: string // 估值日期(yyyy-mm-dd)
+  publishedNav: string | null // 已确认官方净值(盘前/QDII 为 null)
+  publishedGrowthRate: number | null // 已确认官方涨跌幅(%)
+  yesterdayNav: string | null // 上一交易日单位净值(来自 powercloud basic.dwjz)
+  yesterdayDate: string // 上一交易日日期
+  quoteSource: 'realtime' | 'history_fallback' | null // 数据来源标识
+  message: string // 状态说明(如「QDII暂无盘中估值,展示最近净值」)
+  intraday: IntradayPoint[] // 盘中分时数据,非交易时段为空数组
 }
 
 // 天天基金网历史净值API返回的类型
@@ -129,6 +143,26 @@ export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundR
       console.error(`[RealtimeEstimate] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
     return null
   }
+}
+
+/**
+ * 获取开放式基金的盘中实时估值(原始完整响应,供展示用)。
+ *
+ * 与 fetchFundRealtimeEstimate 的区别:
+ * - 本函数原样返回 powercloud 完整响应,包含 intraday 分时数据、quoteSource/message 状态标识
+ * - 不做字段裁剪与降级映射,适合「盘中估值展示页」直接消费
+ * - 仅用于展示,不落库;定时同步任务仍用 fetchFundRealtimeEstimate
+ *
+ * 错误会向上抛出(状态码透传),由调用方(API 路由)处理:
+ * - 400: 代码格式错误(非 6 位数字)——由 API 路由层先行校验,本函数假定代码已合规
+ * - 404: 基金不存在(powercloud 返回 name==code 且 gsz 占位),或数据源不可用
+ * - 5xx: 服务故障
+ */
+export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRealtimeResponse> {
+  const config = useRuntimeConfig()
+  const url = `${config.strategyApiUrl}/fund/realtime/${fundCode}`
+  // ofetch 默认对非 2xx 抛出带 statusCode 的错误,这里原样抛出供路由层透传
+  return await $fetch<StrategyRealtimeResponse>(url)
 }
 
 /**
