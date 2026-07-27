@@ -186,6 +186,56 @@ function changeText(change: number | null): string {
   const sign = change > 0 ? '+' : ''
   return `${sign}${change.toFixed(2)}%`
 }
+
+// --- 导出 CSV ---
+// CSV 字段转义：含逗号、引号或换行时用双引号包裹，内部引号翻倍
+function escapeCsvField(value: string | number | null | undefined): string {
+  if (value === null || value === undefined)
+    return ''
+  const str = String(value)
+  if (/[",\n\r]/.test(str))
+    return `"${str.replace(/"/g, '""')}"`
+  return str
+}
+
+// 导出当前筛选后的基金列表为 CSV 文件
+function exportFundsToCsv() {
+  const rows = filteredFunds.value
+  if (rows.length === 0) {
+    alert('没有可导出的基金数据')
+    return
+  }
+
+  const headers = ['代码', '名称', '板块', '类型', '昨日净值', '估算涨跌(%)', '持仓人数', '关注人数']
+  const lines = rows.map((f) => {
+    const sectorLabel = f.sector ? (dictStore.getLabel(SECTOR_DICT_TYPE, f.sector) || f.sector) : ''
+    const fundTypeLabel = f.fundType === 'qdii_lof' ? 'QDII/LOF' : '开放式'
+    const change = f.percentageChange === null ? '' : f.percentageChange.toFixed(2)
+    return [
+      escapeCsvField(f.code),
+      escapeCsvField(f.name),
+      escapeCsvField(sectorLabel),
+      escapeCsvField(fundTypeLabel),
+      escapeCsvField(f.yesterdayNav),
+      escapeCsvField(change),
+      escapeCsvField(f.holderCount),
+      escapeCsvField(f.watcherCount),
+    ].join(',')
+  })
+
+  // 添加 UTF-8 BOM，确保 Excel 正确识别中文编码
+  const csv = `\uFEFF${headers.join(',')}\n${lines.join('\n')}`
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const date = new Date().toISOString().slice(0, 10)
+  a.download = `基金列表_${date}.csv`
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  a.remove()
+}
 </script>
 
 <template>
@@ -194,10 +244,16 @@ function changeText(change: number | null): string {
       <h1 class="text-2xl font-bold">
         基金管理
       </h1>
-      <button class="btn flex items-center" @click="openAddModal">
-        <div i-carbon-add mr-1 />
-        添加基金
-      </button>
+      <div class="flex gap-2">
+        <button class="btn flex items-center" @click="exportFundsToCsv">
+          <div i-carbon-download mr-1 />
+          导出 CSV
+        </button>
+        <button class="btn flex items-center" @click="openAddModal">
+          <div i-carbon-add mr-1 />
+          添加基金
+        </button>
+      </div>
     </header>
 
     <!-- 搜索与筛选 -->

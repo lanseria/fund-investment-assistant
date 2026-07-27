@@ -20,7 +20,7 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^6.48.0
+    openai: ^6.49.0
     pg: ^8.22.0
     secure-exec: ^0.3.3
   build:
@@ -35,11 +35,11 @@ catalogs:
   dev:
     '@antfu/eslint-config': ^9.2.0
     '@nuxt/test-utils': ^4.0.3
-    eslint: ^10.7.0
+    eslint: ^10.8.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^4.1.10
-    vue-tsc: ^3.3.7
+    vue-tsc: ^3.3.8
   frontend:
     '@vueuse/components': ^14.3.0
     '@vueuse/core': ^14.3.0
@@ -56,7 +56,7 @@ catalogs:
   utils:
     bignumber.js: ^11.1.5
     dayjs-nuxt: ^2.1.11
-    es-toolkit: ^1.49.0
+    es-toolkit: ^1.50.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.6
     zod: ^4.4.3
