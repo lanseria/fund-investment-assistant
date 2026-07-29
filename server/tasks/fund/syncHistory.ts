@@ -1,6 +1,6 @@
 // server/tasks/fund/syncHistory.ts
 /* eslint-disable no-console */
-import dayjs from 'dayjs'
+import { addDays, format, parseISO } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
 import { funds, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher'
@@ -24,7 +24,7 @@ export default defineTask({
           orderBy: [desc(navHistory.navDate)],
         })
 
-        const startDate = latestRecord ? dayjs(latestRecord.navDate).add(1, 'day').format('YYYY-MM-DD') : undefined
+        const startDate = latestRecord ? format(addDays(parseISO(latestRecord.navDate), 1), 'yyyy-MM-dd') : undefined
         const historyData = await fetchFundHistory(fund.code, startDate)
 
         if (!historyData.length)

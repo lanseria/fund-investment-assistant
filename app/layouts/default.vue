@@ -10,6 +10,7 @@ const navItems = [
   { to: '/realtime', label: '盘中估值', icon: 'i-carbon-dashboard' },
   { to: '/daily-ops', label: '每日操作', icon: 'i-carbon-calendar' },
   { to: '/leaderboard', label: '排行榜', icon: 'i-carbon-trophy' },
+  { to: '/sector-capital', label: '板块资金', icon: 'i-carbon-money' },
 ]
 
 // 下拉菜单状态控制

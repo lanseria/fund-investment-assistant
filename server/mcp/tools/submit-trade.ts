@@ -1,4 +1,4 @@
-import dayjs from 'dayjs'
+import { format } from 'date-fns'
 import { z } from 'zod'
 import { fundTransactions } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
@@ -44,7 +44,7 @@ export default defineMcpTool({
     }
 
     const db = useDb()
-    const todayStr = dayjs().format('YYYY-MM-DD')
+    const todayStr = format(new Date(), 'yyyy-MM-dd')
 
     try {
       // 3. 插入数据库

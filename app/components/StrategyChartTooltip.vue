@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { RsiChartData } from '~/types/chart'
+import { isAfter, parseISO, subMonths } from 'date-fns'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
 import { apiFetch } from '~/utils/api'
@@ -46,11 +47,10 @@ const slicedChartData = computed(() => {
     return fullData // 如果没数据，直接返回
 
   // 计算起始索引
-  const dayjs = useDayjs()
   const totalPoints = allDates.length
   const lastDate = allDates[totalPoints - 1]
-  const targetDate = dayjs(lastDate).subtract(1, 'months')
-  let startIndex = allDates.findIndex((d: string) => dayjs(d).isAfter(targetDate))
+  const targetDate = subMonths(parseISO(lastDate!), 1)
+  let startIndex = allDates.findIndex((d: string) => isAfter(parseISO(d), targetDate))
 
   // 如果找不到（所有数据都在3个月前），则从头开始
   if (startIndex === -1)

@@ -1,7 +1,4 @@
-import dayjs from 'dayjs'
-import isBetween from 'dayjs/plugin/isBetween.js'
-
-dayjs.extend(isBetween)
+import { format, getDay, isAfter, isBefore, isEqual, parseISO, setHours, setMinutes, setSeconds, startOfDay } from 'date-fns'
 
 export const marketGroups = {
   A: {
@@ -69,24 +66,33 @@ export const HOLIDAYS_CONFIG: [string, string][] = [
   ['2026-10-01', '2026-10-07'], // 国庆节
 ]
 
+/** 把入参归一化为本地 Date；dayjs 字符串/Date/空值都可接受 */
+function toDate(date?: Date | string): Date {
+  if (!date)
+    return new Date()
+  return typeof date === 'string' ? parseISO(date) : date
+}
+
 /**
  * 检查指定日期是否为A股交易日
  * 规则:
  * 1. 非周末 (周一至周五)
  * 2. 不在法定节假日区间内
  */
-export function isTradingDay(date?: dayjs.Dayjs | Date | string): { isTrading: boolean, reason?: string } {
-  const targetDate = dayjs(date)
-  const dayOfWeek = targetDate.day()
+export function isTradingDay(date?: Date | string): { isTrading: boolean, reason?: string } {
+  const targetDate = startOfDay(toDate(date)) // 归一化到当天 00:00（与 dayjs isBetween 'day' 语义一致）
+  const dayOfWeek = getDay(targetDate)
 
   // 检查是否为周末
   if (dayOfWeek === 0 || dayOfWeek === 6) {
     return { isTrading: false, reason: '周末休市' }
   }
 
-  // 检查节假日
+  // 检查节假日（按天比较，包含起止当天）。节假日串 'YYYY-MM-DD' 直接按字典序比较，
+  // 与先归一化为本地 00:00 再比较 Date 的效果一致，且不受时区影响。
+  const targetStr = format(targetDate, 'yyyy-MM-dd')
   for (const [start, end] of HOLIDAYS_CONFIG) {
-    if (targetDate.isBetween(start, end, 'day', '[]')) {
+    if (targetStr >= start && targetStr <= end) {
       return { isTrading: false, reason: `节假日休市 (${start} ~ ${end})` }
     }
   }
@@ -100,15 +106,16 @@ export function isTradingDay(date?: dayjs.Dayjs | Date | string): { isTrading: b
  * @param date - 要检查的时间 (默认为当前时间)
  * @returns boolean
  */
-export function isTradingHours(date?: dayjs.Dayjs | Date | string): boolean {
-  const targetTime = dayjs(date)
-  const morningStart = dayjs(targetTime).hour(9).minute(30).second(0)
-  const morningEnd = dayjs(targetTime).hour(11).minute(30).second(0)
-  const afternoonStart = dayjs(targetTime).hour(13).minute(0).second(0)
-  const afternoonEnd = dayjs(targetTime).hour(15).minute(0).second(0)
+export function isTradingHours(date?: Date | string): boolean {
+  const targetTime = toDate(date)
+  const morningStart = setSeconds(setMinutes(setHours(targetTime, 9), 30), 0)
+  const morningEnd = setSeconds(setMinutes(setHours(targetTime, 11), 30), 0)
+  const afternoonStart = setSeconds(setMinutes(setHours(targetTime, 13), 0), 0)
+  const afternoonEnd = setSeconds(setMinutes(setHours(targetTime, 15), 0), 0)
 
-  const isMorning = targetTime.isBetween(morningStart, morningEnd, null, '[]')
-  const isAfternoon = targetTime.isBetween(afternoonStart, afternoonEnd, null, '[]')
+  // 闭区间 [start, end]
+  const inRange = (t: Date, s: Date, e: Date) =>
+    (isAfter(t, s) || isEqual(t, s)) && (isBefore(t, e) || isEqual(t, e))
 
-  return isMorning || isAfternoon
+  return inRange(targetTime, morningStart, morningEnd) || inRange(targetTime, afternoonStart, afternoonEnd)
 }

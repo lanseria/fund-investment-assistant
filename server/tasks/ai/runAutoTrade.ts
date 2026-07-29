@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import dayjs from 'dayjs'
+import { format } from 'date-fns'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
@@ -17,7 +17,7 @@ export default defineTask({
     // --- 交易日检查 ---
     const check = isTradingDay()
     if (!check.isTrading) {
-      console.log(`⏸️ [AI AutoTrade] 今日 (${dayjs().format('YYYY-MM-DD')}) 跳过: ${check.reason}`)
+      console.log(`⏸️ [AI AutoTrade] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
       return { result: 'Skipped', reason: check.reason }
     }
 

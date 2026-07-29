@@ -1,6 +1,6 @@
 import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
+import { format, isSameDay, startOfMonth, startOfWeek, startOfYear } from 'date-fns'
 import { eq, sql } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
@@ -41,15 +41,15 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
   const startNavMap = new Map<string, number>()
 
   if (period !== '1d') {
-    let startDate = dayjs()
+    let startDate = new Date()
     if (period === '1w')
-      startDate = startDate.startOf('week')
+      startDate = startOfWeek(startDate)
     else if (period === '1m')
-      startDate = startDate.startOf('month')
+      startDate = startOfMonth(startDate)
     else if (period === '1y')
-      startDate = startDate.startOf('year')
+      startDate = startOfYear(startDate)
 
-    const targetDateStr = startDate.format('YYYY-MM-DD')
+    const targetDateStr = format(startDate, 'yyyy-MM-dd')
     const fundCodes = [...new Set(allHoldings.map(h => h.fundCode))]
 
     if (fundCodes.length > 0) {
@@ -69,7 +69,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
   }
 
   // 3. 准备当天的交易统计
-  const todayStr = dayjs().format('YYYY-MM-DD')
+  const todayStr = format(new Date(), 'yyyy-MM-dd')
   const todayTxs = await db.select({
     userId: fundTransactions.userId,
     type: fundTransactions.type,
@@ -132,7 +132,7 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     const yesterdayNav = Number(h.yesterdayNav)
     // 判断估值是否为今日更新
     const estimateIsFresh = h.todayEstimateUpdateTime
-      ? dayjs(h.todayEstimateUpdateTime).isSame(dayjs(), 'day')
+      ? isSameDay(h.todayEstimateUpdateTime, new Date())
       : false
     // 仅在估值新鲜时使用今日估值，否则回退到昨日净值
     const currentPrice = h.todayEstimateNav && estimateIsFresh ? Number(h.todayEstimateNav) : yesterdayNav

@@ -2,6 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
 import type { HoldingHistoryPoint } from '~/types/holding'
+import { format, parseISO } from 'date-fns'
 import { formatCurrency } from '~/utils/format'
 
 const props = defineProps<{
@@ -59,7 +60,7 @@ function mapSignalsToMarkPoints(signalType: '买入' | '卖出'): MarkPointCompo
   return props.signals
     .filter(s => s.signal.trim() === signalType)
     .map((s) => {
-      const dateStr = useDayjs()(s.latestDate).format('YYYY-MM-DD')
+      const dateStr = format(parseISO(s.latestDate), 'yyyy-MM-dd')
       const closeValue = Number(s.latestClose)
 
       return {

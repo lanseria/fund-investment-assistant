@@ -52,7 +52,7 @@ catalogs:
     '@iconify-json/twemoji': ^1.2.5
   utils:
     bignumber.js: ^11.1.5
-    dayjs-nuxt: ^2.1.11
+    date-fns: ^4.1.0
     es-toolkit: ^1.50.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.6

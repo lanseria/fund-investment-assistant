@@ -1,19 +1,19 @@
 <script setup lang="ts">
+import { addMonths, endOfMonth, format, getDate, getDay, setDate, startOfMonth } from 'date-fns'
 import { formatCurrency } from '~/utils/format'
 
 const props = defineProps<{
   calendarData: Record<string, number> // 'YYYY-MM-DD': amount
 }>()
 
-const dayjs = useDayjs()
-const viewDate = ref(dayjs()) // 当前查看的月份
+const viewDate = ref(new Date()) // 当前查看的月份
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
 const daysInMonth = computed(() => {
-  const startOfMonth = viewDate.value.startOf('month')
-  const endOfMonth = viewDate.value.endOf('month')
-  const startDay = startOfMonth.day()
+  const startOfMonthDate = startOfMonth(viewDate.value)
+  const endOfMonthDate = endOfMonth(viewDate.value)
+  const startDay = getDay(startOfMonthDate)
   const days = []
 
   // 填充月初空白
@@ -22,13 +22,13 @@ const daysInMonth = computed(() => {
   }
 
   // 填充日期
-  for (let i = 1; i <= endOfMonth.date(); i++) {
-    const date = startOfMonth.date(i).format('YYYY-MM-DD')
+  for (let i = 1; i <= getDate(endOfMonthDate); i++) {
+    const date = format(setDate(startOfMonthDate, i), 'yyyy-MM-dd')
     days.push({
       date,
       day: i,
       profit: props.calendarData[date] ?? 0,
-      isToday: date === dayjs().format('YYYY-MM-DD'),
+      isToday: date === format(new Date(), 'yyyy-MM-dd'),
     })
   }
   return days
@@ -40,7 +40,7 @@ const monthTotal = computed(() => {
 })
 
 function changeMonth(delta: number) {
-  viewDate.value = viewDate.value.add(delta, 'month')
+  viewDate.value = addMonths(viewDate.value, delta)
 }
 
 function getBgColor(profit: number) {
@@ -85,7 +85,7 @@ function getTextColor(profit: number) {
         <button class="icon-btn p-1" @click="changeMonth(-1)">
           <div i-carbon-chevron-left />
         </button>
-        <span class="font-bold font-mono text-center w-20">{{ viewDate.format('YYYY-MM') }}</span>
+        <span class="font-bold font-mono text-center w-20">{{ format(viewDate, 'yyyy-MM') }}</span>
         <button class="icon-btn p-1" @click="changeMonth(1)">
           <div i-carbon-chevron-right />
         </button>

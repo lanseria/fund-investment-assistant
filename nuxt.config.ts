@@ -40,7 +40,6 @@ export default defineNuxtConfig({
     '@pinia/nuxt',
     '@nuxtjs/color-mode',
     '@nuxt/eslint',
-    'dayjs-nuxt',
     'nuxt-echarts',
     '@nuxtjs/mcp-toolkit',
   ],
@@ -104,15 +103,10 @@ export default defineNuxtConfig({
   vite: {
     optimizeDeps: {
       include: [
-        '@vue/devtools-core',
-        '@vue/devtools-kit',
-        'dayjs', // CJS
-        'dayjs/plugin/relativeTime', // CJS
-        'dayjs/plugin/updateLocale', // CJS
-        'dayjs/plugin/utc', // CJS
-        'dayjs/plugin/isBetween.js', // CJS
         'bignumber.js',
         'vue-echarts',
+        'markdown-exit',
+        'date-fns'
       ],
     },
   },

@@ -3,7 +3,7 @@ import type { RedemptionFeeTier } from '~~/shared/redemptionFee'
 // 交易确认的纯计算逻辑,从 processTransactions 任务中抽离以便单元测试。
 // 注意:所有数值运算使用 bignumber.js,与原任务逻辑保持精度一致。
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
+import { differenceInDays, parseISO } from 'date-fns'
 import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
 
 /** FIFO 持仓批次(一次买入形成的份额单元) */
@@ -100,7 +100,7 @@ export function calculatePenaltyFee(
   let sharesToSell = new BigNumber(sellShares)
   let totalPenaltyFee = new BigNumber(0)
   const breakdown: FeeBreakdownItem[] = []
-  const sellDateDayjs = dayjs(sellDate)
+  const sellDateParsed = parseISO(sellDate)
   const navBn = new BigNumber(nav)
   const useTiers = rateTiers && rateTiers.length > 0
 
@@ -109,8 +109,8 @@ export function calculatePenaltyFee(
       break
 
     const take = BigNumber.min(lot.shares, sharesToSell)
-    const buyDate = dayjs(lot.date)
-    const diffDays = sellDateDayjs.diff(buyDate, 'day')
+    const buyDate = parseISO(lot.date)
+    const diffDays = differenceInDays(sellDateParsed, buyDate)
 
     // 确定本批次适用费率:有阶梯按阶梯,否则回退硬编码(<7天 1.5%)
     let rate: number

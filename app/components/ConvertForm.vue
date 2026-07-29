@@ -3,8 +3,8 @@
 <script setup lang="ts">
 import type { FundFees, Holding } from '~/types/holding'
 import BigNumber from 'bignumber.js'
+import { differenceInDays, format, parseISO } from 'date-fns'
 import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
-import { useDayjs } from '#imports'
 
 const props = defineProps<{
   fromCode: string
@@ -21,10 +21,8 @@ const props = defineProps<{
 
 const emit = defineEmits(['submit', 'cancel'])
 
-const dayjs = useDayjs()
 // 默认 T
-const now = dayjs()
-const defaultDate = now.hour() >= 15 ? now.format('YYYY-MM-DD') : now.format('YYYY-MM-DD')
+const defaultDate = format(new Date(), 'yyyy-MM-dd')
 
 const formData = reactive({
   date: defaultDate,
@@ -53,18 +51,18 @@ const safeShares = computed(() => {
   if (!props.currentShares || !formData.date)
     return 0
 
-  const sellDate = dayjs(formData.date)
+  const sellDate = parseISO(formData.date)
   const tiers = rateTiers.value
 
   // 重建 FIFO 买入批次队列(仅基于可见的近期交易,按时间正序)
   const buyLots = (props.recentTransactions || [])
     .filter(t => (t.type === 'buy' || t.type === 'convert_in') && Number(t.shares) > 0)
     .map(t => ({ date: t.date, shares: Number(t.shares) }))
-    .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+    .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
 
   let safe = new BigNumber(0)
   for (const lot of buyLots) {
-    const diffDays = sellDate.diff(dayjs(lot.date), 'day')
+    const diffDays = differenceInDays(sellDate, parseISO(lot.date))
     if (tiers && tiers.length > 0) {
       // 有阶梯:按持有天数匹配档位，未命中档位或费率为 0 视为免赎回费
       const matchedRate = matchRateForHoldingDays(tiers, diffDays)
@@ -90,7 +88,7 @@ const penaltyAnalysis = computed<{ isShortTerm: boolean, penaltyShares: number, 
   if (!formData.date || !formData.shares)
     return { isShortTerm: false, penaltyShares: 0, tiers: [] }
 
-  const sellDate = dayjs(formData.date)
+  const sellDate = parseISO(formData.date)
   const tiers = rateTiers.value
   const sharesToSell = new BigNumber(formData.shares)
 
@@ -98,7 +96,7 @@ const penaltyAnalysis = computed<{ isShortTerm: boolean, penaltyShares: number, 
   const buyLots = (props.recentTransactions || [])
     .filter(t => (t.type === 'buy' || t.type === 'convert_in') && Number(t.shares) > 0)
     .map(t => ({ date: t.date, shares: Number(t.shares) }))
-    .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+    .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
 
   const tierMap = new Map<number, BigNumber>()
   let remaining = sharesToSell
@@ -107,7 +105,7 @@ const penaltyAnalysis = computed<{ isShortTerm: boolean, penaltyShares: number, 
     if (remaining.lte(0))
       break
     const take = BigNumber.min(lot.shares, remaining)
-    const diffDays = sellDate.diff(dayjs(lot.date), 'day')
+    const diffDays = differenceInDays(sellDate, parseISO(lot.date))
 
     if (tiers && tiers.length > 0) {
       const matchedRate = matchRateForHoldingDays(tiers, diffDays)

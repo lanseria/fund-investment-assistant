@@ -3,6 +3,7 @@
 <script setup lang="ts">
 import type { AiModel } from '~~/shared/ai-models'
 import { useClipboard } from '@vueuse/core'
+import { format } from 'date-fns'
 import { AI_MODELS } from '~~/shared/ai-models'
 import CalendarWidget from '~/components/CalendarWidget.vue'
 import { appName } from '~/constants'
@@ -12,10 +13,9 @@ useHead({
   title: `每日操作 - ${appName}`,
 })
 
-const dayjs = useDayjs()
 const authStore = useAuthStore() // 获取当前用户信息用于权限控制
 // --- 状态管理 ---
-const selectedDate = ref(dayjs().format('YYYY-MM-DD')) // 当前选中的日期
+const selectedDate = ref(format(new Date(), 'yyyy-MM-dd')) // 当前选中的日期
 
 // 移除 expandedGroups 状态
 

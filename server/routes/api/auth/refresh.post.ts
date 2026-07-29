@@ -1,6 +1,6 @@
 // server/routes/api/auth/refresh.post.ts
 import type { UserPayload } from '~~/server/utils/auth'
-import dayjs from 'dayjs'
+import { addDays } from 'date-fns'
 import { eq } from 'drizzle-orm'
 import { encrypt, verify } from 'paseto-ts/v4'
 import { users } from '~~/server/database/schemas'
@@ -57,7 +57,7 @@ export default defineEventHandler(async (event) => {
   if (!localKey)
     throw new Error('Server not initialized: localKey is missing.')
 
-  const accessTokenExp = dayjs().add(1, 'day').toDate()
+  const accessTokenExp = addDays(new Date(), 1)
   // 使用精简 Payload 加密
   const newAccessTokenPayload = { ...slimTokenPayload, exp: accessTokenExp.toISOString() }
   const newAccessToken = await encrypt(localKey, newAccessTokenPayload)

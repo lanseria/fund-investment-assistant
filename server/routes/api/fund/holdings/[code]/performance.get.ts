@@ -1,4 +1,4 @@
-import dayjs from 'dayjs'
+import { format, parseISO, subMonths, subYears } from 'date-fns'
 import { and, asc, desc, eq, lte } from 'drizzle-orm'
 import { navHistory } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
@@ -22,7 +22,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const latestNav = Number(latestRecord.nav)
-  const latestDate = dayjs(latestRecord.navDate)
+  const latestDate = parseISO(latestRecord.navDate)
 
   // 定义我们需要计算的时间跨度
   const ranges = [
@@ -38,7 +38,8 @@ export default defineEventHandler(async (event) => {
 
   // 2. 循环查询各个时间点的历史净值
   for (const range of ranges) {
-    const targetDate = latestDate.subtract(range.amount, range.unit).format('YYYY-MM-DD')
+    const shifted = range.unit === 'year' ? subYears(latestDate, range.amount) : subMonths(latestDate, range.amount)
+    const targetDate = format(shifted, 'yyyy-MM-dd')
 
     // 查找 <= targetDate 的最近一条记录
     const pastRecord = await db.query.navHistory.findFirst({

@@ -1,7 +1,7 @@
 // server/utils/strategies.ts
 /* eslint-disable no-console */
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
+import { startOfDay } from 'date-fns'
 import { and, eq, gte } from 'drizzle-orm'
 import { ofetch } from 'ofetch'
 import { holdings, strategySignals } from '~~/server/database/schemas'
@@ -23,7 +23,7 @@ export async function runStrategiesForAllHoldings() {
     throw new Error('策略服务未配置')
   }
 
-  const today = dayjs().startOf('day').toDate()
+  const today = startOfDay(new Date())
   await db.delete(strategySignals).where(gte(strategySignals.createdAt, today))
   console.log(`已清除 ${today.toLocaleDateString()} 的旧策略信号，准备重新生成...`)
 
@@ -93,7 +93,7 @@ export async function runStrategiesForFund(fundCode: string, userId: number) {
     throw new Error(`您未持有基金代码为 ${fundCode} 的持仓记录`)
 
   // 2. 在执行前，先删除该基金今天已经生成的所有策略信号
-  const today = dayjs().startOf('day').toDate()
+  const today = startOfDay(new Date())
   await db.delete(strategySignals).where(and(
     eq(strategySignals.fundCode, fundCode),
     gte(strategySignals.createdAt, today),

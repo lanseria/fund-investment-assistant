@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
+import { differenceInDays, format, isSameDay, parseISO } from 'date-fns'
 import { matchRateForHoldingDays, parseRateValue } from '~~/shared/redemptionFee'
 import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
@@ -50,7 +51,6 @@ const lastRedemptionTag = computed(() => {
 const feesDialogOpen = ref(false)
 
 const { getLabel } = useDictStore()
-const dayjs = useDayjs()
 
 // --- 辅助函数 ---
 
@@ -94,11 +94,11 @@ const lastBuyStatus = computed(() => {
   if (!lastBuy)
     return { isSafe: true, label: '7天+', days: 8, rate: null, date: null, title: '近期无买入,持有期充足' }
 
-  const buyDate = dayjs(lastBuy.date)
+  const buyDate = parseISO(lastBuy.date)
   // 计算持有天数 (今天 - 买入日期)
   // 注意：基金持有天数通常包含周末，从确认日开始算。
   // 这里做简单计算：当前日期 - 订单日期。如果刚好卡在临界点，建议用户去券商APP确认。
-  const diffDays = dayjs().diff(buyDate, 'day')
+  const diffDays = differenceInDays(new Date(), buyDate)
 
   // 优先用真实赎回费率档位判定当前适用费率
   const matched = matchRedemptionTier(diffDays)
@@ -440,13 +440,13 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     <td class="text-sm text-gray-500 font-mono p-4 text-right tabular-nums">
       <template v-if="holding.todayEstimateUpdateTime">
         <div>
-          {{ dayjs(holding.todayEstimateUpdateTime).format('HH:mm:ss') }}
+          {{ format(holding.todayEstimateUpdateTime, 'HH:mm:ss') }}
         </div>
         <div
           class="text-10px"
-          :class="!dayjs(holding.todayEstimateUpdateTime).isSame(dayjs(), 'day') ? 'text-orange-500 font-medium' : 'opacity-60'"
+          :class="!isSameDay(holding.todayEstimateUpdateTime, new Date()) ? 'text-orange-500 font-medium' : 'opacity-60'"
         >
-          {{ dayjs(holding.todayEstimateUpdateTime).format('YYYY-MM-DD') }}
+          {{ format(holding.todayEstimateUpdateTime, 'yyyy-MM-dd') }}
         </div>
       </template>
 

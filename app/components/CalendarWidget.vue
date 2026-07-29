@@ -1,29 +1,30 @@
 <!-- app/components/CalendarWidget.vue -->
 <script setup lang="ts">
+import { addMonths, format, getDay, getDaysInMonth, isSameMonth, parseISO } from 'date-fns'
+
 const props = defineProps<{
   modelValue: string // 格式: YYYY-MM-DD
 }>()
 
 const emit = defineEmits(['update:model-value'])
 
-const dayjs = useDayjs()
-const viewDate = ref(dayjs(props.modelValue)) // 当前视图显示的月份
+const viewDate = ref(parseISO(props.modelValue)) // 当前视图显示的月份
 
 // 如果外部选中的日期变了，且不在当前视图月份内，自动跳转视图到该月
 watch(() => props.modelValue, (newVal) => {
-  const newDate = dayjs(newVal)
-  if (!newDate.isSame(viewDate.value, 'month'))
+  const newDate = parseISO(newVal)
+  if (!isSameMonth(newDate, viewDate.value))
     viewDate.value = newDate
 })
 
 const weekDays = ['日', '一', '二', '三', '四', '五', '六']
 
 const calendarDays = computed(() => {
-  const year = viewDate.value.year()
-  const month = viewDate.value.month()
-  const firstDayOfMonth = dayjs(new Date(year, month, 1))
-  const daysInMonth = firstDayOfMonth.daysInMonth()
-  const startDayOfWeek = firstDayOfMonth.day()
+  const year = viewDate.value.getFullYear()
+  const month = viewDate.value.getMonth()
+  const firstDayOfMonth = new Date(year, month, 1)
+  const daysInMonth = getDaysInMonth(firstDayOfMonth)
+  const startDayOfWeek = getDay(firstDayOfMonth)
 
   const days = []
   // 填充空白
@@ -32,11 +33,11 @@ const calendarDays = computed(() => {
   }
   // 填充日期
   for (let i = 1; i <= daysInMonth; i++) {
-    const dateStr = dayjs(new Date(year, month, i)).format('YYYY-MM-DD')
+    const dateStr = format(new Date(year, month, i), 'yyyy-MM-dd')
     days.push({
       day: i,
       dateStr,
-      isToday: dateStr === dayjs().format('YYYY-MM-DD'),
+      isToday: dateStr === format(new Date(), 'yyyy-MM-dd'),
       isSelected: dateStr === props.modelValue,
     })
   }
@@ -44,7 +45,7 @@ const calendarDays = computed(() => {
 })
 
 function changeMonth(delta: number) {
-  viewDate.value = viewDate.value.add(delta, 'month')
+  viewDate.value = addMonths(viewDate.value, delta)
 }
 
 function selectDate(dateStr: string) {
@@ -53,9 +54,9 @@ function selectDate(dateStr: string) {
 }
 
 function jumpToToday() {
-  const today = dayjs().format('YYYY-MM-DD')
+  const today = format(new Date(), 'yyyy-MM-dd')
   emit('update:model-value', today)
-  viewDate.value = dayjs()
+  viewDate.value = new Date()
 }
 </script>
 
@@ -67,7 +68,7 @@ function jumpToToday() {
         <div i-carbon-chevron-left />
       </button>
       <span class="text-lg font-bold">
-        {{ viewDate.format('YYYY年 MM月') }}
+        {{ format(viewDate, 'yyyy年 MM月') }}
       </span>
       <button class="icon-btn p-1" @click="changeMonth(1)">
         <div i-carbon-chevron-right />

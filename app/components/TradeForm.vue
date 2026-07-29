@@ -2,8 +2,8 @@
 <script setup lang="ts">
 import type { FundFees } from '~/types/holding'
 import BigNumber from 'bignumber.js'
+import { differenceInDays, format, parseISO } from 'date-fns'
 import { matchRateForHoldingDays } from '~~/shared/redemptionFee'
-import { useDayjs } from '#imports'
 
 const props = defineProps<{
   fundCode: string
@@ -22,9 +22,7 @@ const props = defineProps<{
 
 const emit = defineEmits(['submit', 'cancel'])
 
-const dayjs = useDayjs()
-const now = dayjs()
-const defaultDate = now.hour() >= 15 ? now.format('YYYY-MM-DD') : now.format('YYYY-MM-DD')
+const defaultDate = format(new Date(), 'yyyy-MM-dd')
 
 const formData = reactive({
   date: defaultDate,
@@ -50,7 +48,7 @@ const feeAnalysis = computed(() => {
   if (props.type !== 'sell' || !formData.date)
     return empty
 
-  const sellDate = dayjs(formData.date)
+  const sellDate = parseISO(formData.date)
   const tiers = rateTiers.value
 
   // 估算净值:用市值/份额,无则按 1.0
@@ -62,7 +60,7 @@ const feeAnalysis = computed(() => {
   const buyLots = (props.recentTransactions || [])
     .filter(t => (t.type === 'buy' || t.type === 'convert_in') && Number(t.shares) > 0)
     .map(t => ({ date: t.date, shares: Number(t.shares) }))
-    .sort((a, b) => dayjs(a.date).valueOf() - dayjs(b.date).valueOf())
+    .sort((a, b) => parseISO(a.date).getTime() - parseISO(b.date).getTime())
 
   // 若无可见买入记录但有持仓,无法估算,直接返回空
   if (buyLots.length === 0)
@@ -77,7 +75,7 @@ const feeAnalysis = computed(() => {
       break
 
     const take = BigNumber.min(lot.shares, sharesToSell)
-    const diffDays = sellDate.diff(dayjs(lot.date), 'day')
+    const diffDays = differenceInDays(sellDate, parseISO(lot.date))
 
     if (tiers && tiers.length > 0) {
       // 有阶梯:按持有天数匹配档位

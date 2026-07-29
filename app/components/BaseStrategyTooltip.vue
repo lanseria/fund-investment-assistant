@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { isAfter, parseISO, subMonths } from 'date-fns'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import { apiFetch } from '~/utils/api'
 
@@ -29,11 +30,10 @@ const slicedChartData = computed(() => {
   if (!history.length)
     return fullData
 
-  const dayjs = useDayjs()
   const totalPoints = history.length
   const lastDate = history[totalPoints - 1]?.date
-  const targetDate = dayjs(lastDate).subtract(3, 'months')
-  let startIndex = history.findIndex((p: any) => dayjs(p.date).isAfter(targetDate))
+  const targetDate = subMonths(parseISO(lastDate!), 3)
+  let startIndex = history.findIndex((p: any) => isAfter(parseISO(p.date), targetDate))
   if (startIndex === -1)
     startIndex = 0
 

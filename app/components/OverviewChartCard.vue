@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
+import { isAfter, parseISO } from 'date-fns'
 import MiniFundChart from '~/components/charts/MiniFundChart.vue'
 import MiniRsiChart from '~/components/charts/MiniRsiChart.vue'
 import { SECTOR_DICT_TYPE } from '~/constants' // 引入板块字典常量
@@ -26,7 +27,6 @@ const props = defineProps<{
 
 const emit = defineEmits(['update-attention'])
 
-const dayjs = useDayjs()
 const { getLabel } = useDictStore() // 引入获取字典标签的方法
 
 function toggleAttention() {
@@ -66,8 +66,9 @@ const slicedData = computed(() => {
   if (period !== 'all') {
     const filter = dateFilterOptions.find(f => f.value === period)
     if (filter?.unit) {
-      const targetDate = dayjs(allDates[totalPoints - 1]).subtract(filter.amount, filter.unit as any)
-      const foundIndex = allDates.findIndex((d: string) => dayjs(d).isAfter(targetDate))
+      const lastDate = parseISO(allDates[totalPoints - 1]!)
+      const targetDate = subtractByUnit(lastDate, filter.amount, filter.unit)
+      const foundIndex = allDates.findIndex((d: string) => isAfter(parseISO(d), targetDate))
       if (foundIndex !== -1)
         startIndex = foundIndex
     }

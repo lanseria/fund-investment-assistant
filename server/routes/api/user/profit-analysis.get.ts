@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
+import { addDays, format, isBefore, isSameDay, parseISO, startOfYear, subDays } from 'date-fns'
 import { and, asc, eq, gte, inArray } from 'drizzle-orm'
 import { fundTransactions, navHistory } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
@@ -49,8 +49,8 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   }
 
   // 2. 确定时间范围和涉及的基金
-  const firstTxDate = dayjs(allTxs[0]!.orderDate)
-  const today = dayjs()
+  const firstTxDate = parseISO(allTxs[0]!.orderDate)
+  const today = new Date()
   // 提取所有涉及的基金代码 (去重)
   const fundCodes = [...new Set(allTxs.map(t => t.fundCode))]
 
@@ -59,7 +59,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   const navs = await db.query.navHistory.findMany({
     where: and(
       inArray(navHistory.code, fundCodes),
-      gte(navHistory.navDate, firstTxDate.format('YYYY-MM-DD')),
+      gte(navHistory.navDate, format(firstTxDate, 'yyyy-MM-dd')),
     ),
   })
 
@@ -89,7 +89,8 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   // 循环从第一笔交易前一天开始(作为基准)，直到今天
   // 但为了图表展示，我们从第一笔交易当天开始记录
   let currentDate = firstTxDate
-  const loopEndDate = today.hour() >= 15 ? today : today // 如果要含今日预估，这里逻辑会更复杂，暂算到昨日净值为止或最新有净值的日期
+  // 当前小时 >= 15 (收盘后) 时，today 已包含当日净值；loopEndDate 统一取今天，循环条件按天比较即可。
+  const loopEndDate = today
 
   // 优化：交易记录按日期分组，避免内层循环查找
   const txsByDate: Record<string, typeof allTxs> = {}
@@ -99,8 +100,8 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
     txsByDate[tx.orderDate]!.push(tx)
   })
 
-  while (currentDate.isBefore(loopEndDate) || currentDate.isSame(loopEndDate, 'day')) {
-    const dateStr = currentDate.format('YYYY-MM-DD')
+  while (isBefore(currentDate, loopEndDate) || isSameDay(currentDate, loopEndDate)) {
+    const dateStr = format(currentDate, 'yyyy-MM-dd')
 
     // --- A. 处理当日交易 ---
     const dailyTxs = txsByDate[dateStr] || []
@@ -201,7 +202,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
     // 公式: 今日资产 - 昨日资产 - 净资金流入
     // 第一天特殊处理
     let dayProfit = new BigNumber(0)
-    if (currentDate.isSame(firstTxDate, 'day')) {
+    if (isSameDay(currentDate, firstTxDate)) {
       // 第一天: 盈亏 = (市值 - 成本) [因为都是刚买的，波动即盈亏]
       dayProfit = currentTotalAssets.minus(dailyNetInflow)
     }
@@ -237,7 +238,7 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
 
     // 更新状态供下一轮使用
     lastDayTotalAssets = currentTotalAssets
-    currentDate = currentDate.add(1, 'day')
+    currentDate = addDays(currentDate, 1)
   }
 
   // 6. 生成 Summary
@@ -249,14 +250,14 @@ export default defineEventHandler(async (event): Promise<ProfitAnalysisData> => 
   }
 
   // 明确获取“昨天”的数据点用于展示
-  const yesterdayStr = dayjs().subtract(1, 'day').format('YYYY-MM-DD')
+  const yesterdayStr = format(subDays(new Date(), 1), 'yyyy-MM-dd')
   // 在 history 数组中倒序查找（因为在末尾附近），找到日期匹配的记录
   // 如果昨天是周末或刚开始回测没数据，则回退为 0
   const yesterdayPoint = history.toReversed().find(p => p.date === yesterdayStr)
 
   // 计算本年收益 (Year To Date Profit)
-  const startOfYear = dayjs().startOf('year').format('YYYY-MM-DD')
-  const startOfYearPoint = history.find(p => p.date >= startOfYear)
+  const startOfYearStr = format(startOfYear(new Date()), 'yyyy-MM-dd')
+  const startOfYearPoint = history.find(p => p.date >= startOfYearStr)
 
   const yearProfit = startOfYearPoint
     ? new BigNumber(lastPoint.totalProfit).minus(startOfYearPoint.totalProfit).toNumber()

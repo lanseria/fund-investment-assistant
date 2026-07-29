@@ -1,6 +1,6 @@
 // server/utils/holdingAnalysis.ts
 import BigNumber from 'bignumber.js'
-import dayjs from 'dayjs'
+import { isSameDay } from 'date-fns'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { fundFees, fundTransactions, holdings, navHistory, strategySignals, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
@@ -93,7 +93,7 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
 function isEstimateFresh(updateTime: Date | null): boolean {
   if (!updateTime)
     return false
-  return dayjs(updateTime).isSame(dayjs(), 'day')
+  return isSameDay(updateTime, new Date())
 }
 
 /**

@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { format } from 'date-fns'
 import { formatCurrency } from '~/utils/format'
 
 /**
@@ -18,8 +19,6 @@ const emit = defineEmits<{
   /** 撤销交易（点击撤销按钮时触发） */
   (e: 'delete', tx: any): void
 }>()
-
-const dayjs = useDayjs()
 
 // --- 类型与状态样式映射（全站统一）---
 const ACTION_STYLES: Record<string, string> = {
@@ -52,7 +51,7 @@ function getActionLabel(type: string) {
   >
     <!-- 1. 时间 & 状态图标 -->
     <div class="text-xs text-gray-400 font-mono flex flex-shrink-0 gap-2 w-24 items-center">
-      <span>{{ dayjs(tx.createdAt).format('HH:mm:ss') }}</span>
+      <span>{{ format(tx.createdAt, 'HH:mm:ss') }}</span>
       <div v-if="tx.status === 'draft'" class="i-carbon-edit text-purple-500" title="预操作(草稿)" />
       <div v-else-if="tx.status === 'pending'" class="i-carbon-hourglass text-yellow-500" title="待确认" />
       <div v-else-if="tx.status === 'failed'" class="i-carbon-close-filled text-red-500" title="失败" />

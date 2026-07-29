@@ -35,7 +35,7 @@
     "@vueuse/nuxt": "catalog:build",
     "argon2": "catalog:backend",
     "bignumber.js": "catalog:utils",
-    "dayjs-nuxt": "catalog:utils",
+    "date-fns": "catalog:utils",
     "drizzle-kit": "catalog:backend",
     "drizzle-orm": "catalog:backend",
     "echarts": "catalog:frontend",

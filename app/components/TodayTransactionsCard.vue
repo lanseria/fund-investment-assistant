@@ -1,10 +1,11 @@
 <script setup lang="ts">
+import { format } from 'date-fns'
+
 const props = defineProps<{
   userId: number
 }>()
 
-const dayjs = useDayjs()
-const todayStr = dayjs().format('YYYY-MM-DD')
+const todayStr = format(new Date(), 'yyyy-MM-dd')
 
 const { data, pending, error, refresh } = useAsyncData(
   `today-txs-${props.userId}-${todayStr}`,

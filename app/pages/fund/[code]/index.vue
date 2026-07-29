@@ -2,12 +2,12 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
+import { format, isAfter, parseISO } from 'date-fns'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
-const dayjs = useDayjs()
 const dictStore = useDictStore()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
@@ -261,8 +261,9 @@ function setDateRange(period: string) {
   if (!filter || !filter.unit)
     return
 
-  const targetDate = dayjs(historyData[totalPoints - 1]!.date).subtract(filter.amount, filter.unit as any)
-  const startIndex = historyData.findIndex((p: { date: string }) => dayjs(p.date).isAfter(targetDate))
+  const lastDate = parseISO(historyData[totalPoints - 1]!.date)
+  const targetDate = subtractByUnit(lastDate, filter.amount, filter.unit)
+  const startIndex = historyData.findIndex((p: { date: string }) => isAfter(parseISO(p.date), targetDate))
 
   if (startIndex !== -1) {
     dataZoomStart.value = (startIndex / totalPoints) * 100
@@ -330,7 +331,7 @@ watch(data, (newData) => {
         <div class="text-xs text-gray-400 mt-2 flex gap-4">
           <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
           <span v-if="fundDetail.sector">板块: {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundDetail.sector) }}</span>
-          <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? dayjs(fundDetail.todayEstimateUpdateTime).format('YYYY-MM-DD HH:mm:ss') : '-' }}</span>
+          <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? format(fundDetail.todayEstimateUpdateTime, 'yyyy-MM-dd HH:mm:ss') : '-' }}</span>
         </div>
         <!-- 基金费率信息(仅展示) -->
         <FundFeesCard :fees="fundDetail.fees" />

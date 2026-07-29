@@ -119,9 +119,9 @@ catalogs:
     bignumber.js:
       specifier: ^11.1.5
       version: 11.1.5
-    dayjs-nuxt:
-      specifier: ^2.1.11
-      version: 2.1.11
+    date-fns:
+      specifier: ^4.1.0
+      version: 4.4.0
     es-toolkit:
       specifier: ^1.50.0
       version: 1.50.0
@@ -190,9 +190,9 @@ importers:
       bignumber.js:
         specifier: catalog:utils
         version: 11.1.5
-      dayjs-nuxt:
+      date-fns:
         specifier: catalog:utils
-        version: 2.1.11(magicast@0.5.2)
+        version: 4.4.0
       drizzle-kit:
         specifier: catalog:backend
         version: 0.31.10
@@ -3945,11 +3945,8 @@ packages:
   csstype@3.2.3:
     resolution: {integrity: sha512-z1HGKcYy2xA8AGQfwrn0PAy+PB7X/GSj3UVJW9qKyn43xWa+gl5nXmU4qqLMRzWVLFC8KusUX8T/0kCiOYpAIQ==}
 
-  dayjs-nuxt@2.1.11:
-    resolution: {integrity: sha512-KDDNiET7KAKf6yzL3RaPWq5aV7ql9QTt5fIDYv+4eOegDmnEQGjwkKYADDystsKtPjt7QZerpVbhC96o3BIyqQ==}
-
-  dayjs@1.11.20:
-    resolution: {integrity: sha512-YbwwqR/uYpeoP4pu043q+LTDLFBLApUP6VxRihdfNTqu4ubqMlGDLd6ErXhEgsyvY0K6nCs7nggYumAN+9uEuQ==}
+  date-fns@4.4.0:
+    resolution: {integrity: sha512-+1UMbeh68lH1SegH83CGWwpb6OHHbpSgr3+s5Eww5M4CAgswBpoWS0AjTOfEJ33HiYKz1hdj/KTFprzXHmq/6w==}
 
   db0@0.3.4:
     resolution: {integrity: sha512-RiXXi4WaNzPTHEOu8UPQKMooIbqOEyqA1t7Z6MsdxSCeb8iUC9ko3LcmsLmeUt2SM5bctfArZKkRQggKZz7JNw==}
@@ -10721,7 +10718,7 @@ snapshots:
       '@vue/shared': 3.5.40
       estree-walker: 2.0.2
       magic-string: 0.30.21
-      postcss: 8.5.20
+      postcss: 8.5.23
       source-map-js: 1.2.1
 
   '@vue/compiler-ssr@3.5.40':
@@ -11387,14 +11384,7 @@ snapshots:
 
   csstype@3.2.3: {}
 
-  dayjs-nuxt@2.1.11(magicast@0.5.2):
-    dependencies:
-      '@nuxt/kit': 3.21.2(magicast@0.5.2)
-      dayjs: 1.11.20
-    transitivePeerDependencies:
-      - magicast
-
-  dayjs@1.11.20: {}
+  date-fns@4.4.0: {}
 
   db0@0.3.4(better-sqlite3@12.8.0)(drizzle-orm@0.45.2(@types/pg@8.20.0)(better-sqlite3@12.8.0)(pg@8.22.0)):
     optionalDependencies:
@@ -15247,7 +15237,7 @@ snapshots:
       esbuild: 0.27.7
       fdir: 6.5.0(picomatch@4.0.5)
       picomatch: 4.0.5
-      postcss: 8.5.20
+      postcss: 8.5.23
       rollup: 4.62.2
       tinyglobby: 0.2.17
     optionalDependencies:

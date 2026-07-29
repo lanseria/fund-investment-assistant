@@ -1,6 +1,6 @@
 /* eslint-disable no-console */
 import type { UserPayload } from '~~/server/utils/auth'
-import dayjs from 'dayjs'
+import { addDays, addMonths } from 'date-fns'
 import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
@@ -70,9 +70,9 @@ export default defineEventHandler(async (event) => {
     throw new Error('Server not initialized: keys are missing.')
 
   // Access Token 有效期 15 天
-  const accessTokenExp = dayjs().add(15, 'd').toDate()
+  const accessTokenExp = addDays(new Date(), 15)
   // Refresh Token 有效期 1 个月
-  const refreshTokenExp = dayjs().add(1, 'month').toDate()
+  const refreshTokenExp = addMonths(new Date(), 1)
 
   // 加密时使用 slimTokenPayload
   const accessTokenPayload = { ...slimTokenPayload, exp: accessTokenExp.toISOString() }
