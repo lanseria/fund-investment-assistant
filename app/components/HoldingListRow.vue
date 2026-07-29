@@ -316,12 +316,13 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
               ]"
             >
               <!-- 悬浮 Tooltip (纯CSS实现，比 title 更快) -->
-              <div class="mb-2 opacity-0 pointer-events-none whitespace-pre translate-y-1 transform transition-all bottom-full left-1/2 absolute z-50 group-hover:opacity-100 -translate-x-1/2 group-hover:translate-y-0">
+              <!-- 左对齐(从圆点左缘向右展开):避免悬浮左侧圆点时 Tooltip 居中向左溢出被表格 overflow-x-auto 裁切 -->
+              <div class="mb-2 opacity-0 pointer-events-none whitespace-pre translate-y-1 transform transition-all bottom-full left-0 absolute z-50 group-hover:opacity-100 group-hover:translate-y-0">
                 <div class="text-xs text-white p-2 rounded bg-gray-800/90 shadow-lg backdrop-blur-sm dark:text-gray-900 dark:bg-white/90">
                   {{ getTransactionTooltip(tx) }}
                 </div>
-                <!-- 小三角 -->
-                <div class="border-4 border-transparent border-t-gray-800/90 h-0 w-0 bottom-[-8px] left-1/2 absolute dark:border-t-white/90 -translate-x-1/2" />
+                <!-- 小三角 (对准 10px 宽圆点的中心，避免随 tooltip 宽度漂移) -->
+                <div class="border-4 border-transparent border-t-gray-800/90 h-0 w-0 bottom-[-8px] left-[5px] absolute dark:border-t-white/90 -translate-x-1/2" />
               </div>
             </div>
           </div>
