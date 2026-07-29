@@ -2,11 +2,12 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
+import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, isAfter, parseISO } from 'date-fns'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
-import { formatCurrency } from '~/utils/format'
+import { formatChange, formatCurrency, getChangeColorClass } from '~/utils/format'
 
 const dictStore = useDictStore()
 const route = useRoute<'fund-code'>()
@@ -42,6 +43,21 @@ const { data: realtimeDetail } = await useAsyncData(
 )
 const showRealtimePanel = computed(() => isRealtimeApplicable.value && realtimeDetail.value !== null)
 
+// 板块主力行为回顾：仅当基金设置了项目板块时请求
+const fundSector = computed(() => fundDetail.value?.sector ?? null)
+const { data: sectorCapitalHistoryData, pending: sectorHistoryPending } = useAsyncData(
+  `sector-capital-history-${code}`,
+  () => fundSector.value
+    ? apiFetch<SectorCapitalHistoryResponse>(`/api/sectors/${fundSector.value}/history`, {
+        params: { days: 90 },
+      }).catch(() => null)
+    : Promise.resolve(null),
+  {
+    watch: [fundSector],
+    default: () => null,
+  },
+)
+
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
   if (holdingStore.holdings.length === 0) {
@@ -52,6 +68,22 @@ onMounted(async () => {
 const activeFilter = ref<string | null>(null)
 const dataZoomStart = ref(50)
 const dataZoomEnd = ref(100)
+
+// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 中性（灰），出货 偏空（绿）
+function getActionClass(action: string): string {
+  switch (action) {
+    case '抢筹':
+      return 'text-red-600 border-red-100 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20'
+    case '建仓':
+      return 'text-orange-600 border-orange-100 bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:bg-orange-900/20'
+    case '洗盘':
+      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
+    case '出货':
+      return 'text-green-600 border-green-100 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'
+    default:
+      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
+  }
+}
 
 const dateFilters = [
   { label: '近1个月', value: '1m', amount: 1, unit: 'month' },
@@ -507,6 +539,86 @@ watch(data, (newData) => {
     <div v-else class="text-gray-500 py-20 text-center card">
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>没有找到该基金的历史数据。</p>
+    </div>
+
+    <!-- 板块主力行为回顾（独立于策略图表，依赖基金所属板块是否已绑定东财板块） -->
+    <div v-if="fundSector" class="mt-8 p-4 card sm:p-6">
+      <h2 class="text-lg font-bold mb-1">
+        板块主力行为回顾
+        <span class="text-sm text-gray-500 font-normal dark:text-gray-400">
+          · {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundSector) }}
+        </span>
+      </h2>
+
+      <!-- 未绑定东财板块 -->
+      <div
+        v-if="!sectorHistoryPending && sectorCapitalHistoryData && !sectorCapitalHistoryData.bound"
+        class="py-10 text-center flex flex-col gap-3 items-center"
+      >
+        <div class="i-carbon-link text-4xl text-gray-300" />
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          该板块「{{ dictStore.getLabel(SECTOR_DICT_TYPE, fundSector) }}」尚未绑定东财板块，无法查看主力行为回顾。
+        </p>
+        <NuxtLink to="/sector-capital" class="text-sm text-primary hover:underline">
+          前往「板块资金」页面绑定 →
+        </NuxtLink>
+      </div>
+
+      <!-- 已绑定但暂无历史数据 -->
+      <div
+        v-else-if="!sectorHistoryPending && sectorCapitalHistoryData && sectorCapitalHistoryData.bound && sectorCapitalHistoryData.history.dates.length === 0"
+        class="py-10 text-center flex flex-col gap-2 items-center"
+      >
+        <div class="i-carbon-cloud-download text-4xl text-gray-300" />
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          已绑定东财板块「{{ sectorCapitalHistoryData.sectorName }}」，但暂无历史快照数据。
+        </p>
+        <p class="text-xs text-gray-400">
+          请管理员在「板块资金」页面手动抓取一次快照，或等待每日收盘自动抓取。
+        </p>
+      </div>
+
+      <!-- 加载中 -->
+      <div v-else-if="sectorHistoryPending" class="flex h-60 items-center justify-center">
+        <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
+      </div>
+
+      <!-- 图表 -->
+      <div v-else-if="sectorCapitalHistoryData && sectorCapitalHistoryData.history.dates.length > 0">
+        <!-- 最新摘要 -->
+        <div v-if="sectorCapitalHistoryData.latest" class="text-sm mb-3 flex flex-wrap gap-x-6 gap-y-1">
+          <span class="text-gray-500 dark:text-gray-400">
+            最新 ({{ sectorCapitalHistoryData.latest.date }}):
+          </span>
+          <span>
+            主力行为
+            <span
+              class="text-xs font-medium ml-1 px-2 py-0.5 border rounded-full"
+              :class="getActionClass(sectorCapitalHistoryData.latest.mainAction ?? '')"
+            >
+              {{ sectorCapitalHistoryData.latest.mainAction || '-' }}
+            </span>
+          </span>
+          <span class="text-gray-500 dark:text-gray-400">
+            主力强度
+            <span class="font-mono font-semibold" :class="getChangeColorClass(sectorCapitalHistoryData.latest.mainStrength ?? 0)">
+              {{ formatChange(sectorCapitalHistoryData.latest.mainStrength ?? 0) }}%
+            </span>
+          </span>
+          <span class="text-gray-500 dark:text-gray-400">
+            主力资金
+            <span class="font-mono" :class="getChangeColorClass(sectorCapitalHistoryData.latest.mainCapital ?? 0)">
+              {{ (sectorCapitalHistoryData.latest.mainCapital ?? 0).toFixed(2) }} 亿
+            </span>
+          </span>
+        </div>
+        <SectorCapitalChart
+          :data="sectorCapitalHistoryData.history"
+          :title="`板块 ${sectorCapitalHistoryData.sectorName ?? ''} - 主力行为回顾`"
+          :data-zoom-start="dataZoomStart"
+          :data-zoom-end="dataZoomEnd"
+        />
+      </div>
     </div>
 
     <!-- 策略信号模态框 -->

@@ -2,7 +2,7 @@
 import BigNumber from 'bignumber.js'
 import { isSameDay } from 'date-fns'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
-import { fundFees, fundTransactions, holdings, navHistory, strategySignals, users } from '~~/server/database/schemas'
+import { fundFees, funds, fundTransactions, holdings, navHistory, sectorBindings, sectorCapitalHistory, strategySignals, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
@@ -207,6 +207,34 @@ export async function getUserHoldingsAndSummary(userId: number) {
   })
   const feesMap = new Map(feesRecords.map(f => [f.fundCode, f]))
 
+  // 批量获取每只基金所属板块的最新主力行为
+  // 关联链：funds.sector → sector_bindings.dict_value → sector_bindings.sector_code → sector_capital_daily.sector_code
+  // 取每个基金最新一条快照的 mainAction，构建 Map<fundCode, mainAction>
+  const sectorActionMap = new Map<string, string>()
+  if (holdingCodes.length > 0) {
+    const sectorActionRaw = await db.execute(sql`
+      WITH latest AS (
+        SELECT
+          scd.sector_code,
+          scd.dict_value,
+          scd.main_action,
+          ROW_NUMBER() OVER (PARTITION BY scd.sector_code ORDER BY scd.date DESC) AS rn
+        FROM ${sectorCapitalHistory} scd
+        WHERE scd.dict_value IS NOT NULL
+      )
+      SELECT f.code AS fund_code, l.main_action AS main_action
+      FROM ${funds} f
+      JOIN ${sectorBindings} sb ON sb.dict_value = f.sector
+      JOIN latest l ON l.sector_code = sb.sector_code AND l.rn = 1
+      WHERE f.code IN ${holdingCodes}
+    `)
+    for (const row of sectorActionRaw.rows) {
+      const action = row.main_action as string | null
+      if (action)
+        sectorActionMap.set(row.fund_code as string, action)
+    }
+  }
+
   let totalHoldingAmount = new BigNumber(0)
   let totalEstimateAmount = new BigNumber(0)
   let heldCount = 0
@@ -255,7 +283,10 @@ export async function getUserHoldingsAndSummary(userId: number) {
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
-      signals: signalsMap.get(fundInfo.code) || {},
+      // base 标签位优先展示板块主力行为；未绑定/无数据时回退到基础走势信号
+      signals: sectorActionMap.has(fundInfo.code)
+        ? { ...(signalsMap.get(fundInfo.code) || {}), base: sectorActionMap.get(fundInfo.code)! }
+        : (signalsMap.get(fundInfo.code) || {}),
       bias20,
       pendingTransactions: pendingTxMap.get(fundInfo.code) || [],
       recentTransactions: historyTxMap.get(fundInfo.code) || [],

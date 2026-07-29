@@ -301,35 +301,62 @@ export const dictionaryDataRelations = relations(dictionaryData, ({ one }) => ({
 }))
 
 /**
- * 板块每日分析数据表 (sector_daily_stats)
- * 存储每日各板块的涨跌、换手率、资金流入等分析数据
+ * 板块每日主力资金数据表 (sector_capital_daily)
+ * 每个交易日收盘后抓取的板块主力资金流向快照，用于历史回顾。
  */
-export const sectorDailyStats = fundSchema.table('sector_daily_stats', {
+export const sectorCapitalHistory = fundSchema.table('sector_capital_daily', {
   id: bigserial('id', { mode: 'number' }).primaryKey(),
-  /** 分析日期 */
+  /** 交易日 */
   date: date('date').notNull(),
-  /** 板块英文代码，对应字典表的 value */
-  sector: text('sector').notNull(),
-  /** 涨跌幅 (%) */
-  changeRate: numeric('change_rate', { precision: 10, scale: 4 }),
-  /** 换手率 (%) */
-  turnoverRate: numeric('turnover_rate', { precision: 10, scale: 4 }),
-  /** 成交额占比 (%) */
-  volumeRatio: numeric('volume_ratio', { precision: 10, scale: 4 }),
-  /** 总市值 */
-  totalMarketCap: numeric('total_market_cap', { precision: 20, scale: 4 }),
-  /** 净流入 (亿元) */
-  netInflow: numeric('net_inflow', { precision: 18, scale: 4 }),
-  /** 上涨家数 */
-  upCount: integer('up_count'),
-  /** 下跌家数 */
-  downCount: integer('down_count'),
+  /** 东财板块代码 (BKxxxx)，主关联键 */
+  sectorCode: text('sector_code').notNull(),
+  /** 项目板块 value (字典 sectors 的 value，冗余字段便于按基金板块直接查询) */
+  dictValue: text('dict_value'),
+  /** 板块名称快照 */
+  sectorName: text('sector_name'),
+  /** 涨幅 (%) */
+  changePercent: numeric('change_percent', { precision: 10, scale: 4 }),
+  /** 成交额 (亿元，剥离「亿」后数值) */
+  amount: numeric('amount', { precision: 18, scale: 4 }),
+  /** 主力资金 (亿元) */
+  mainCapital: numeric('main_capital', { precision: 18, scale: 4 }),
+  /** 散户资金 (亿元) */
+  retailCapital: numeric('retail_capital', { precision: 18, scale: 4 }),
+  /** 主力暗盘 (亿元) */
+  mainHidden: numeric('main_hidden', { precision: 18, scale: 4 }),
+  /** 主力强度 (%) */
+  mainStrength: numeric('main_strength', { precision: 10, scale: 4 }),
+  /** 主力行为：抢筹 / 建仓 / 洗盘 / 出货 */
+  mainAction: text('main_action'),
   /** 创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 }, (table) => {
   return {
     // 确保同一天同一个板块只有一条记录
-    unqDateSector: unique('unq_date_sector').on(table.date, table.sector),
+    unqDateSectorCode: unique('unq_date_sector_code').on(table.date, table.sectorCode),
+  }
+})
+
+/**
+ * 板块绑定关系表 (sector_bindings)
+ * 项目板块 (字典 sectors 的 value) 与东财板块 (BKxxxx) 的 1 对 1 绑定。
+ */
+export const sectorBindings = fundSchema.table('sector_bindings', {
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 项目板块 value，对应 dictionary_data.value (dictType='sectors') */
+  dictValue: text('dict_value').notNull(),
+  /** 东财板块代码 (BKxxxx) */
+  sectorCode: text('sector_code').notNull(),
+  /** 板块类型：'industry' | 'concept' (决定抓哪个上游表) */
+  sectorType: text('sector_type').notNull(),
+  /** 东财板块名称快照 */
+  sectorName: text('sector_name'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => {
+  return {
+    // 一个项目板块只能绑定一个东财板块 (1对1)
+    unqDictValue: unique('unq_binding_dict_value').on(table.dictValue),
   }
 })
 

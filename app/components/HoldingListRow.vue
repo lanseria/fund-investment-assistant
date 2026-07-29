@@ -197,14 +197,39 @@ function getSignalTagClass(signal: string) {
   return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300'
 }
 
+// 板块主力行为集合：抢筹/建仓/洗盘/出货（base 标签位优先展示主力行为）
+const MAIN_ACTIONS = ['抢筹', '建仓', '洗盘', '出货']
+
+// base 标签位：若为板块主力行为则返回该行为，否则返回 null（回退到基础走势信号展示）
+const baseMainAction = computed<string | null>(() => {
+  const v = props.holding.signals?.base
+  return v && MAIN_ACTIONS.includes(v) ? v : null
+})
+
+// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 中性（灰），出货 偏空（绿）
+function getMainActionClass(action: string) {
+  switch (action) {
+    case '抢筹':
+      return 'bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300'
+    case '建仓':
+      return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
+    case '洗盘':
+      return 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-300'
+    case '出货':
+      return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
+    default:
+      return 'bg-gray-100 text-gray-800 dark:bg-gray-700/50 dark:text-gray-300'
+  }
+}
+
 function getBiasTagClass(bias: number) {
   if (bias > 0)
     return 'bg-red-50 text-red-600 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800/50'
   return 'bg-green-50 text-green-600 border border-green-200 dark:bg-green-900/20 dark:text-green-400 dark:border-green-800/50'
 }
 
+// 循环渲染的策略标签（base 已单独处理，优先展示板块主力行为）
 const strategiesForTags = {
-  base: '基础走势',
   rsi: 'RSI',
   bollinger_bands: '布林',
 }
@@ -363,6 +388,25 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
 
       <!-- 策略信号 -->
       <div v-if="holding.signals" class="mt-2 flex flex-wrap gap-1.5 items-center">
+        <!-- base 标签位：优先展示板块主力行为(完整文字+专用配色)，否则回退到基础走势信号 -->
+        <span
+          v-if="baseMainAction"
+          class="text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
+          :class="getMainActionClass(baseMainAction)"
+          title="板块主力行为（每日收盘快照）"
+        >
+          {{ baseMainAction }}
+        </span>
+        <span
+          v-else
+          class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
+          :class="getSignalTagClass(holding.signals.base || '无信号')"
+          @mouseenter="handleMouseEnter($event, 'base')"
+          @mouseleave="emit('hide-strategy-tooltip')"
+        >
+          基础走势: {{ holding.signals.base ? holding.signals.base.slice(0, 1) : '-' }}
+        </span>
+        <!-- rsi / bollinger_bands 策略信号 -->
         <span
           v-for="(name, key) in strategiesForTags"
           :key="key"

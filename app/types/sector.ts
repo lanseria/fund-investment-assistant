@@ -23,3 +23,49 @@ export interface SectorCapitalResponse {
   count: number
   sectors: SectorCapitalItem[]
 }
+
+/**
+ * 板块绑定关系：项目板块 (字典 sectors 的 value) 与东财板块 (BKxxxx) 的 1 对 1 绑定。
+ */
+export interface SectorBinding {
+  id: number
+  /** 项目板块 value (字典 sectors 的 value) */
+  dictValue: string
+  /** 东财板块代码 (BKxxxx) */
+  sectorCode: string
+  /** 板块类型 */
+  sectorType: SectorType
+  /** 东财板块名称快照 */
+  sectorName: string | null
+  createdAt: string
+}
+
+/**
+ * 板块主力资金历史回顾数据（对应 GET /api/sectors/[dictValue]/history 响应）。
+ */
+export interface SectorCapitalHistoryResponse {
+  dictValue: string
+  sectorCode: string | null
+  sectorName: string | null
+  sectorType: SectorType | null
+  /** 是否已绑定东财板块 */
+  bound: boolean
+  /** 最新一条快照摘要 */
+  latest: {
+    date: string
+    mainAction: string | null
+    mainStrength: number | null
+    mainCapital: number | null
+    mainHidden: number | null
+    changePercent: number | null
+  } | null
+  /** 图表数据 */
+  history: {
+    dates: string[]
+    mainStrength: (number | null)[]
+    mainCapital: (number | null)[]
+    mainHidden: (number | null)[]
+    changePercent: (number | null)[]
+    actions: string[]
+  }
+}
