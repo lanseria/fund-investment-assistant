@@ -1,8 +1,5 @@
 catalogMode: prefer
 
-minimumReleaseAgeExclude:
-  - openai@6.45.0
-shamefullyHoist: true
 strictPeerDependencies: false
 shellEmulator: true
 
@@ -20,7 +17,7 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^6.49.0
+    openai: ^7.0.0
     pg: ^8.22.0
     secure-exec: ^0.3.3
   build:
@@ -30,11 +27,11 @@ catalogs:
     '@unocss/eslint-config': ^66.7.5
     '@unocss/nuxt': ^66.7.5
     '@vueuse/nuxt': ^14.3.0
-    nuxt: ^4.5.0
+    nuxt: ^4.5.1
     unocss: ^66.7.5
   dev:
     '@antfu/eslint-config': ^9.2.0
-    '@nuxt/test-utils': ^4.0.3
+    '@nuxt/test-utils': ^4.1.0
     eslint: ^10.8.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
