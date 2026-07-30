@@ -3,6 +3,16 @@ import { appDescription } from './app/constants/index'
 
 const scheduledTasks: Record<string, string[]> = {}
 
+/**
+ * 调度器总开关 (DISABLE_SCHEDULER)
+ * - 开发模式: 默认禁用定时任务，避免本地 dev 干扰线上数据库 (可通过 DISABLE_SCHEDULER=false 强制启用)
+ * - 生产模式: 默认启用定时任务 (可通过 DISABLE_SCHEDULER=true 强制禁用)
+ */
+const disableScheduler
+  = env.DISABLE_SCHEDULER !== undefined
+    ? env.DISABLE_SCHEDULER === 'true'
+    : env.NODE_ENV === 'development'
+
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY ?? '0 2 * * *'
 const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 9-15 * * *' // 默认改为半小时一次，主要依赖客户端轮询
@@ -15,26 +25,26 @@ const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
 // 板块主力资金每日快照: 工作日 15:30 收盘后抓取
 const syncSectorCapitalCron = env.CRON_SECTOR_SYNC_CAPITAL ?? '30 15 * * 1-5'
 
-// 只有当环境变量中设置了有效的 Cron 表达式时，才添加任务
-if (syncHistoryCron) {
+// 只有当调度器未禁用，且环境变量中设置了有效的 Cron 表达式时，才添加任务
+if (!disableScheduler && syncHistoryCron) {
   scheduledTasks[syncHistoryCron] = ['fund:syncHistory']
 }
-if (syncEstimateCron) {
+if (!disableScheduler && syncEstimateCron) {
   scheduledTasks[syncEstimateCron] = ['fund:syncEstimate']
 }
-if (runStrategiesCron) {
+if (!disableScheduler && runStrategiesCron) {
   scheduledTasks[runStrategiesCron] = ['fund:runStrategies']
 }
-if (processTransactionsCron) {
+if (!disableScheduler && processTransactionsCron) {
   scheduledTasks[processTransactionsCron] = ['fund:processTransactions']
 }
-if (runAiTradeCron) {
+if (!disableScheduler && runAiTradeCron) {
   scheduledTasks[runAiTradeCron] = ['ai:runAutoTrade']
 }
-if (cleanDustSharesCron) {
+if (!disableScheduler && cleanDustSharesCron) {
   scheduledTasks[cleanDustSharesCron] = ['fund:cleanDustShares']
 }
-if (syncSectorCapitalCron) {
+if (!disableScheduler && syncSectorCapitalCron) {
   scheduledTasks[syncSectorCapitalCron] = ['sector:syncCapital']
 }
 
@@ -80,6 +90,8 @@ export default defineNuxtConfig({
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
     openRouterBaseUrl: '', // NUXT_OPEN_ROUTER_BASE_URL
+    // 是否禁用调度器 (开发模式默认禁用定时任务/轮询)
+    disableScheduler,
   },
   devServer: {
     port: 8888,
@@ -111,7 +123,7 @@ export default defineNuxtConfig({
         'bignumber.js',
         'vue-echarts',
         'markdown-exit',
-        'date-fns'
+        'date-fns',
       ],
     },
   },
@@ -126,6 +138,7 @@ export default defineNuxtConfig({
       'MarkLineComponent',
       'TitleComponent',
       'TooltipComponent',
+      'VisualMapComponent',
     ],
   },
   eslint: {

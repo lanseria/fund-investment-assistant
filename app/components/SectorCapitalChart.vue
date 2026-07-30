@@ -2,13 +2,16 @@
 import type { EChartsOption } from 'echarts'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   data: SectorCapitalHistoryResponse['history']
   title: string
-  // 接收 dataZoom 控制参数
-  dataZoomStart: number
-  dataZoomEnd: number
-}>()
+  // dataZoom 控制参数（可选，默认展示全部数据）
+  dataZoomStart?: number
+  dataZoomEnd?: number
+}>(), {
+  dataZoomStart: 0,
+  dataZoomEnd: 100,
+})
 
 const colorMode = useColorMode()
 provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
@@ -27,6 +30,13 @@ const chartOption = computed<EChartsOption>(() => {
   const gridColor = isDark ? '#4b5563' : '#e5e7eb'
 
   const { dates, mainStrength, mainCapital, mainHidden, actions } = props.data
+
+  // 防御：数据点过少时（如刚绑定只有 1 条快照），强制展示全部数据，
+  // 避免外部传入的 dataZoom 百分比把仅有的点排除出可视窗口，
+  // 导致 ECharts markPoint 解析 coord 时崩溃 (reading 'coord')。
+  const safeZoom = dates.length <= 2
+    ? { start: 0, end: 100 }
+    : { start: props.dataZoomStart, end: props.dataZoomEnd }
 
   // 构造主力行为标注点（在主力强度折线上）
   const actionMarks = dates
@@ -96,8 +106,8 @@ const chartOption = computed<EChartsOption>(() => {
       { type: 'value', gridIndex: 1, axisLine: { show: true, lineStyle: { color: gridColor } }, splitLine: { lineStyle: { color: [gridColor] } }, axisLabel: { color: textColor } },
     ],
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1], start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
-      { type: 'slider', xAxisIndex: [0, 1], top: '90%', height: 20, start: props.dataZoomStart, end: props.dataZoomEnd },
+      { type: 'inside', xAxisIndex: [0, 1], start: safeZoom.start, end: safeZoom.end, zoomOnMouseWheel: false },
+      { type: 'slider', xAxisIndex: [0, 1], top: '90%', height: 20, start: safeZoom.start, end: safeZoom.end },
     ],
     series: [
       {

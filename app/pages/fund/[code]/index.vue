@@ -1,7 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
-import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, isAfter, parseISO } from 'date-fns'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
@@ -27,21 +26,6 @@ const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
     params: targetUserId ? { userId: targetUserId } : undefined,
   }),
 )
-
-// 盘中分时估值(仅开放式基金展示;qdii_lof 走场内价格,无盘中分时)
-// 失败/QDII 时优雅降级:隐藏该卡片,不影响主页面
-const isRealtimeApplicable = computed(() => fundDetail.value?.fundType !== 'qdii_lof')
-const { data: realtimeDetail } = await useAsyncData(
-  `fund-realtime-${code}`,
-  () => isRealtimeApplicable.value
-    ? apiFetch<FundRealtimeDetail>(`/api/fund/realtime/${code}`).catch(() => null)
-    : Promise.resolve(null),
-  {
-    watch: [isRealtimeApplicable],
-    default: () => null,
-  },
-)
-const showRealtimePanel = computed(() => isRealtimeApplicable.value && realtimeDetail.value !== null)
 
 // 板块主力行为回顾：仅当基金设置了项目板块时请求
 const fundSector = computed(() => fundDetail.value?.sector ?? null)
@@ -352,15 +336,15 @@ watch(data, (newData) => {
       </div>
     </header>
 
-    <!-- 基金当日核心详情面板 -->
-    <div v-if="fundDetail" class="mb-8 p-5 card flex flex-col gap-6 items-center justify-between from-white to-gray-50 bg-gradient-to-br md:flex-row dark:from-gray-800 dark:to-gray-800/80">
-      <!-- 基本信息 -->
-      <div class="flex flex-1 flex-col">
+    <!-- 基金详情总览：核心指标 / 我的持仓 / 区间涨跌 三区合一 -->
+    <div v-if="fundDetail" class="mb-8 card overflow-hidden">
+      <!-- 基金信息头 -->
+      <div class="p-5 from-white to-gray-50 bg-gradient-to-br dark:from-gray-800 dark:to-gray-800/80">
         <div class="flex gap-3 items-center">
           <span class="text-xl font-bold">{{ fundDetail.name }}</span>
           <span class="text-sm text-gray-500 font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{{ fundDetail.code }}</span>
         </div>
-        <div class="text-xs text-gray-400 mt-2 flex gap-4">
+        <div class="text-xs text-gray-400 mt-2 flex flex-wrap gap-x-4 gap-y-1">
           <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
           <span v-if="fundDetail.sector">板块: {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundDetail.sector) }}</span>
           <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? format(fundDetail.todayEstimateUpdateTime, 'yyyy-MM-dd HH:mm:ss') : '-' }}</span>
@@ -369,132 +353,132 @@ watch(data, (newData) => {
         <FundFeesCard :fees="fundDetail.fees" />
       </div>
 
-      <!-- 核心指标统计 -->
-      <div class="flex flex-wrap gap-6 md:flex-nowrap">
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500 mb-1">最新净值</span>
-          <span class="text-xl font-bold font-mono tabular-nums">{{ fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-' }}</span>
-        </div>
-
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500 mb-1">估算涨跌</span>
-          <span class="text-xl font-bold font-mono tabular-nums" :class="fundDetail.percentageChange > 0 ? 'text-red-500' : (fundDetail.percentageChange < 0 ? 'text-green-500' : 'text-gray-500')">
-            {{ fundDetail.percentageChange !== null ? `${(fundDetail.percentageChange > 0 ? '+' : '') + fundDetail.percentageChange.toFixed(2)}%` : '-' }}
-          </span>
-        </div>
-
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500 mb-1">持仓市值</span>
-          <span class="text-xl font-bold font-mono tabular-nums">{{ fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--' }}</span>
-        </div>
-
-        <div class="flex flex-col">
-          <span class="text-xs text-gray-500 mb-1">持仓收益</span>
-          <div class="flex gap-1 items-baseline">
-            <span class="text-xl font-bold font-mono tabular-nums" :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500' : 'text-gray-500')">
-              {{ fundDetail.holdingProfitAmount !== null ? (fundDetail.holdingProfitAmount > 0 ? '+' : '') + formatCurrency(fundDetail.holdingProfitAmount) : '--' }}
-            </span>
-            <span v-if="fundDetail.holdingProfitRate !== null" class="text-sm font-mono tabular-nums" :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500' : 'text-gray-500')">
-              ({{ fundDetail.holdingProfitRate > 0 ? '+' : '' }}{{ fundDetail.holdingProfitRate.toFixed(2) }}%)
-            </span>
+      <!-- 核心行情指标 -->
+      <div class="p-5 border-t border-gray-100 dark:border-gray-700/60">
+        <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
+          <StatCard
+            label="最新净值"
+            :value="fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-'"
+            value-class="!text-xl"
+          />
+          <StatCard
+            label="估算涨跌"
+            :value="fundDetail.percentageChange !== null ? `${(fundDetail.percentageChange > 0 ? '+' : '') + fundDetail.percentageChange.toFixed(2)}%` : '-'"
+            :colored="true"
+            value-class="!text-xl"
+          />
+          <StatCard
+            label="持仓市值"
+            :value="fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--'"
+            value-class="!text-xl"
+          />
+          <div class="p-2 flex flex-col gap-1">
+            <span class="text-xs text-gray-500 dark:text-gray-400">持仓收益</span>
+            <div class="flex gap-1 items-baseline">
+              <span
+                class="text-xl font-bold font-mono tabular-nums"
+                :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500 dark:text-red-400' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500 dark:text-green-400' : 'text-gray-500 dark:text-gray-400')"
+              >
+                {{ fundDetail.holdingProfitAmount !== null ? (fundDetail.holdingProfitAmount > 0 ? '+' : '') + formatCurrency(fundDetail.holdingProfitAmount) : '--' }}
+              </span>
+              <span
+                v-if="fundDetail.holdingProfitRate !== null"
+                class="text-sm font-mono tabular-nums"
+                :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500 dark:text-red-400' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500 dark:text-green-400' : 'text-gray-500 dark:text-gray-400')"
+              >
+                ({{ fundDetail.holdingProfitRate > 0 ? '+' : '' }}{{ fundDetail.holdingProfitRate.toFixed(2) }}%)
+              </span>
+            </div>
           </div>
         </div>
       </div>
-    </div>
 
-    <!-- 我的持仓详情卡片（补全份额/成本/乖离率/待确认交易等核心字段） -->
-    <div v-if="currentHolding" class="mb-8 p-5 card">
-      <h3 class="text-sm text-gray-500 font-semibold mb-4 dark:text-gray-400">
-        我的持仓
-      </h3>
-      <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
-        <StatCard
-          label="持有份额"
-          :value="currentHolding.shares !== null ? `${Number(currentHolding.shares).toFixed(2)} 份` : '-'"
-        />
-        <StatCard
-          label="成本价"
-          :value="currentHolding.costPrice !== null ? `¥${Number(currentHolding.costPrice).toFixed(4)}` : '-'"
-        />
-        <StatCard
-          label="乖离率 BIAS20"
-          :value="currentHolding.bias20 !== null ? `${currentHolding.bias20 > 0 ? '+' : ''}${currentHolding.bias20.toFixed(2)}%` : '-'"
-          :colored="true"
-          hint="正偏高估/负偏低估"
-        />
-        <StatCard
-          label="关注度"
-          :value="['', '普通', '重点', '核心'][currentHolding.attentionLevel] || '-'"
-        />
-        <StatCard
-          label="待确认交易"
-          :value="(currentHolding.pendingTransactions?.length || 0)"
-          :hint="(currentHolding.pendingTransactions?.length || 0) > 0 ? '有进行中的交易' : '无'"
-        />
-      </div>
-
-      <!-- 待确认交易列表（可撤销） -->
-      <div
-        v-if="currentHolding.pendingTransactions && currentHolding.pendingTransactions.length > 0"
-        class="mt-4 p-3 border border-amber-100 rounded-md bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
-      >
-        <p class="text-xs text-amber-700 font-semibold mb-2 dark:text-amber-300">
-          待确认交易 ({{ currentHolding.pendingTransactions.length }}笔)
-        </p>
-        <div class="space-y-1.5">
-          <div
-            v-for="tx in currentHolding.pendingTransactions"
-            :key="tx.id"
-            class="text-xs flex gap-3 items-center"
-          >
-            <span class="px-1.5 py-0.5 border rounded" :class="tx.type === 'buy' ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20' : 'text-green-600 border-green-200 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'">
-              {{ tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'convert_in' ? '转入' : '转出' }}
-            </span>
-            <span class="text-gray-500">{{ tx.orderDate }}</span>
-            <span class="text-gray-700 font-mono dark:text-gray-300">
-              {{ tx.orderAmount ? formatCurrency(tx.orderAmount) : `${Number(tx.orderShares).toFixed(2)} 份` }}
-            </span>
-            <span class="text-gray-400">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
-          </div>
+      <!-- 我的持仓 -->
+      <div v-if="currentHolding" class="p-5 border-t border-gray-100 dark:border-gray-700/60">
+        <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
+          <StatCard
+            label="持有份额"
+            :value="currentHolding.shares !== null ? `${Number(currentHolding.shares).toFixed(2)} 份` : '-'"
+          />
+          <StatCard
+            label="成本价"
+            :value="currentHolding.costPrice !== null ? `¥${Number(currentHolding.costPrice).toFixed(4)}` : '-'"
+          />
+          <StatCard
+            label="乖离率 BIAS20"
+            :value="currentHolding.bias20 !== null ? `${currentHolding.bias20 > 0 ? '+' : ''}${currentHolding.bias20.toFixed(2)}%` : '-'"
+            :colored="true"
+            hint="正偏高估/负偏低估"
+          />
+          <StatCard
+            label="关注度"
+            :value="['', '普通', '重点', '核心'][currentHolding.attentionLevel] || '-'"
+          />
+          <StatCard
+            label="待确认交易"
+            :value="(currentHolding.pendingTransactions?.length || 0)"
+            :hint="(currentHolding.pendingTransactions?.length || 0) > 0 ? '有进行中的交易' : '无'"
+          />
         </div>
-      </div>
-    </div>
 
-    <!-- 盘中分时估值(仅开放式基金,QDII/LOF 走场内价格无盘中分时;失败优雅降级) -->
-    <div v-if="showRealtimePanel && realtimeDetail" class="mb-8">
-      <RealtimeEstimatePanel :data="realtimeDetail" :show-header="false" />
-    </div>
-
-    <!-- 顶部数据卡片区域 -->
-    <div class="mb-8 p-4 card">
-      <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
-        <button
-          v-for="filter in dateFilters"
-          :key="filter.value"
-          class="p-2 border rounded-lg flex flex-col transition-all duration-200 items-center justify-center"
-          :class="[
-            activeFilter === filter.value
-              ? 'bg-primary/5 border-primary shadow-sm'
-              : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/60',
-          ]"
-          @click="setDateRange(filter.value)"
+        <!-- 待确认交易列表（可撤销） -->
+        <div
+          v-if="currentHolding.pendingTransactions && currentHolding.pendingTransactions.length > 0"
+          class="mt-4 p-3 border border-amber-100 rounded-md bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
         >
-          <!-- 标签 -->
-          <span
-            class="text-xs mb-1"
-            :class="activeFilter === filter.value ? 'text-primary font-bold' : 'text-gray-500 dark:text-gray-400'"
-          >
-            {{ filter.label }}
-          </span>
-
-          <!-- 数值 -->
-          <div class="flex h-6 items-center justify-center">
-            <span v-if="!data && pending" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
-            <span v-else class="text-sm font-bold font-mono tabular-nums" :class="getPerformanceClass(filter.value)">
-              {{ formatPerformance(filter.value) }}
-            </span>
+          <p class="text-xs text-amber-700 font-semibold mb-2 dark:text-amber-300">
+            待确认交易 ({{ currentHolding.pendingTransactions.length }}笔)
+          </p>
+          <div class="space-y-1.5">
+            <div
+              v-for="tx in currentHolding.pendingTransactions"
+              :key="tx.id"
+              class="text-xs flex gap-3 items-center"
+            >
+              <span class="px-1.5 py-0.5 border rounded" :class="tx.type === 'buy' ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20' : 'text-green-600 border-green-200 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'">
+                {{ tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'convert_in' ? '转入' : '转出' }}
+              </span>
+              <span class="text-gray-500">{{ tx.orderDate }}</span>
+              <span class="text-gray-700 font-mono dark:text-gray-300">
+                {{ tx.orderAmount ? formatCurrency(tx.orderAmount) : `${Number(tx.orderShares).toFixed(2)} 份` }}
+              </span>
+              <span class="text-gray-400">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
+            </div>
           </div>
-        </button>
+        </div>
+      </div>
+
+      <!-- 区间涨跌幅 -->
+      <div class="p-4 border-t border-gray-100 dark:border-gray-700/60">
+        <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
+          <button
+            v-for="filter in dateFilters"
+            :key="filter.value"
+            class="p-2 border rounded-lg flex flex-col transition-all duration-200 items-center justify-center"
+            :class="[
+              activeFilter === filter.value
+                ? 'bg-primary/5 border-primary shadow-sm'
+                : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/60',
+            ]"
+            @click="setDateRange(filter.value)"
+          >
+            <!-- 标签 -->
+            <span
+              class="text-xs mb-1"
+              :class="activeFilter === filter.value ? 'text-primary font-bold' : 'text-gray-500 dark:text-gray-400'"
+            >
+              {{ filter.label }}
+            </span>
+
+            <!-- 数值 -->
+            <div class="flex h-6 items-center justify-center">
+              <span v-if="!data && pending" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
+              <span v-else class="text-sm font-bold font-mono tabular-nums" :class="getPerformanceClass(filter.value)">
+                {{ formatPerformance(filter.value) }}
+              </span>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -615,8 +599,6 @@ watch(data, (newData) => {
         <SectorCapitalChart
           :data="sectorCapitalHistoryData.history"
           :title="`板块 ${sectorCapitalHistoryData.sectorName ?? ''} - 主力行为回顾`"
-          :data-zoom-start="dataZoomStart"
-          :data-zoom-end="dataZoomEnd"
         />
       </div>
     </div>
