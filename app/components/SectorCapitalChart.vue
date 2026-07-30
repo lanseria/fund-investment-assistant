@@ -24,6 +24,10 @@ const actionStyle: Record<string, { color: string, label: string }> = {
   出货: { color: '#22c55e', label: '出' }, // 绿
 }
 
+// 主力强度颜色：正值偏多 → 红，负值偏空 → 绿
+const STRENGTH_COLOR_POS = '#ef4444' // 红
+const STRENGTH_COLOR_NEG = '#22c55e' // 绿
+
 const chartOption = computed<EChartsOption>(() => {
   const isDark = colorMode.value === 'dark'
   const textColor = isDark ? '#d1d5db' : '#374151'
@@ -31,9 +35,8 @@ const chartOption = computed<EChartsOption>(() => {
 
   const { dates, mainStrength, mainCapital, mainHidden, actions } = props.data
 
-  // 防御：数据点过少时（如刚绑定只有 1 条快照），强制展示全部数据，
-  // 避免外部传入的 dataZoom 百分比把仅有的点排除出可视窗口，
-  // 导致 ECharts markPoint 解析 coord 时崩溃 (reading 'coord')。
+  // 数据点过少时（如刚绑定只有 1 条快照），强制展示全部数据，
+  // 避免外部传入的 dataZoom 百分比把仅有的点排除出可视窗口。
   const safeZoom = dates.length <= 2
     ? { start: 0, end: 100 }
     : { start: props.dataZoomStart, end: props.dataZoomEnd }
@@ -55,13 +58,26 @@ const chartOption = computed<EChartsOption>(() => {
     })
     .filter(Boolean) as { coord: [string, number], itemStyle: { color: string }, label: { formatter: string } }[]
 
+  // 主力强度按正负染色。使用 continuous visualMap，并以数据绝对值的最大值
+  // 作为对称的 min/max，使 0 始终落在颜色区间正中，从而实现「正红/负绿」的清晰分界。
+  //
+  // NOTE：之前使用 piecewise visualMap（pieces: [{gte:0},{lt:0}]）会触发 ECharts
+  // 6.x 的崩溃 —— 当所有 piece 均触及 ±Infinity 时，getVisualMeta 生成的 stops
+  // 为空数组，而 LineView.getVisualGradient 在 stopLen===0 时既不会提前 return，
+  // 又会继续访问 colorStopsInRange[0].coord，导致
+  // "Cannot read properties of undefined (reading 'coord')" 报错。
+  const strengthMaxAbs = mainStrength.reduce(
+    (max, v) => v !== null ? Math.max(max, Math.abs(v)) : max,
+    0,
+  ) || 1 // 全 0 时退化为 1，避免 visualMap min===max===0 的退化区间
+
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
     tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'cross' },
-      // 自定义 tooltip：展示主力行为与各项数值
+      // 自定义 tooltip：展示主力行为与各项数值（注意主力强度为百分比，资金为亿元）
       formatter: (params: any) => {
         if (!Array.isArray(params) || params.length === 0)
           return ''
@@ -76,20 +92,24 @@ const chartOption = computed<EChartsOption>(() => {
           const val = p.value
           if (val === null || val === undefined || Number.isNaN(val))
             continue
-          html += `<div>${p.marker} ${p.seriesName}: <b>${Number(val).toFixed(2)}</b> 亿</div>`
+          // 主力强度是百分比（%），其余为资金（亿）
+          const unit = p.seriesName === '主力强度' ? '%' : ' 亿'
+          html += `<div>${p.marker} ${p.seriesName}: <b>${val > 0 ? '+' : ''}${Number(val).toFixed(2)}</b>${unit}</div>`
         }
         return html
       },
     },
     legend: { top: 40, textStyle: { color: textColor }, data: ['主力强度', '主力资金', '主力暗盘'] },
-    // 主力强度按正负染色：visualMap 仅作用于 seriesIndex 0（主力强度）
+    // 主力强度按正负染色：visualMap 仅作用于 seriesIndex 0（主力强度）。
+    // 使用 continuous + 对称区间，使 0 落在颜色区间正中，实现正红/负绿。
     visualMap: {
       show: false,
+      type: 'continuous',
       seriesIndex: 0,
-      pieces: [
-        { gte: 0, color: '#ef4444' }, // 正值偏多 → 红
-        { lt: 0, color: '#22c55e' }, // 负值偏空 → 绿
-      ],
+      min: -strengthMaxAbs,
+      max: strengthMaxAbs,
+      calculable: false,
+      inRange: { color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS] },
     },
     grid: [
       { top: '12%', left: '8%', right: '8%', height: '44%' },
