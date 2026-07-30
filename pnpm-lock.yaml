@@ -49,6 +49,9 @@ catalogs:
     '@unocss/nuxt':
       specifier: ^66.7.5
       version: 66.7.5
+    '@unocss/preset-web-fonts':
+      specifier: ^66.7.5
+      version: 66.7.5
     '@vueuse/nuxt':
       specifier: ^14.4.0
       version: 14.4.0
@@ -262,6 +265,10 @@ importers:
       zod:
         specifier: catalog:utils
         version: 4.4.3
+    devDependencies:
+      '@unocss/preset-web-fonts':
+        specifier: catalog:build
+        version: 66.7.5
 
 packages:
 

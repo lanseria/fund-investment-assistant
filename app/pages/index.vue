@@ -2,6 +2,7 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import DashboardHeader from '~/components/dashboard/Header.vue'
+import DashboardHoldingFilterDialog from '~/components/dashboard/HoldingFilterDialog.vue'
 import { appName } from '~/constants'
 
 useHead({
@@ -33,15 +34,20 @@ const {
   isHeldOnly,
   sortKey,
   sortOrder,
+  filters,
+  hasActiveFilters,
+  activeFilterCount,
   displayData,
   handleSetSort,
   toggleHeldFilter,
+  resetFilters,
 } = useDashboardData(holdings)
 
 // --- 市场概览折叠状态 ---
 const isMarketOpen = ref(false)
 
 // --- 模态框状态管理 ---
+const isFilterDialogOpen = ref(false)
 const isModalOpen = ref(false)
 const editingHolding = ref<Holding | null>(null)
 const modalTitle = computed(() => editingHolding.value ? '编辑基金' : '添加新基金')
@@ -294,10 +300,13 @@ async function handleUpdateAttention(code: string, newLevel: number) {
       :is-data-loading="!!isDataLoading"
       :is-processing-transactions="isProcessingTransactions"
       :is-held-only="isHeldOnly"
+      :has-active-filters="hasActiveFilters"
+      :active-filter-count="activeFilterCount"
       @refresh-server-user="holdingStore.refreshServerEstimates('user')"
       @refresh-data="refresh"
       @process-transactions="handleProcessTransactions"
       @toggle-held="toggleHeldFilter"
+      @open-filter="isFilterDialogOpen = true"
       @import="isImportModalOpen = true"
       @export="handleExport"
       @copy-info="handleCopyInfo"
@@ -336,6 +345,13 @@ async function handleUpdateAttention(code: string, newLevel: number) {
     />
 
     <!-- Modals -->
+    <DashboardHoldingFilterDialog
+      v-model:open="isFilterDialogOpen"
+      :filters="filters"
+      :active-filter-count="activeFilterCount"
+      @reset="resetFilters"
+    />
+
     <Modal v-model="isModalOpen" :title="modalTitle">
       <AddEditHoldingForm
         :initial-data="editingHolding"

@@ -206,7 +206,8 @@ const baseMainAction = computed<string | null>(() => {
   return v && MAIN_ACTIONS.includes(v) ? v : null
 })
 
-// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 中性（灰），出货 偏空（绿）
+// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 警示（琥珀），出货 偏空（绿）
+// 注意：洗盘用琥珀色，以与回退的"基础走势"（中性灰）区分开
 function getMainActionClass(action: string) {
   switch (action) {
     case '抢筹':
@@ -214,7 +215,7 @@ function getMainActionClass(action: string) {
     case '建仓':
       return 'bg-orange-100 text-orange-800 dark:bg-orange-900/40 dark:text-orange-300'
     case '洗盘':
-      return 'bg-gray-100 text-gray-600 dark:bg-gray-700/50 dark:text-gray-300'
+      return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300'
     case '出货':
       return 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300'
     default:
@@ -394,17 +395,19 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           class="text-xs font-medium px-2 py-0.5 rounded-full cursor-help"
           :class="getMainActionClass(baseMainAction)"
           title="板块主力行为（每日收盘快照）"
+          @mouseenter="handleMouseEnter($event, 'base')"
+          @mouseleave="emit('hide-strategy-tooltip')"
         >
           {{ baseMainAction }}
         </span>
         <span
           v-else
-          class="text-xs font-medium px-2 py-0.5 rounded-full cursor-pointer"
-          :class="getSignalTagClass(holding.signals.base || '无信号')"
+          class="text-xs text-gray-800 font-medium px-2 py-0.5 rounded-full bg-gray-100 cursor-pointer dark:text-gray-300 dark:bg-gray-700/50"
+          title="板块主力行为（每日收盘快照）"
           @mouseenter="handleMouseEnter($event, 'base')"
           @mouseleave="emit('hide-strategy-tooltip')"
         >
-          基础走势: {{ holding.signals.base ? holding.signals.base.slice(0, 1) : '-' }}
+          基础走势
         </span>
         <!-- rsi / bollinger_bands 策略信号 -->
         <span

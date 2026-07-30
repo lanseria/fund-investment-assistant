@@ -59,5 +59,8 @@
     "vue-echarts": "catalog:frontend",
     "vue-tsc": "catalog:dev",
     "zod": "catalog:utils"
+  },
+  "devDependencies": {
+    "@unocss/preset-web-fonts": "catalog:build"
   }
 }

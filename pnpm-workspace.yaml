@@ -26,6 +26,7 @@ catalogs:
     '@pinia/nuxt': ^1.0.1
     '@unocss/eslint-config': ^66.7.5
     '@unocss/nuxt': ^66.7.5
+    '@unocss/preset-web-fonts': ^66.7.5
     '@vueuse/nuxt': ^14.4.0
     nuxt: ^4.5.1
     unocss: ^66.7.5

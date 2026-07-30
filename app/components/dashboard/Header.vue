@@ -4,6 +4,8 @@ defineProps<{
   isDataLoading: boolean
   isProcessingTransactions: boolean
   isHeldOnly: boolean
+  hasActiveFilters: boolean
+  activeFilterCount: number
 }>()
 
 const emit = defineEmits([
@@ -11,6 +13,7 @@ const emit = defineEmits([
   'refresh-data',
   'process-transactions',
   'toggle-held',
+  'open-filter', // 打开基金筛选对话框
   'import',
   'export',
   'copy-info',
@@ -52,6 +55,19 @@ const emit = defineEmits([
         @click="emit('toggle-held')"
       >
         <div i-carbon-wallet />
+      </button>
+      <!-- 策略信号筛选 -->
+      <button
+        class="icon-btn relative"
+        :class="{ 'text-primary': hasActiveFilters }"
+        title="筛选基金（主力行为 / RSI / 布林）"
+        @click="emit('open-filter')"
+      >
+        <div i-carbon-filter />
+        <span
+          v-if="activeFilterCount > 0"
+          class="text-[10px] text-white leading-4 font-bold px-1 text-center rounded-full bg-primary h-4 min-w-4 absolute -right-1 -top-1"
+        >{{ activeFilterCount }}</span>
       </button>
       <button class="icon-btn" title="导入数据" @click="emit('import')">
         <div i-carbon-upload />
