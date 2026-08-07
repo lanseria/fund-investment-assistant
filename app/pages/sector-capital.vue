@@ -158,6 +158,23 @@ const actionFilter = ref<(typeof actionFilters)[number]>('全部')
 // 搜索（按板块名/代码子串匹配）
 const search = ref('')
 
+// 成交额过滤（单位：亿元，0 / 空 = 不限）
+const amountPresets = [
+  { label: '不限', value: 0 },
+  { label: '≥10亿', value: 10 },
+  { label: '≥50亿', value: 50 },
+  { label: '≥100亿', value: 100 },
+  { label: '≥500亿', value: 500 },
+]
+const amountMin = ref(0)
+
+// 数据最近更新时间（客户端成功抓取时刻；上游为盘中实时数据，无自带时间戳）
+const lastUpdated = ref<Date | null>(null)
+watch(sectorCapitalData, (val) => {
+  if (val)
+    lastUpdated.value = new Date()
+})
+
 // 排序
 type SortKey = 'mainStrength' | 'changePercent' | 'amount' | 'mainCapital' | 'mainHidden'
 const sortKey = ref<SortKey>('mainStrength')
@@ -190,7 +207,8 @@ const filteredSectors = computed<SectorCapitalItem[]>(() => {
     const matchKeyword = !keyword
       || s.name.toLowerCase().includes(keyword)
       || s.code.toLowerCase().includes(keyword)
-    return matchAction && matchKeyword
+    const matchAmount = !amountMin.value || parseYi(s.amount) >= amountMin.value
+    return matchAction && matchKeyword && matchAmount
   })
 
   result = [...result].sort((a, b) => {
@@ -312,9 +330,49 @@ function getActionClass(action: string): string {
       </button>
     </div>
 
-    <!-- 计数 -->
-    <div v-if="!pending && !error && sectorCapitalData" class="text-xs text-gray-400 font-mono mb-2">
-      共 {{ sectorCapitalData.count }} 个板块，命中筛选 {{ filteredSectors.length }} 个
+    <!-- 成交额过滤 -->
+    <div class="mb-4 flex flex-wrap gap-2 items-center">
+      <span class="text-xs text-gray-400">成交额：</span>
+      <button
+        v-for="p in amountPresets"
+        :key="p.value"
+        class="text-xs font-medium px-2.5 py-1 border rounded-full transition-colors"
+        :class="amountMin === p.value
+          ? 'bg-primary/10 text-primary border-primary/30'
+          : 'text-gray-500 border-gray-200 hover:bg-gray-100 dark:text-gray-400 dark:border-gray-600 dark:hover:bg-gray-700/40'"
+        @click="amountMin = p.value"
+      >
+        {{ p.label }}
+      </button>
+      <!-- 自定义成交额阈值 -->
+      <div class="flex gap-1 items-center">
+        <span class="text-xs text-gray-400">≥</span>
+        <input
+          :value="amountMin || ''"
+          type="number"
+          min="0"
+          step="10"
+          placeholder="自定义"
+          class="input-base w-24 text-xs py-0.5"
+          @input="(e) => {
+            const v = Number((e.target as HTMLInputElement).value)
+            amountMin = Number.isNaN(v) || v < 0 ? 0 : v
+          }"
+        >
+        <span class="text-xs text-gray-400">亿</span>
+      </div>
+    </div>
+
+    <!-- 计数 + 更新时间 -->
+    <div
+      v-if="!pending && !error && sectorCapitalData"
+      class="text-xs text-gray-400 font-mono mb-2 flex flex-wrap gap-x-3 gap-y-1 items-center justify-between"
+    >
+      <span>共 {{ sectorCapitalData.count }} 个板块，命中筛选 {{ filteredSectors.length }} 个</span>
+      <span v-if="lastUpdated" class="inline-flex gap-1 items-center">
+        <div class="i-carbon-time text-gray-400" />
+        更新于 {{ lastUpdated.toLocaleTimeString('zh-CN', { hour12: false }) }}
+      </span>
     </div>
 
     <!-- Loading / Error -->
