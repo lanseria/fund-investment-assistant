@@ -39,6 +39,8 @@ onUnmounted(() => {
   <NuxtLayout>
     <NuxtPage />
   </NuxtLayout>
+  <!-- 全局「回到顶部」按钮（仅登录用户可见）：与 AI 助手按钮并排，错开到右侧 -->
+  <BackToTop v-if="authStore.isAuthenticated" />
   <!-- 全局 AI 对话助手悬浮入口（仅登录用户可见） -->
   <AiChatWidget v-if="authStore.isAuthenticated" />
   <!-- 全局 Toast 通知容器 -->

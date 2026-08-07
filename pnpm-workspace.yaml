@@ -11,13 +11,13 @@ trustPolicyExclude:
 packages: []
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.18.0
-    '@types/pg': ^8.20.0
+    '@nuxtjs/mcp-toolkit': ^0.18.1
+    '@types/pg': ^8.20.4
     argon2: ^0.45.1
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^7.1.0
+    openai: ^7.4.0
     pg: ^8.22.0
     secure-exec: ^0.3.3
   build:
@@ -28,7 +28,7 @@ catalogs:
     '@unocss/nuxt': ^66.7.5
     '@unocss/preset-web-fonts': ^66.7.5
     '@vueuse/nuxt': ^14.4.0
-    nuxt: ^4.5.1
+    nuxt: ^4.5.2
     unocss: ^66.7.5
   dev:
     '@antfu/eslint-config': ^9.2.0
@@ -37,7 +37,7 @@ catalogs:
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^4.1.10
-    vue-tsc: ^3.3.8
+    vue-tsc: ^3.3.9
   frontend:
     '@vueuse/components': ^14.4.0
     '@vueuse/core': ^14.4.0
@@ -45,10 +45,10 @@ catalogs:
     markdown-exit: ^1.1.0-beta.2
     nuxt-echarts: ^1.0.1
     pinia: ^4.0.2
-    vue: ^3.5.40
+    vue: ^3.5.41
     vue-echarts: ^8.0.1
   icons:
-    '@iconify-json/carbon': ^1.2.24
+    '@iconify-json/carbon': ^1.2.25
     '@iconify-json/f7': ^1.2.2
     '@iconify-json/twemoji': ^1.2.5
   utils:

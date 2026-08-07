@@ -15,7 +15,12 @@ const disableScheduler
 
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY ?? '0 2 * * *'
-const syncEstimateCron = env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 9-15 * * *' // 默认改为半小时一次，主要依赖客户端轮询
+// 同步盘中估值: 9:30 - 16:30 每半小时 (9:30 开盘单独触发 + 10:00-16:30 每半小时)
+// 支持逗号分隔多个 cron，便于 env 覆盖时灵活配置
+const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '30 9 * * *,*/30 10-16 * * *')
+  .split(',')
+  .map(c => c.trim())
+  .filter(Boolean)
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
 // AI 自动交易: 工作日 14:30
@@ -29,8 +34,10 @@ const syncSectorCapitalCron = env.CRON_SECTOR_SYNC_CAPITAL ?? '30 15 * * 1-5'
 if (!disableScheduler && syncHistoryCron) {
   scheduledTasks[syncHistoryCron] = ['fund:syncHistory']
 }
-if (!disableScheduler && syncEstimateCron) {
-  scheduledTasks[syncEstimateCron] = ['fund:syncEstimate']
+if (!disableScheduler && syncEstimateCrons.length) {
+  for (const cron of syncEstimateCrons) {
+    scheduledTasks[cron] = ['fund:syncEstimate']
+  }
 }
 if (!disableScheduler && runStrategiesCron) {
   scheduledTasks[runStrategiesCron] = ['fund:runStrategies']
