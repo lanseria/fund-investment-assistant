@@ -1,6 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { SectorBinding, SectorCapitalItem, SectorCapitalResponse, SectorType } from '~/types/sector'
+import { useLocalStorage } from '@vueuse/core'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { apiFetch } from '~/utils/api'
 import { CHANGE_LEGEND, formatChange, getChangeColorClass } from '~/utils/format'
@@ -158,7 +159,7 @@ const actionFilter = ref<(typeof actionFilters)[number]>('全部')
 // 搜索（按板块名/代码子串匹配）
 const search = ref('')
 
-// 成交额过滤（单位：亿元，0 / 空 = 不限）
+// 成交额过滤（单位：亿元，0 / 空 = 不限）— 持久化到本地浏览器
 const amountPresets = [
   { label: '不限', value: 0 },
   { label: '≥10亿', value: 10 },
@@ -166,7 +167,7 @@ const amountPresets = [
   { label: '≥100亿', value: 100 },
   { label: '≥500亿', value: 500 },
 ]
-const amountMin = ref(0)
+const amountMin = useLocalStorage('sector-capital-amount-min', 0)
 
 // 数据最近更新时间（客户端成功抓取时刻；上游为盘中实时数据，无自带时间戳）
 const lastUpdated = ref<Date | null>(null)
@@ -353,7 +354,7 @@ function getActionClass(action: string): string {
           min="0"
           step="10"
           placeholder="自定义"
-          class="input-base w-24 text-xs py-0.5"
+          class="text-xs input-base py-0.5 w-24"
           @input="(e) => {
             const v = Number((e.target as HTMLInputElement).value)
             amountMin = Number.isNaN(v) || v < 0 ? 0 : v

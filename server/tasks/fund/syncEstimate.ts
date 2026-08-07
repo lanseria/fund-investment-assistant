@@ -1,4 +1,6 @@
 // server/tasks/fund/syncEstimate.ts
+import { format } from 'date-fns'
+import { isTradingDay } from '~~/shared/market'
 
 export default defineTask({
   meta: {
@@ -6,6 +8,13 @@ export default defineTask({
     description: '盘中定时同步所有基金的实时估值 (更新公共 funds 表)',
   },
   async run() {
+    // --- 交易日检查 ---
+    const check = isTradingDay()
+    if (!check.isTrading) {
+      console.log(`[syncEstimate] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
+      return { result: 'Skipped', reason: check.reason }
+    }
+
     // 调用我们封装好的批量处理函数
     const result = await syncAllFundsEstimates()
     // 任务完成后，通过 mitt 发出事件通知
@@ -18,6 +27,6 @@ export default defineTask({
       }
     }
 
-    return { result }
+    return { result: `Success (total: ${result.total}, success: ${result.success}, failed: ${result.failed})` }
   },
 })
