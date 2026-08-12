@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HoldingHistoryPoint } from '~/types/holding'
+import type { SectorCapitalHistoryResponse } from '~/types/sector'
 
 defineProps<{
   history: HoldingHistoryPoint[]
@@ -8,6 +9,8 @@ defineProps<{
   title: string
   dataZoomStart: number
   dataZoomEnd: number
+  /** 板块主力行为历史（可选）。传入后将作为子图叠加在走势图下方 */
+  sectorHistory?: SectorCapitalHistoryResponse['history']
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -29,6 +32,7 @@ function handleTransactionClick(tx: any) {
       :title="title"
       :data-zoom-start="dataZoomStart"
       :data-zoom-end="dataZoomEnd"
+      :sector-history="sectorHistory"
       @signal-click="handleSignalClick"
       @transaction-click="handleTransactionClick"
     />

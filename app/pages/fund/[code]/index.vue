@@ -42,6 +42,14 @@ const { data: sectorCapitalHistoryData, pending: sectorHistoryPending } = useAsy
   },
 )
 
+// 板块主力行为历史：仅当已绑定东财板块且有快照数据时，才合并到基础走势图中
+const mergedSectorHistory = computed(() => {
+  const d = sectorCapitalHistoryData.value
+  if (d && d.bound && d.history.dates.length > 0)
+    return d.history
+  return undefined
+})
+
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
   if (holdingStore.holdings.length === 0) {
@@ -491,12 +499,13 @@ watch(data, (newData) => {
     </div>
 
     <div v-else-if="data" class="space-y-8">
-      <!-- 监听 transaction-click 事件 -->
+      <!-- 监听 transaction-click 事件；板块主力行为数据存在时合并为同一张图 -->
       <GenericStrategyChart
         :history="data.base.history"
         :signals="data.base.signals"
         :transactions="(data.base as any).transactions"
-        :title="`基金 ${fundName} - 基础走势`"
+        :title="`基金 ${fundName} - 基础走势${mergedSectorHistory && sectorCapitalHistoryData?.sectorName ? ` · 板块「${sectorCapitalHistoryData.sectorName}」主力行为` : ''}`"
+        :sector-history="mergedSectorHistory"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
@@ -525,10 +534,10 @@ watch(data, (newData) => {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- 板块主力行为回顾（独立于策略图表，依赖基金所属板块是否已绑定东财板块） -->
+    <!-- 板块主力行为：摘要与状态（图表已合并到上方「基础走势」走势图中） -->
     <div v-if="fundSector" class="mt-8 p-4 card sm:p-6">
       <h2 class="text-lg font-bold mb-1">
-        板块主力行为回顾
+        板块主力行为 · 摘要
         <span class="text-sm text-gray-500 font-normal dark:text-gray-400">
           · {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundSector) }}
         </span>
@@ -563,14 +572,16 @@ watch(data, (newData) => {
       </div>
 
       <!-- 加载中 -->
-      <div v-else-if="sectorHistoryPending" class="flex h-60 items-center justify-center">
+      <div v-else-if="sectorHistoryPending" class="flex h-40 items-center justify-center">
         <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
       </div>
 
-      <!-- 图表 -->
-      <div v-else-if="sectorCapitalHistoryData && sectorCapitalHistoryData.history.dates.length > 0">
-        <!-- 最新摘要 -->
-        <div v-if="sectorCapitalHistoryData.latest" class="text-sm mb-3 flex flex-wrap gap-x-6 gap-y-1">
+      <!-- 最新摘要（完整历史曲线已合并展示在上方「基础走势」图中：净值 / 主力强度 / 主力资金） -->
+      <div
+        v-else-if="sectorCapitalHistoryData && sectorCapitalHistoryData.history.dates.length > 0"
+        class="text-sm flex flex-wrap gap-x-6 gap-y-2 items-center"
+      >
+        <template v-if="sectorCapitalHistoryData.latest">
           <span class="text-gray-500 dark:text-gray-400">
             最新 ({{ sectorCapitalHistoryData.latest.date }}):
           </span>
@@ -595,11 +606,10 @@ watch(data, (newData) => {
               {{ (sectorCapitalHistoryData.latest.mainCapital ?? 0).toFixed(2) }} 亿
             </span>
           </span>
-        </div>
-        <SectorCapitalChart
-          :data="sectorCapitalHistoryData.history"
-          :title="`板块 ${sectorCapitalHistoryData.sectorName ?? ''} - 主力行为回顾`"
-        />
+        </template>
+        <span class="text-xs text-gray-400">
+          完整历史曲线见上方「基础走势」图（净值 / 主力强度 / 主力资金 共享同一条时间轴）。
+        </span>
       </div>
     </div>
 

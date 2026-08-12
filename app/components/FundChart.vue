@@ -2,6 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
 import type { HoldingHistoryPoint } from '~/types/holding'
+import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, parseISO } from 'date-fns'
 import { formatCurrency } from '~/utils/format'
 
@@ -12,9 +13,26 @@ const props = defineProps<{
   title: string
   dataZoomStart: number
   dataZoomEnd: number
+  /** 板块主力行为历史（可选）。传入后将以子图形式叠加在走势图下方，与净值共享同一条时间轴 */
+  sectorHistory?: SectorCapitalHistoryResponse['history']
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
+// 板块主力行为 → 配色与缩写（用于主力强度子图的 markPoint 标注）
+const sectorActionStyle: Record<string, { color: string, label: string }> = {
+  抢筹: { color: '#ef4444', label: '抢' },
+  建仓: { color: '#f97316', label: '建' },
+  洗盘: { color: '#9ca3af', label: '洗' },
+  出货: { color: '#22c55e', label: '出' },
+}
+// 主力强度配色：正值偏多 → 红，负值偏空 → 绿
+const STRENGTH_COLOR_POS = '#ef4444'
+const STRENGTH_COLOR_NEG = '#22c55e'
+
+const hasSector = computed(() => {
+  const h = props.sectorHistory
+  return !!h && h.dates.length > 0
+})
 
 const colorMode = useColorMode()
 provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
@@ -219,120 +237,318 @@ function buildTransactionBarSeries(dates: string[]) {
 }
 
 const chartOption = computed<EChartsOption>(() => {
-  const dates = props.history.map(p => p.date)
-  const navs = props.history.map(p => p.nav)
-  const ma5 = props.history.map(p => p.ma5)
-  const ma10 = props.history.map(p => p.ma10)
-  const ma20 = props.history.map(p => p.ma20)
-  const ma120 = props.history.map(p => p.ma120)
-  const transactionBarSeries = buildTransactionBarSeries(dates)
-
   const isDark = colorMode.value === 'dark'
   const textColor = isDark ? '#d1d5db' : '#374151'
   const gridColor = isDark ? '#4b5563' : '#e5e7eb'
 
-  return {
-    title: { text: props.title, left: 'center', textStyle: { color: textColor } },
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'cross' },
-      formatter: (params: any) => {
-        const list = Array.isArray(params) ? params : [params]
-        if (list.length === 0)
-          return ''
+  // --- 基金走势：按日期建索引 ---
+  const fundByDate = new Map<string, HoldingHistoryPoint>()
+  props.history.forEach(p => fundByDate.set(p.date, p))
 
-        const date = list[0]?.axisValueLabel || list[0]?.axisValue || ''
-        const lines = [`<b>${date}</b>`]
-        const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出']
+  // --- 统一时间轴：基金日期 ∪ 板块日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
+  const fundDates = props.history.map(p => p.date)
+  const sectorDates = hasSector.value ? props.sectorHistory!.dates : []
+  const allDates = hasSector.value
+    ? Array.from(new Set([...fundDates, ...sectorDates])).sort()
+    : fundDates
 
-        list
-          .filter((item: any) => item?.value !== null && item?.value !== undefined)
-          .sort((a: any, b: any) => seriesOrder.indexOf(a.seriesName) - seriesOrder.indexOf(b.seriesName))
-          .forEach((item: any) => {
-            if (item.seriesType === 'bar') {
-              const amount = Number(item.value)
-              if (Number.isNaN(amount) || amount === 0)
-                return
-              const absAmount = Math.abs(amount)
-              const direction = amount < 0 ? '流出' : '流入'
-              lines.push(`${item.marker}${item.seriesName}: ${formatCurrency(absAmount)} <span style="color:${textColor}">(${direction})</span>`)
-              return
+  // 基金序列对齐到 allDates（板块独有日期补 null）
+  const pointAt = (d: string) => fundByDate.get(d)
+  const navData = allDates.map(d => pointAt(d)?.nav ?? null)
+  const ma5Data = allDates.map(d => pointAt(d)?.ma5 ?? null)
+  const ma10Data = allDates.map(d => pointAt(d)?.ma10 ?? null)
+  const ma20Data = allDates.map(d => pointAt(d)?.ma20 ?? null)
+  const ma120Data = allDates.map(d => pointAt(d)?.ma120 ?? null)
+
+  const transactionBarSeries = buildTransactionBarSeries(allDates)
+
+  // --- 板块主力行为数据（可选）：按日期建索引并对齐到 allDates ---
+  const sectorByDate = new Map<string, { strength: number | null, capital: number | null, hidden: number | null, action: string }>()
+  if (hasSector.value) {
+    const h = props.sectorHistory!
+    h.dates.forEach((d, i) => {
+      sectorByDate.set(d, {
+        strength: h.mainStrength[i] ?? null,
+        capital: h.mainCapital[i] ?? null,
+        hidden: h.mainHidden[i] ?? null,
+        action: h.actions[i] ?? '',
+      })
+    })
+  }
+  const strengthData = allDates.map(d => sectorByDate.get(d)?.strength ?? null)
+  const capitalData = allDates.map(d => sectorByDate.get(d)?.capital ?? null)
+  const hiddenData = allDates.map(d => sectorByDate.get(d)?.hidden ?? null)
+
+  // 主力行为 markPoint（仅在有强度的日期标注抢/建/洗/出）
+  const actionMarks = hasSector.value
+    ? (props.sectorHistory!.dates
+        .map((date, i) => {
+          const action = props.sectorHistory!.actions[i]
+          const strength = props.sectorHistory!.mainStrength[i]
+          const style = action ? sectorActionStyle[action] : null
+          if (!style || strength === null || strength === undefined)
+            return null
+          return {
+            coord: [date, strength],
+            itemStyle: { color: style.color },
+            label: { formatter: style.label },
+          }
+        })
+        .filter(Boolean) as { coord: [string, number], itemStyle: { color: string }, label: { formatter: string } }[])
+    : []
+
+  const strengthMaxAbs = strengthData
+    .filter((v): v is number => v !== null && v !== undefined)
+    .reduce((max, v) => Math.max(max, Math.abs(v)), 0) || 1
+
+  // 统一的 tooltip：合并基金走势与板块主力行为信息
+  const tooltipFormatter = (params: any) => {
+    const list = Array.isArray(params) ? params : [params]
+    if (list.length === 0)
+      return ''
+
+    const date = list[0]?.axisValueLabel || list[0]?.axisValue || ''
+    const lines = [`<b>${date}</b>`]
+
+    const sectorInfo = sectorByDate.get(date)
+    if (sectorInfo?.action) {
+      const c = sectorActionStyle[sectorInfo.action]?.color || '#999'
+      lines.push(`<span style="display:inline-block;padding:1px 5px;border-radius:3px;color:#fff;background:${c};font-size:11px">${sectorInfo.action}</span>`)
+    }
+
+    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘']
+
+    list
+      .filter((item: any) => item?.value !== null && item?.value !== undefined)
+      .sort((a: any, b: any) => seriesOrder.indexOf(a.seriesName) - seriesOrder.indexOf(b.seriesName))
+      .forEach((item: any) => {
+        if (item.seriesType === 'bar') {
+          const amount = Number(item.value)
+          if (Number.isNaN(amount) || amount === 0)
+            return
+          const absAmount = Math.abs(amount)
+          const direction = amount < 0 ? '流出' : '流入'
+          lines.push(`${item.marker}${item.seriesName}: ${formatCurrency(absAmount)} <span style="color:${textColor}">(${direction})</span>`)
+          return
+        }
+
+        if (item.seriesName === '净值') {
+          lines.push(`${item.marker}净值: ${Number(item.value).toFixed(4)}`)
+          return
+        }
+
+        if (item.seriesName === '主力强度') {
+          const v = Number(item.value)
+          const sign = v > 0 ? '+' : ''
+          lines.push(`${item.marker}主力强度: ${sign}${v.toFixed(2)}%`)
+          return
+        }
+
+        if (item.seriesName === '主力资金' || item.seriesName === '主力暗盘') {
+          const v = Number(item.value)
+          const sign = v > 0 ? '+' : ''
+          lines.push(`${item.marker}${item.seriesName}: ${sign}${v.toFixed(2)} 亿`)
+          return
+        }
+
+        if (typeof item.value === 'number') {
+          lines.push(`${item.marker}${item.seriesName}: ${Number(item.value).toFixed(3)}`)
+        }
+      })
+
+    return lines.join('<br/>')
+  }
+
+  // --- 基金走势序列（净值 + 均线 + 交易量柱），统一绑定到第 0 个网格 ---
+  const fundSeries: any[] = [
+    {
+      name: '净值',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: navData,
+      showSymbol: false,
+      z: 3,
+      markPoint: {
+        symbolKeepAspect: true,
+        data: [
+          ...mapSignalsToMarkPoints('买入')!,
+          ...mapSignalsToMarkPoints('卖出')!,
+          ...mapTransactionsToMarkPoints()!,
+        ],
+        tooltip: {
+          formatter: (params: any) => {
+            if (params.data && params.data.fullData) {
+              const data = params.data.fullData
+              return `<b>${data.signal}信号 (ID: ${data.id})</b><br/>日期: ${data.latestDate}<br/>净值: ${Number(data.latestClose).toFixed(4)}<br/>原因: ${data.reason}`
             }
-
-            if (item.seriesName === '净值') {
-              lines.push(`${item.marker}净值: ${Number(item.value).toFixed(4)}`)
-              return
-            }
-
-            if (typeof item.value === 'number') {
-              lines.push(`${item.marker}${item.seriesName}: ${Number(item.value).toFixed(3)}`)
-            }
-          })
-
-        return lines.join('<br/>')
+            return params.name
+          },
+        },
+        zlevel: 10,
       },
     },
+    { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
+    { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
+    { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma20Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
+    { name: 'MA120', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma120Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
+    ...transactionBarSeries,
+  ]
+
+  // --- 无板块数据：保持原有单图布局，行为与之前一致 ---
+  if (!hasSector.value) {
+    return {
+      title: { text: props.title, left: 'center', textStyle: { color: textColor } },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+      legend: {
+        data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出'],
+        top: 40,
+        type: 'scroll',
+        textStyle: { color: textColor },
+      },
+      grid: { top: 86, left: '10%', right: '12%', bottom: '18%' },
+      xAxis: { type: 'category', data: allDates, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: gridColor } } },
+      yAxis: [
+        {
+          type: 'value',
+          scale: true,
+          axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
+          splitLine: { lineStyle: { color: gridColor } },
+        },
+        {
+          type: 'value',
+          scale: true,
+          position: 'right',
+          axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+          splitLine: { show: false },
+          axisLine: { lineStyle: { color: gridColor } },
+        },
+      ],
+      dataZoom: [
+        { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
+        { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
+      ],
+      series: fundSeries,
+    } as EChartsOption
+  }
+
+  // --- 有板块数据：三宫格布局（净值 / 主力强度 / 主力资金+暗盘）共享时间轴 ---
+  const strengthSeriesIndex = fundSeries.length // 主力强度序列在 series 数组中的下标，供 visualMap 使用
+
+  const sectorSeries: any[] = [
+    {
+      name: '主力强度',
+      type: 'line',
+      xAxisIndex: 1,
+      yAxisIndex: 2,
+      data: strengthData,
+      showSymbol: false,
+      lineStyle: { width: 2 },
+      markLine: {
+        silent: true,
+        symbol: 'none',
+        data: [{ yAxis: 0, lineStyle: { color: gridColor, type: 'dashed' } }],
+      },
+      markPoint: {
+        symbol: 'circle',
+        symbolSize: 22,
+        data: actionMarks,
+        label: {
+          show: true,
+          color: '#fff',
+          fontSize: 11,
+          fontWeight: 'bold' as const,
+        },
+      },
+    },
+    {
+      name: '主力资金',
+      type: 'line',
+      xAxisIndex: 2,
+      yAxisIndex: 3,
+      data: capitalData,
+      showSymbol: false,
+      lineStyle: { color: '#ef4444', width: 1.5 },
+    },
+    {
+      name: '主力暗盘',
+      type: 'line',
+      xAxisIndex: 2,
+      yAxisIndex: 3,
+      data: hiddenData,
+      showSymbol: false,
+      lineStyle: { color: '#f97316', width: 1.5 },
+    },
+  ]
+
+  return {
+    title: { text: props.title, left: 'center', textStyle: { color: textColor } },
+    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
     legend: {
-      data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出'],
+      data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘'],
       top: 40,
       type: 'scroll',
       textStyle: { color: textColor },
     },
-    grid: { top: 86, left: '10%', right: '12%', bottom: '18%' },
-    xAxis: { type: 'category', data: dates, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: gridColor } } },
+    axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    visualMap: {
+      show: false,
+      type: 'continuous',
+      seriesIndex: strengthSeriesIndex,
+      min: -strengthMaxAbs,
+      max: strengthMaxAbs,
+      calculable: false,
+      inRange: { color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS] },
+    },
+    grid: [
+      { top: '12%', left: '8%', right: '9%', height: '38%' },
+      { top: '54%', left: '8%', right: '9%', height: '15%' },
+      { top: '73%', left: '8%', right: '9%', height: '13%' },
+    ],
+    xAxis: [
+      { type: 'category', gridIndex: 0, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
+      { type: 'category', gridIndex: 1, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
+      { type: 'category', gridIndex: 2, data: allDates, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
+    ],
     yAxis: [
       {
         type: 'value',
+        gridIndex: 0,
         scale: true,
+        axisLine: { show: true, lineStyle: { color: gridColor } },
         axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
         splitLine: { lineStyle: { color: gridColor } },
       },
       {
         type: 'value',
+        gridIndex: 0,
         scale: true,
         position: 'right',
+        axisLine: { lineStyle: { color: gridColor } },
         axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
         splitLine: { show: false },
-        axisLine: { lineStyle: { color: gridColor } },
+      },
+      {
+        type: 'value',
+        gridIndex: 1,
+        axisLine: { show: true, lineStyle: { color: gridColor } },
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor, formatter: '{value}%' },
+      },
+      {
+        type: 'value',
+        gridIndex: 2,
+        axisLine: { show: true, lineStyle: { color: gridColor } },
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor },
       },
     ],
     dataZoom: [
-      { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
-      { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
+      { type: 'inside', xAxisIndex: [0, 1, 2], start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
+      { type: 'slider', xAxisIndex: [0, 1, 2], start: props.dataZoomStart, end: props.dataZoomEnd, bottom: 8, height: 22 },
     ],
-    series: [
-      {
-        name: '净值',
-        type: 'line',
-        data: navs,
-        showSymbol: false,
-        z: 3,
-        markPoint: {
-          symbolKeepAspect: true,
-          data: [
-            ...mapSignalsToMarkPoints('买入')!,
-            ...mapSignalsToMarkPoints('卖出')!,
-            ...mapTransactionsToMarkPoints()!,
-          ],
-          tooltip: {
-            formatter: (params: any) => {
-              if (params.data && params.data.fullData) {
-                const data = params.data.fullData
-                return `<b>${data.signal}信号 (ID: ${data.id})</b><br/>日期: ${data.latestDate}<br/>净值: ${Number(data.latestClose).toFixed(4)}<br/>原因: ${data.reason}`
-              }
-              return params.name
-            },
-          },
-          zlevel: 10,
-        },
-      },
-      { name: 'MA5', type: 'line', data: ma5, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-      { name: 'MA10', type: 'line', data: ma10, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-      { name: 'MA20', type: 'line', data: ma20, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-      { name: 'MA120', type: 'line', data: ma120, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-      ...transactionBarSeries,
-    ],
-  }
+    series: [...fundSeries, ...sectorSeries],
+  } as EChartsOption
 })
 
 function handleChartClick(params: any) {
@@ -349,5 +565,5 @@ function handleChartClick(params: any) {
 </script>
 
 <template>
-  <VChartFull class="h-100 w-full" :option="chartOption" autoresize @click="handleChartClick" />
+  <VChartFull class="w-full" :class="hasSector ? 'h-160' : 'h-100'" :option="chartOption" autoresize @click="handleChartClick" />
 </template>

@@ -12,16 +12,16 @@ packages: []
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.18.1
-    '@types/pg': ^8.20.4
+    '@types/pg': ^8.21.0
     argon2: ^0.45.1
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
     openai: ^7.4.0
-    pg: ^8.22.0
+    pg: ^8.23.0
     secure-exec: ^0.3.3
   build:
-    '@nuxt/eslint': ^1.16.0
+    '@nuxt/eslint': ^1.17.0
     '@nuxtjs/color-mode': ^4.0.1
     '@pinia/nuxt': ^1.0.1
     '@unocss/eslint-config': ^66.7.5
@@ -31,9 +31,9 @@ catalogs:
     nuxt: ^4.5.2
     unocss: ^66.7.5
   dev:
-    '@antfu/eslint-config': ^9.2.0
+    '@antfu/eslint-config': ^9.3.0
     '@nuxt/test-utils': ^4.1.0
-    eslint: ^10.8.0
+    eslint: ^10.8.1
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^4.1.10
@@ -46,7 +46,7 @@ catalogs:
     nuxt-echarts: ^1.0.1
     pinia: ^4.0.2
     vue: ^3.5.41
-    vue-echarts: ^8.0.1
+    vue-echarts: ^8.1.0
   icons:
     '@iconify-json/carbon': ^1.2.25
     '@iconify-json/f7': ^1.2.2
