@@ -15,9 +15,9 @@ const disableScheduler
 
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY ?? '0 2 * * *'
-// 同步盘中估值: 9:30 - 16:30 每半小时 (9:30 开盘单独触发 + 10:00-16:30 每半小时)
+// 同步盘中估值: 10:00 - 16:30 每半小时 (10:00-16:30 每半小时)
 // 支持逗号分隔多个 cron，便于 env 覆盖时灵活配置
-const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '30 9 * * *,*/30 10-16 * * *')
+const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
   .split(',')
   .map(c => c.trim())
   .filter(Boolean)
