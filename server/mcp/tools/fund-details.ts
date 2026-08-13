@@ -1,7 +1,7 @@
 import { format, subDays } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
-import { funds, strategySignals } from '~~/server/database/schemas'
+import { funds, sectorBindings, sectorCapitalHistory, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { getHistoryWithMA } from '~~/server/utils/holdingAnalysis'
 
@@ -17,7 +17,7 @@ interface FundHistoryPoint {
 
 export default defineMcpTool({
   name: 'get_fund_details',
-  description: '获取指定基金的深度诊断信息，包含：基础信息、MA均线数据（MA5/MA20）、最近30天的净值走势以及RSI/布林带等策略信号。',
+  description: '获取指定基金的深度诊断信息，包含：基础信息、MA均线数据（MA5/MA20）、最近30天的净值走势、RSI/布林带等策略信号，以及所属板块的主力资金行为（抢筹/建仓/洗盘/出货、主力强度、主力净流入、暗盘等）。',
   inputSchema: {
     fundCode: z.string().describe('基金代码 (例如 "161725")'),
     days: z.number().optional().default(30).describe('获取历史数据的天数，默认为30天'),
@@ -79,7 +79,55 @@ export default defineMcpTool({
       }
     })
 
-    // 5. 组装返回数据
+    // 5. 获取该基金所属板块的主力资金行为
+    // fund.sector 为项目板块 dictValue，需先通过 sector_bindings 找到对应东财板块代码，
+    // 再从 sector_capital_daily 取最近的主力资金快照（与 /api/sectors/[dictValue]/history 逻辑一致）。
+    let sectorCapital: Record<string, any> = { bound: false }
+    if (fund.sector) {
+      const binding = await db.query.sectorBindings.findFirst({
+        where: eq(sectorBindings.dictValue, fund.sector),
+      })
+
+      if (binding) {
+        // 取最近 10 条（按日期倒序），随后反转为升序便于阅读短期趋势
+        const recentRecords = await db.query.sectorCapitalHistory.findMany({
+          where: eq(sectorCapitalHistory.sectorCode, binding.sectorCode),
+          orderBy: [desc(sectorCapitalHistory.date)],
+          limit: 10,
+        })
+        recentRecords.reverse()
+
+        // 升序后最后一条即最新交易日
+        const latestRecord = recentRecords[recentRecords.length - 1]
+        sectorCapital = {
+          sector: fund.sector,
+          bound: true,
+          sector_code: binding.sectorCode,
+          sector_name: binding.sectorName ?? latestRecord?.sectorName ?? null,
+          sector_type: binding.sectorType,
+          latest: latestRecord
+            ? {
+                date: latestRecord.date,
+                main_action: latestRecord.mainAction, // 抢筹 / 建仓 / 洗盘 / 出货
+                main_strength: latestRecord.mainStrength !== null ? Number(latestRecord.mainStrength) : null,
+                main_capital: latestRecord.mainCapital !== null ? Number(latestRecord.mainCapital) : null,
+                main_hidden: latestRecord.mainHidden !== null ? Number(latestRecord.mainHidden) : null,
+                change_percent: latestRecord.changePercent !== null ? Number(latestRecord.changePercent) : null,
+              }
+            : null,
+          recent_trend: recentRecords.map(r => ({
+            date: r.date,
+            main_action: r.mainAction,
+            main_strength: r.mainStrength !== null ? Number(r.mainStrength) : null,
+          })),
+        }
+      }
+      else {
+        sectorCapital = { sector: fund.sector, bound: false }
+      }
+    }
+
+    // 6. 组装返回数据
     // history 是按时间正序排列的 (旧 -> 新)，所以最后一个是最新的
     const currentPoint = history.length > 0 ? history.at(-1) : null
 
@@ -115,6 +163,7 @@ export default defineMcpTool({
             latest_nav: currentPoint?.nav,
             latest_date: currentPoint?.date,
           },
+          sector_capital: sectorCapital,
           technical_analysis: {
             ma5: currentPoint?.ma5,
             ma20: currentPoint?.ma20,

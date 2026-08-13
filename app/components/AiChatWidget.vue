@@ -102,6 +102,7 @@ const QUICK_PROMPTS = [
   { text: '查看我的持仓', icon: 'i-carbon-portfolio' },
   { text: '今天大盘怎么样？', icon: 'i-carbon-chart-line-smooth' },
   { text: '诊断基金 161725', icon: 'i-carbon-analytics' },
+  { text: '分析我的自选和持仓中，板块主力资金走强的基金', icon: 'i-carbon-growth' },
 ]
 function sendQuick(text: string) {
   inputText.value = text
