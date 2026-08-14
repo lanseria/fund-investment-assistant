@@ -9,13 +9,18 @@ import { formatCurrency } from '~/utils/format'
 withDefaults(defineProps<{
   /** 单笔交易记录 */
   tx: any
-  /** 是否显示"操作"列（如撤销按钮），默认不显示 */
+  /** 是否显示"操作"列（如确认预操作、撤销按钮），默认不显示 */
   showActions?: boolean
+  /** 该行操作处理中（禁用按钮并显示 loading） */
+  busy?: boolean
 }>(), {
   showActions: false,
+  busy: false,
 })
 
 const emit = defineEmits<{
+  /** 确认预操作（draft 转为 pending，点击确认按钮时触发） */
+  (e: 'confirm', tx: any): void
   /** 撤销交易（点击撤销按钮时触发） */
   (e: 'delete', tx: any): void
 }>()
@@ -103,11 +108,22 @@ function getActionLabel(type: string) {
       <span v-else class="text-gray-300">-</span>
     </div>
 
-    <!-- 6. 操作列（可选：撤销） -->
-    <div v-if="showActions" class="flex-shrink-0 sm:text-right sm:w-16">
+    <!-- 6. 操作列（可选：确认预操作 / 撤销） -->
+    <div v-if="showActions" class="flex flex-shrink-0 gap-2 items-center sm:w-28 sm:justify-end">
+      <button
+        v-if="tx.status === 'draft'"
+        class="text-xs text-purple-600 px-2 py-0.5 border border-purple-200 rounded flex gap-0.5 transition-colors items-center dark:text-purple-400 dark:border-purple-800 hover:bg-purple-50 disabled:op-50 disabled:cursor-default dark:hover:bg-gray-700"
+        :disabled="busy"
+        title="确认此预操作，转为待处理"
+        @click="emit('confirm', tx)"
+      >
+        <span v-if="busy" class="i-carbon-circle-dash animate-spin" />
+        确认
+      </button>
       <button
         v-if="tx.status === 'pending' || tx.status === 'draft'"
-        class="text-xs text-red-500 hover:text-red-600 hover:underline"
+        class="text-xs text-red-500 hover:text-red-600 disabled:op-50 hover:underline disabled:cursor-default"
+        :disabled="busy"
         title="撤销此交易"
         @click="emit('delete', tx)"
       >

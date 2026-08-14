@@ -153,22 +153,24 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
         <!-- dialog 模式的背景遮罩 -->
         <div
           v-if="chatStore.displayMode === 'dialog'"
-          class="bg-black/50 inset-0 absolute"
+          class="bg-black/50 inset-0 absolute backdrop-blur-sm"
           @click="chatStore.togglePanel()"
         />
 
         <!-- 主容器：panel 右下角 / dialog 居中放大 -->
         <div
-          class="chat-container border rounded-lg bg-white flex flex-col shadow-2xl dark:border-gray-700 dark:bg-gray-800"
+          class="chat-container border border-gray-200 rounded-2xl bg-white flex flex-col shadow-2xl overflow-hidden dark:border-gray-700 dark:bg-gray-800"
           :class="chatStore.displayMode === 'dialog'
             ? 'relative h-[85vh] w-[min(900px,calc(100vw-2rem))]'
             // panel 模式重新启用点击，并 fixed 到右下角
             : 'pointer-events-auto h-[600px] w-[400px] max-h-[calc(100vh-8rem)] max-w-[calc(100vw-2rem)] bottom-24 right-6 fixed'"
         >
           <!-- 顶栏 -->
-          <div class="px-4 py-3 border-b flex shrink-0 items-center justify-between dark:border-gray-700">
-            <div class="flex gap-2 min-w-0 items-center">
-              <div class="i-carbon-chat-bot text-xl text-primary shrink-0" />
+          <div class="px-4 py-3 border-b border-gray-200 bg-gray-50/80 flex shrink-0 items-center justify-between dark:border-gray-700 dark:bg-gray-900/40">
+            <div class="flex gap-2.5 min-w-0 items-center">
+              <div class="rounded-lg bg-primary/10 flex shrink-0 h-8 w-8 items-center justify-center dark:bg-primary/20">
+                <div class="i-carbon-chat-bot text-lg text-primary" />
+              </div>
               <span class="font-bold truncate">
                 {{ showSessionList ? '历史会话' : (currentSession?.title || 'AI 助手') }}
               </span>
@@ -176,14 +178,14 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
             <div class="flex shrink-0 gap-1 items-center">
               <button
                 v-if="!showSessionList"
-                class="icon-btn p-1.5 rounded"
+                class="icon-btn p-1.5 rounded-md transition-colors hover:bg-gray-200/60 focus-visible:ring-1 focus-visible:ring-primary dark:hover:bg-gray-700"
                 title="历史会话"
                 @click="showSessionList = true"
               >
                 <div class="i-carbon-list" />
               </button>
               <button
-                class="icon-btn p-1.5 rounded"
+                class="icon-btn p-1.5 rounded-md transition-colors hover:bg-gray-200/60 focus-visible:ring-1 focus-visible:ring-primary dark:hover:bg-gray-700"
                 :title="showSessionList ? '返回对话' : '新对话'"
                 @click="showSessionList ? (showSessionList = false) : handleNewChat()"
               >
@@ -191,25 +193,27 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
               </button>
               <!-- 切换展示模式：panel ↔ dialog -->
               <button
-                class="icon-btn p-1.5 rounded"
+                class="icon-btn p-1.5 rounded-md transition-colors hover:bg-gray-200/60 focus-visible:ring-1 focus-visible:ring-primary dark:hover:bg-gray-700"
                 :title="chatStore.displayMode === 'dialog' ? '收起为悬浮窗' : '放大显示'"
                 @click="chatStore.toggleDisplayMode()"
               >
                 <div :class="chatStore.displayMode === 'dialog' ? 'i-carbon-minimize' : 'i-carbon-maximize'" />
               </button>
-              <button class="icon-btn p-1.5 rounded" title="关闭" @click="chatStore.togglePanel()">
+              <button class="icon-btn p-1.5 rounded-md transition-colors hover:bg-gray-200/60 focus-visible:ring-1 focus-visible:ring-primary dark:hover:bg-gray-700" title="关闭" @click="chatStore.togglePanel()">
                 <div class="i-carbon-close" />
               </button>
             </div>
           </div>
 
           <!-- 会话列表视图 -->
-          <div v-if="showSessionList" class="p-2 flex-1 overflow-y-auto">
+          <div v-if="showSessionList" class="nice-scroll p-3 overscroll-contain flex-1 overflow-y-auto space-y-1">
             <button
               v-for="s in chatStore.sessions"
               :key="s.id"
-              class="mb-1 px-3 py-2.5 text-left rounded-md flex gap-2 w-full transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700"
-              :class="{ 'bg-primary/10 dark:bg-primary/20': s.id === chatStore.currentSessionId }"
+              class="px-3 py-2.5 text-left border rounded-lg flex gap-2 w-full transition-colors items-center hover:bg-gray-100 dark:hover:bg-gray-700"
+              :class="s.id === chatStore.currentSessionId
+                ? 'bg-primary/10 border-primary/30 dark:bg-primary/20 dark:border-primary/40'
+                : 'border-transparent'"
               @click="handleSelectSession(s.id)"
             >
               <div class="i-carbon-chat text-gray-400 flex-shrink-0" />
@@ -222,7 +226,8 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
                 </div>
               </div>
               <div
-                class="i-carbon-trash-can text-gray-400 flex-shrink-0 hover:text-red-500"
+                class="i-carbon-trash-can text-gray-400 p-1.5 rounded-md flex-shrink-0 transition-colors hover:text-red-500 hover:bg-red-500/10"
+                title="删除会话"
                 @click.stop="chatStore.deleteSession(s.id)"
               />
             </button>
@@ -234,13 +239,15 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
           <!-- 消息视图 -->
           <template v-else>
             <!-- 消息区 -->
-            <div ref="messagesContainer" class="p-4 flex-1 overflow-y-auto space-y-4">
+            <div ref="messagesContainer" class="nice-scroll p-4 overscroll-contain flex-1 overflow-y-auto space-y-4">
               <!-- 空状态 -->
               <div
                 v-if="chatStore.messages.length === 0"
-                class="text-center flex flex-col gap-4 h-full items-center justify-center"
+                class="px-2 text-center flex flex-col gap-5 h-full items-center justify-center"
               >
-                <div class="i-carbon-chat-bot text-5xl text-primary op-60" />
+                <div class="rounded-full bg-primary/10 flex h-20 w-20 items-center justify-center dark:bg-primary/20">
+                  <div class="i-carbon-chat-bot text-4xl text-primary op-80" />
+                </div>
                 <div>
                   <p class="font-bold mb-1">
                     👋 你好，我是你的 AI 投资助手
@@ -249,15 +256,15 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
                     可以问我持仓、行情，或让我帮你下单
                   </p>
                 </div>
-                <div class="flex flex-col gap-2 w-full">
+                <div class="flex flex-col gap-2 max-w-md w-full">
                   <button
                     v-for="p in QUICK_PROMPTS"
                     :key="p.text"
-                    class="text-sm px-3 py-2 border rounded-md flex gap-2 transition-colors items-center dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700"
+                    class="text-sm px-3 py-2.5 border border-gray-200 rounded-lg flex gap-2 transition-all duration-200 items-center dark:border-gray-600 hover:border-primary/50 hover:bg-primary/5 disabled:op-50 disabled:pointer-events-none active:scale-[0.98] dark:hover:bg-primary/10"
                     :disabled="chatStore.isStreaming"
                     @click="sendQuick(p.text)"
                   >
-                    <div :class="p.icon" class="text-primary" />
+                    <div :class="p.icon" class="text-primary shrink-0" />
                     {{ p.text }}
                   </button>
                 </div>
@@ -267,7 +274,7 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
               <div
                 v-for="(msg, idx) in chatStore.messages"
                 :key="idx"
-                class="flex flex-col"
+                class="flex flex-col gap-2"
                 :class="msg.role === 'user' ? 'items-end' : 'items-start'"
               >
                 <!-- 工具调用卡片（仅 assistant） -->
@@ -275,34 +282,34 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
                   <div
                     v-for="tc in msg.toolCalls"
                     :key="tc.toolCallId"
-                    class="text-sm mb-1 border rounded-md w-full overflow-hidden dark:border-gray-600"
+                    class="text-sm border border-gray-200 rounded-lg w-full overflow-hidden dark:border-gray-600"
                   >
                     <button
-                      class="px-3 py-2 bg-gray-50 flex gap-2 w-full transition-colors items-center dark:bg-gray-900/50 hover:bg-gray-100 dark:hover:bg-gray-900"
+                      class="px-3 py-2 bg-gray-50 flex gap-2 w-full transition-colors items-center dark:bg-gray-900/40 hover:bg-gray-100 dark:hover:bg-gray-900/70"
                       @click="toggleResult(tc.toolCallId)"
                     >
                       <div :class="toolMeta(tc.name).icon" class="text-primary shrink-0" />
-                      <span class="font-medium text-left flex-1">{{ toolMeta(tc.name).label }}</span>
-                      <!-- 状态 -->
-                      <span v-if="tc.pending" class="text-xs text-gray-400 flex gap-1 items-center">
-                        <div class="i-carbon-circle-dash animate-spin" /> 执行中
+                      <span class="font-medium text-left flex-1 truncate">{{ toolMeta(tc.name).label }}</span>
+                      <!-- 状态徽章 -->
+                      <span v-if="tc.pending" class="text-xs text-gray-500 px-2 py-0.5 rounded-full bg-gray-500/10 flex shrink-0 gap-1 items-center dark:text-gray-400">
+                        <div class="i-carbon-circle-dash text-sm animate-spin" /> 执行中
                       </span>
-                      <span v-else-if="tc.isError" class="text-xs text-red-500 flex gap-1 items-center">
-                        <div class="i-carbon-close-filled" /> 失败
+                      <span v-else-if="tc.isError" class="text-xs text-red-500 px-2 py-0.5 rounded-full bg-red-500/10 flex shrink-0 gap-1 items-center">
+                        <div class="i-carbon-close-filled text-sm" /> 失败
                       </span>
-                      <span v-else-if="tc.result" class="text-xs text-green-500 flex gap-1 items-center">
-                        <div class="i-carbon-checkmark-filled" /> 完成
+                      <span v-else-if="tc.result" class="text-xs text-green-600 px-2 py-0.5 rounded-full bg-green-500/10 flex shrink-0 gap-1 items-center dark:text-green-400">
+                        <div class="i-carbon-checkmark-filled text-sm" /> 完成
                       </span>
                       <div
                         v-if="tc.result"
-                        class="i-carbon-chevron-down text-xs text-gray-400 transition-transform"
+                        class="i-carbon-chevron-down text-xs text-gray-400 shrink-0 transition-transform"
                         :class="{ 'rotate-180': expandedResults.has(tc.toolCallId) }"
                       />
                     </button>
                     <!-- 工具结果（折叠） -->
                     <div
                       v-if="tc.result && expandedResults.has(tc.toolCallId)"
-                      class="text-xs text-gray-600 font-mono px-3 py-2 bg-gray-50 max-h-48 whitespace-pre-wrap overflow-y-auto dark:text-gray-300 dark:bg-gray-900/30"
+                      class="nice-scroll text-xs text-gray-600 font-mono px-3 py-2 border-t border-gray-200 bg-white max-h-48 whitespace-pre-wrap overflow-y-auto dark:text-gray-300 dark:border-gray-700 dark:bg-gray-900/30"
                     >
                       {{ tc.result }}
                     </div>
@@ -312,36 +319,36 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
                 <!-- 文本气泡 -->
                 <div
                   v-if="msg.content || (msg.role === 'assistant' && msg.streaming && !msg.toolCalls?.length)"
-                  class="text-sm leading-relaxed px-3 py-2 rounded-lg max-w-[85%]"
+                  class="text-sm leading-relaxed px-3.5 py-2 rounded-2xl max-w-[85%] break-words"
                   :class="msg.role === 'user'
-                    ? 'bg-primary text-white rounded-br-none'
-                    : 'bg-gray-100 dark:bg-gray-700 rounded-bl-none'"
+                    ? 'bg-primary text-white rounded-br-sm shadow-sm'
+                    : 'bg-gray-100 dark:bg-gray-700 rounded-bl-sm'"
                 >
                   <template v-if="msg.role === 'user'">
-                    {{ msg.content }}
+                    <span class="whitespace-pre-wrap">{{ msg.content }}</span>
                   </template>
                   <template v-else>
                     <!-- 思考占位 -->
-                    <span v-if="shouldShowQuickPrompts(msg)" class="text-gray-400 flex gap-1 items-center">
-                      <span class="rounded-full bg-gray-400 h-2 w-2 inline-block animate-bounce" style="animation-delay: 0ms" />
-                      <span class="rounded-full bg-gray-400 h-2 w-2 inline-block animate-bounce" style="animation-delay: 150ms" />
-                      <span class="rounded-full bg-gray-400 h-2 w-2 inline-block animate-bounce" style="animation-delay: 300ms" />
+                    <span v-if="shouldShowQuickPrompts(msg)" class="text-gray-400 py-0.5 flex gap-1 items-center">
+                      <span class="rounded-full bg-gray-400 h-1.5 w-1.5 inline-block animate-bounce dark:bg-gray-500" />
+                      <span class="rounded-full bg-gray-400 h-1.5 w-1.5 inline-block [animation-delay:150ms] animate-bounce dark:bg-gray-500" />
+                      <span class="rounded-full bg-gray-400 h-1.5 w-1.5 inline-block [animation-delay:300ms] animate-bounce dark:bg-gray-500" />
                       思考中...
                     </span>
                     <div v-else class="max-w-none prose prose-sm dark:prose-invert" v-html="renderMarkdown(msg.content)" />
                   </template>
                   <!-- 流式光标 -->
-                  <span v-if="msg.role === 'assistant' && msg.streaming && msg.content" class="ml-0.5 align-middle bg-primary h-4 w-1.5 inline-block animate-pulse" />
+                  <span v-if="msg.role === 'assistant' && msg.streaming && msg.content" class="ml-0.5 align-middle rounded-full bg-primary h-4 w-1.5 inline-block animate-pulse" />
                 </div>
               </div>
             </div>
 
             <!-- 输入区 -->
-            <div class="p-3 border-t shrink-0 dark:border-gray-700">
+            <div class="p-3 border-t border-gray-200 bg-gray-50/80 shrink-0 dark:border-gray-700 dark:bg-gray-900/40">
               <div class="flex gap-2 items-end">
                 <textarea
                   v-model="inputText"
-                  class="text-sm input-base flex-1 max-h-32 resize-none"
+                  class="text-sm input-base flex-1 max-h-32 resize-none transition-colors disabled:op-60 disabled:cursor-not-allowed"
                   rows="1"
                   placeholder="输入消息，Enter 发送，Shift+Enter 换行"
                   :disabled="chatStore.isStreaming"
@@ -365,12 +372,61 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
 </template>
 
 <style scoped>
-.chat-panel-enter-active,
+/* 面板过渡：淡入 + 轻微上浮放大 */
+.chat-panel-enter-active {
+  transition:
+    opacity 0.25s ease,
+    transform 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
 .chat-panel-leave-active {
-  transition: opacity 0.25s ease;
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease-in;
 }
 .chat-panel-enter-from,
 .chat-panel-leave-to {
   opacity: 0;
+  transform: translateY(1rem) scale(0.98);
+}
+
+/* 用户偏好减少动效时，仅保留淡入淡出 */
+@media (prefers-reduced-motion: reduce) {
+  .chat-panel-enter-active,
+  .chat-panel-leave-active {
+    transition: opacity 0.2s ease;
+  }
+  .chat-panel-enter-from,
+  .chat-panel-leave-to {
+    transform: none;
+  }
+}
+
+/* 细滚动条（消息区 / 会话列表 / 工具结果） */
+.nice-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 20%) transparent;
+}
+.nice-scroll::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.nice-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.nice-scroll::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 15%);
+  border-radius: 9999px;
+}
+.nice-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 25%);
+}
+.dark .nice-scroll {
+  scrollbar-color: rgb(255 255 255 / 20%) transparent;
+}
+.dark .nice-scroll::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 15%);
+}
+.dark .nice-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 25%);
 }
 </style>
