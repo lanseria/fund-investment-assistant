@@ -357,7 +357,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   const { systemPrompt, userPrompt, fullPromptLog } = await generateAiPrompt(fullHoldingsData, userConfig)
 
   // 5. 确定使用的模型
-  const targetModel = userConfig.model || 'glm-5.2'
+  const targetModel = userConfig.model || 'glm-5.3'
 
   // SDK 内部 maxRetries=3(覆盖 429/5xx),外层 withRetry 再叠加指数退避
   // (覆盖网络抖动、偶发 JSON/Zod 错误等 SDK 不处理的场景)。

@@ -2,7 +2,7 @@ import type { H3Event } from 'h3'
 /**
  * Chat Agent 核心 ReAct 循环（流式）
  * -----------------------------
- * 基于已安装的 OpenAI SDK (OpenRouter/glm-5.2) 实现 tool-calling 多轮循环。
+ * 基于已安装的 OpenAI SDK (OpenRouter/glm-5.3) 实现 tool-calling 多轮循环。
  *
  * 流程：
  *   接收用户消息 → 流式请求 LLM → 逐 token 上推 → 若 LLM 要求调用工具 →
@@ -130,7 +130,7 @@ export async function runChatAgent(
 
     try {
       const stream = await openai.chat.completions.create({
-        model: 'glm-5.2',
+        model: 'glm-5.3',
         messages,
         tools: tools.length > 0 ? tools : undefined,
         temperature: 0.4,
