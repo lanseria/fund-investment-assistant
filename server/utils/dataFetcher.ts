@@ -21,6 +21,7 @@ export interface IntradayPoint {
  * Python 服务 /fund/realtime/{code} 的完整返回结构。
  * 行为变化(2026-07):数据源改为 powercloud 聚合接口后,新增 quoteSource/message 状态标识
  * 与 intraday 分时数据,publishedNav 恢复官方净值填充。
+ * 行为变化(2026-08):新增 holdingsDate/holdings 重仓股持仓明细(报告期持仓 + 最新行情快照)。
  */
 export interface StrategyRealtimeResponse {
   code: string
@@ -35,6 +36,17 @@ export interface StrategyRealtimeResponse {
   quoteSource: 'realtime' | 'history_fallback' | null // 数据来源标识
   message: string // 状态说明(如「QDII暂无盘中估值,展示最近净值」)
   intraday: IntradayPoint[] // 盘中分时数据,非交易时段为空数组
+  holdingsDate: string | null // 重仓股持仓报告期(yyyy-mm-dd)
+  holdings: {
+    code: string // 股票代码
+    name: string // 股票名称
+    pct: string // 占净值比例(带 % 字符串)
+    price: string | null // 最新价
+    change_pct: string | null // 当日涨跌幅(%数值字符串)
+    quote_date: string | null // 行情日期
+    quote_time: string | null // 行情时间(HH:mm:ss,与 quote_date 组合即行情更新时间)
+    [key: string]: unknown
+  }[] | null // 重仓股明细,无股票仓位的基金为 null/空数组
 }
 
 // 天天基金网历史净值API返回的类型

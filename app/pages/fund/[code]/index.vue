@@ -1,6 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
+import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, isAfter, parseISO } from 'date-fns'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
@@ -49,6 +50,13 @@ const mergedSectorHistory = computed(() => {
     return d.history
   return undefined
 })
+
+// 重仓股持仓明细：来自实时估值聚合接口(纯展示不落库)，失败时静默降级为 null 不阻塞页面
+const { data: realtimeHoldings } = await useAsyncData(
+  `fund-realtime-holdings-${code}`,
+  () => apiFetch<FundRealtimeDetail>(`/api/fund/realtime/${code}`).catch(() => null),
+  { default: () => null },
+)
 
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
@@ -489,6 +497,14 @@ watch(data, (newData) => {
         </div>
       </div>
     </div>
+
+    <!-- 重仓股持仓明细(报告期持仓 + 最新行情快照；无股票仓位或数据源不可用时不展示) -->
+    <FundHoldingsPanel
+      v-if="realtimeHoldings?.holdings?.length"
+      class="mb-8"
+      :holdings="realtimeHoldings.holdings"
+      :holdings-date="realtimeHoldings.holdingsDate"
+    />
 
     <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />

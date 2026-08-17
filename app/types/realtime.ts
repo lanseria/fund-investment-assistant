@@ -18,6 +18,28 @@ export interface IntradayPoint {
 /** 数据来源标识 */
 export type QuoteSource = 'realtime' | 'history_fallback' | null
 
+/**
+ * 重仓股持仓明细(来自基金定期报告,价格行情为最新交易日快照)。
+ */
+export interface FundHoldingStock {
+  /** 股票代码(如 600519) */
+  code: string
+  /** 股票名称 */
+  name: string
+  /** 占基金净值比例(带 % 的字符串,如 "17.28%") */
+  pct: string
+  /** 最新价 */
+  price: string | null
+  /** 当日涨跌幅(%数值字符串,如 "-4.23") */
+  change_pct: string | null
+  /** 行情日期(yyyy-mm-dd,停牌股可能落后于其他股票) */
+  quote_date: string | null
+  /** 行情时间(HH:mm:ss,与 quote_date 组合即行情更新时间) */
+  quote_time: string | null
+  /** 数据源可能附带的其他字段 */
+  [key: string]: unknown
+}
+
 /** 基金实时估值完整响应 */
 export interface FundRealtimeDetail {
   /** 基金代码 */
@@ -44,4 +66,8 @@ export interface FundRealtimeDetail {
   message: string
   /** 盘中分时数据,非交易时段为空数组 */
   intraday: IntradayPoint[]
+  /** 重仓股持仓报告期(yyyy-mm-dd,如 2026-06-30) */
+  holdingsDate: string | null
+  /** 重仓股持仓明细(按占净值比降序);无股票仓位的基金(债券/货币等)为 null 或空数组 */
+  holdings: FundHoldingStock[] | null
 }
