@@ -5,6 +5,15 @@ import { z } from 'zod'
 import { getCachedMarketData } from '~~/server/utils/market'
 import { marketGroups } from '~~/shared/market'
 
+/**
+ * AI 买入预算的保底现金:买入总额上限 = max(0, 可用现金 - 保底)。
+ * Prompt 文案与代码层资金风控必须使用同一常量,否则会出现口径不一致。
+ */
+export const AI_CASH_RESERVE = 10000
+
+/** 剩余预算不超过该值时直接丢弃 buy(避免产生零碎订单),与 prompt 约束保持一致 */
+export const AI_MIN_BUY_BUDGET = 10
+
 // --- 1. 定义输出结构 Schema ---
 const TradeDecisionSchema = z.object({
   fundCode: z.string(),
@@ -126,8 +135,10 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   const availableCash = userConfig.availableCash
   const currentInvested = fullHoldingsData.reduce((sum, h) => sum + (Number(h.holdingAmount) || 0), 0)
   const totalAssets = availableCash + currentInvested
-  // 计算真实预算：可用现金减去10000，如果不满足10000则预算为0
-  const availableCashStr = (availableCash - 10000).toFixed(2)
+  // 计算真实预算:预留保底现金(AI_CASH_RESERVE),可用现金不足保底时预算为 0。
+  // 代码层资金风控(getAiTradeDecisions)使用同一常量计算上限,保证口径一致。
+  const budget = Math.max(0, availableCash - AI_CASH_RESERVE)
+  const availableCashStr = budget.toFixed(2)
 
   const currentTimestamp = new Date().toLocaleString()
 
@@ -137,7 +148,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
 - **资金概况**:
   - 总资产: ${totalAssets.toFixed(4)} 元
   - 当前持仓市值: ${currentInvested.toFixed(4)} 元
-  - **可用现金**: **${availableCashStr} 元** (CNY) —— 这是你本次决策的**硬性预算上限**。
+  - **可动用买入预算**: **${availableCashStr} 元** (CNY,= 可用现金 - ${AI_CASH_RESERVE} 元保底备用金,备用金不可动用) —— 这是你本次决策的**硬性预算上限**。
 - **输入数据**:
   1. market_indices: 实时市场指数。
   2. holdings: 当前持仓 (包含量化决策bias20)。
@@ -152,9 +163,9 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
 **核心结算规则（强制遵守）：**
 
 1. **资金风控（最高优先级 - 绝对红线）：**
-   - **禁止超支**：你输出的所有 \`buy\` 决策中， \`amount\` 之和 **严禁超过 ${availableCashStr} 元**。
+   - **禁止超支**：你输出的所有 \`buy\` 决策中， \`amount\` 之和 **严禁超过 ${availableCashStr} 元**(该预算已强制预留保底备用金,即使为 0 也不代表可用现金为 0)。
    - **自我校验**：在输出 JSON 前,请务必在内心计算：Sum(buy.amount) <= ${availableCashStr}。如果超过,必须**削减**每个买入项的金额,或**删除**部分买入建议。
-   - **若余额不足**：如果剩余资金少于 100 元，请不要执行任何买入操作，必须至少留有 100 元的现金。
+   - **若预算不足**：如果可动用买入预算 ≤ ${AI_MIN_BUY_BUDGET} 元(无法支撑一笔有效买入),请**不要输出任何 buy 决策**。
 
 2. **交易动作规范 (Action Rules)：**
 请从以下动作中选择。**注意：sell 与 convert 的区别**——\`sell\` 是变现回现金，\`convert\` 是不经过现金环节、直接把持仓换成另一只基金。
@@ -284,6 +295,111 @@ export function enforceConvertPairs(actions: TradeDecision[]): TradeDecision[] {
   return result
 }
 
+/** buildTransactionRows 生成的单条交易行(convert_in 通过 pairIndex 关联同批 convert_out) */
+export interface TradeTransactionRow {
+  userId: number
+  fundCode: string
+  type: TradeDecision['action']
+  status: 'pending' | 'draft'
+  /** 申报金额:仅 buy 有值;convert_in 必须为 null(等待转出确认后回填) */
+  orderAmount: string | null
+  /** 申报份额:仅 sell/convert_out 有值 */
+  orderShares: string | null
+  orderDate: string
+  note: string
+  /** 仅 convert_in:指向本函数返回数组中对应 convert_out 行的下标(该行必须更靠前) */
+  pairIndex: number | null
+}
+
+/**
+ * 把 AI 决策列表映射为可入库的交易行(纯函数,便于单元测试)。
+ *
+ * 与手动转换 (/api/fund/convert) 的入库语义保持一致:
+ * - buy 需 amount > 0;sell/convert_out 需 shares > 0,否则整条剔除;
+ * - convert_in 必须通过 relatedIndex 指向同批中**更早且未被剔除**的 convert_out,
+ *   否则一并剔除——孤立的 convert_in/convert_out 会导致下游确认时资金黑洞;
+ * - convert_in 的 orderAmount 置 null:等待转出确认后由 processTransactions 回填。
+ *
+ * 调用方需按返回顺序串行插入,并用 pairIndex 把 convert_in 的 relatedId
+ * 指向对应 convert_out 已插入的数据库记录 id(见 runAutoTrade 任务)。
+ */
+export function buildTransactionRows(
+  decisions: TradeDecision[],
+  opts: { userId: number, status: 'pending' | 'draft', orderDate: string },
+): TradeTransactionRow[] {
+  let rows: TradeTransactionRow[] = []
+  // decisions 数组下标 → rows 数组下标(被剔除的决策无映射)
+  const rowIndexOf = new Map<number, number>()
+
+  for (let i = 0; i < decisions.length; i++) {
+    const decision = decisions[i]!
+    const base = {
+      userId: opts.userId,
+      fundCode: decision.fundCode,
+      status: opts.status,
+      orderDate: opts.orderDate,
+      note: `[AI操作] ${decision.reason}`,
+    }
+
+    if (decision.action === 'buy') {
+      if (!decision.amount || decision.amount <= 0) {
+        console.warn(`[AI Trader] 剔除无效 buy: ${decision.fundCode}(缺少有效金额)`)
+        continue
+      }
+      rows.push({ ...base, type: 'buy', orderAmount: String(decision.amount), orderShares: null, pairIndex: null })
+      rowIndexOf.set(i, rows.length - 1)
+    }
+    else if (decision.action === 'sell' || decision.action === 'convert_out') {
+      if (!decision.shares || decision.shares <= 0) {
+        console.warn(`[AI Trader] 剔除无效 ${decision.action}: ${decision.fundCode}(缺少有效份额)`)
+        continue
+      }
+      rows.push({ ...base, type: decision.action, orderAmount: null, orderShares: String(decision.shares), pairIndex: null })
+      rowIndexOf.set(i, rows.length - 1)
+    }
+    else {
+      // convert_in:必须指向同批中更早(已处理)、未被剔除且类型为 convert_out 的决策
+      const outDecisionIdx = decision.relatedIndex
+      const outDecision = outDecisionIdx != null ? decisions[outDecisionIdx] : undefined
+      const outRowIdx = outDecisionIdx != null ? rowIndexOf.get(outDecisionIdx) : undefined
+
+      if (outDecision?.action !== 'convert_out' || outRowIdx === undefined) {
+        console.warn(`[AI Trader] 剔除孤立 convert_in: ${decision.fundCode}(对应的 convert_out 缺失或已被剔除)`)
+        continue
+      }
+      rows.push({ ...base, type: 'convert_in', orderAmount: null, orderShares: null, pairIndex: outRowIdx })
+      rowIndexOf.set(i, rows.length - 1)
+    }
+  }
+
+  // 后置清理:剔除没有任何 convert_in 引用的 convert_out。
+  // 孤立的 convert_out 一旦入库确认,份额转出却无人承接,资金会凭空消失;
+  // 这同时兜底了"convert_in 因向后引用被剔除后,其目标 convert_out 变孤立"的场景。
+  const referencedOutRows = new Set(
+    rows.filter(r => r.type === 'convert_in').map(r => r.pairIndex),
+  )
+  const hasOrphanOut = rows.some((row, idx) => row.type === 'convert_out' && !referencedOutRows.has(idx))
+  if (hasOrphanOut) {
+    const compacted: TradeTransactionRow[] = []
+    // 原下标 → 压缩后下标(convert_in 的 pairIndex 需要同步重排)
+    const remap = new Map<number, number>()
+    for (let i = 0; i < rows.length; i++) {
+      const row = rows[i]!
+      if (row.type === 'convert_out' && !referencedOutRows.has(i)) {
+        console.warn(`[AI Trader] 剔除孤立 convert_out: ${row.fundCode}(缺少配对的 convert_in)`)
+        continue
+      }
+      if (row.pairIndex !== null)
+        row.pairIndex = remap.get(row.pairIndex) ?? row.pairIndex
+      remap.set(i, compacted.length)
+      compacted.push(row)
+    }
+    rows = compacted
+  }
+
+  return rows
+}
+
 /**
  * 判断错误是否值得重试。
  * - 网络层错误(连接重置/超时/Socket 挂起)→ 可重试
@@ -405,8 +521,10 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   // 过滤掉 hold 操作
   const actions = validated.decisions
 
-  // [最后一道防线] 代码层面的资金硬性校验
-  const budgetLimit = userConfig.availableCash
+  // [最后一道防线] 代码层面的资金硬性校验。
+  // 预算口径必须与 generateAiPrompt 一致:max(0, 可用现金 - AI_CASH_RESERVE),
+  // 否则 prompt 按扣减保底后的预算约束模型,而代码却允许花到全额现金,保底金会被击穿。
+  const budgetLimit = Math.max(0, userConfig.availableCash - AI_CASH_RESERVE)
   let currentTotalBuy = 0
 
   // 过滤后的有效交易列表
@@ -418,7 +536,7 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
       if (currentTotalBuy + amount > budgetLimit) {
         console.warn(`[AI Trader] 触发资金风控拦截！`)
         const remaining = budgetLimit - currentTotalBuy
-        if (remaining > 10) {
+        if (remaining > AI_MIN_BUY_BUDGET) {
           action.amount = Math.floor(remaining)
           action.reason += ` [系统风控: 剩余预算不足,修正金额至 ${action.amount}]`
           currentTotalBuy += action.amount

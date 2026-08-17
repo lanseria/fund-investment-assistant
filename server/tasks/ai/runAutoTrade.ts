@@ -2,7 +2,7 @@
 import { format } from 'date-fns'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
-import { getAiTradeDecisions } from '~~/server/utils/aiTrader'
+import { buildTransactionRows, getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
 import { isTradingDay } from '~~/shared/market'
 
@@ -65,10 +65,10 @@ export default defineTask({
         })
 
         // 保存执行日志
-        const todayStr = new Date().toISOString().split('T')[0]
+        const todayStr = new Date().toISOString().split('T')[0] ?? ''
         await db.insert(aiExecutionLogs).values({
           userId: user.id,
-          date: todayStr ?? '',
+          date: todayStr,
           prompt: fullPrompt,
           response: rawResponse,
         })
@@ -78,29 +78,42 @@ export default defineTask({
           return 0
         }
 
-        // 将决策转换为数据库交易记录 (Pending / Draft 状态)
-        let userTrades = 0
-        for (const decision of decisions) {
-          if (decision.action === 'buy' && !decision.amount)
-            continue
-          if (decision.action === 'sell' && !decision.shares)
-            continue
+        // 将决策映射为交易行:剔除无效项,并把 convert_in 绑定到配对的 convert_out。
+        // [关键] convert_in 必须携带 relatedId 指向 convert_out,且 orderAmount 留空
+        // 等待转出确认后回填——否则确认时会以 0 金额成交,转出资金凭空消失(资金黑洞)。
+        const rows = buildTransactionRows(decisions, {
+          userId: user.id,
+          status: user.aiMode === 'auto' ? 'pending' : 'draft',
+          orderDate: todayStr,
+        })
 
-          await db.insert(fundTransactions).values({
-            userId: user.id,
-            fundCode: decision.fundCode,
-            type: decision.action as 'buy' | 'sell',
-            status: user.aiMode === 'auto' ? 'pending' : 'draft',
-            orderAmount: decision.amount ? String(decision.amount) : null,
-            orderShares: decision.shares ? String(decision.shares) : null,
-            orderDate: todayStr ?? '',
-            note: `[AI操作] ${decision.reason}`,
-          })
-
-          console.log(`  -> 生成交易: ${decision.action} ${decision.fundCode}, 原因: ${decision.reason}`)
-          userTrades++
+        if (rows.length === 0) {
+          console.log(`  -> 所有决策均无效,已全部剔除`)
+          return 0
         }
-        return userTrades
+
+        // 整批写入单个事务:任一笔失败全部回滚,避免产生半截写入的孤立 convert_out/convert_in
+        await db.transaction(async (tx) => {
+          // convert_out 在 rows 中的下标 -> 已插入的数据库记录 id
+          const insertedOutIds = new Map<number, number>()
+
+          for (let i = 0; i < rows.length; i++) {
+            const row = rows[i]!
+            const { pairIndex, ...values } = row
+            const [record] = await tx.insert(fundTransactions).values(
+              pairIndex !== null
+                ? { ...values, relatedId: insertedOutIds.get(pairIndex) }
+                : values,
+            ).returning({ id: fundTransactions.id })
+
+            if (row.type === 'convert_out')
+              insertedOutIds.set(i, record!.id)
+
+            console.log(`  -> 生成交易: ${row.type} ${row.fundCode}${row.type === 'convert_in' ? ' (转入,已关联转出记录)' : ''}, 原因: ${row.note.replace('[AI操作] ', '')}`)
+          }
+        })
+
+        return rows.length
       }
       finally {
         // 无论成功/失败/观望,都标记操作结束
@@ -117,7 +130,7 @@ export default defineTask({
       try {
         totalTrades += await processUser(user)
       }
-      catch (err) {
+      catch (err: any) {
         console.error(`处理用户 ${user.username} (ID: ${user.id}) 时出错:`, err?.message ?? err)
         failedUsers.push(user)
       }
@@ -134,7 +147,7 @@ export default defineTask({
           console.log(`🔁 [AI AutoTrade] 补跑用户 ${user.username} (ID: ${user.id})...`)
           totalTrades += await processUser(user)
         }
-        catch (err) {
+        catch (err: any) {
           // 补跑仍失败:记录后放弃该用户当日决策(LLM 层已多次重试,再补跑收益递减)
           console.error(`❌ [AI AutoTrade] 用户 ${user.username} (ID: ${user.id}) 补跑仍失败,放弃当日决策:`, err?.message ?? err)
         }

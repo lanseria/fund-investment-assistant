@@ -2,7 +2,7 @@ import type { TradeDecision } from '../aiTrader'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 // --- import 被测模块 ---
-import { enforceConvertPairs, getAiTradeDecisions, isRetryableError, withRetry } from '../aiTrader'
+import { AI_CASH_RESERVE, buildTransactionRows, enforceConvertPairs, getAiTradeDecisions, isRetryableError, withRetry } from '../aiTrader'
 
 // --- Mock 外部依赖(必须在 import 被测模块之前) ---
 
@@ -137,6 +137,96 @@ describe('enforceConvertPairs', () => {
   })
 })
 
+// ============ A2. buildTransactionRows 决策入库映射测试 ============
+describe('buildTransactionRows', () => {
+  const opts = { userId: 1, status: 'pending' as const, orderDate: '2026-01-10' }
+
+  it('buy/sell 应映射为正确的金额/份额字段', () => {
+    const rows = buildTransactionRows([
+      makeDecision({ action: 'buy', amount: 5000 }),
+      makeDecision({ action: 'sell', shares: 12.5 }),
+    ], opts)
+    expect(rows).toHaveLength(2)
+    expect(rows[0]).toMatchObject({ type: 'buy', orderAmount: '5000', orderShares: null, pairIndex: null })
+    expect(rows[1]).toMatchObject({ type: 'sell', orderAmount: null, orderShares: '12.5', pairIndex: null })
+  })
+
+  it('convert 对应映射:out 携带份额,in 通过 pairIndex 指向 out 且 orderAmount 为空', () => {
+    const rows = buildTransactionRows([
+      { ...OUT_A },
+      { ...IN_B, relatedIndex: 0 },
+    ], opts)
+    expect(rows).toHaveLength(2)
+    // convert_out:转出份额
+    expect(rows[0]).toMatchObject({ type: 'convert_out', orderShares: '100', orderAmount: null, pairIndex: null })
+    // convert_in:orderAmount 必须为 null(等待转出确认后回填),pairIndex 指向 out
+    expect(rows[1]).toMatchObject({ type: 'convert_in', orderAmount: null, orderShares: null, pairIndex: 0 })
+  })
+
+  it('缺少金额的 buy 与缺少份额的 sell/convert_out 应被剔除', () => {
+    const rows = buildTransactionRows([
+      makeDecision({ action: 'buy' }), // 无 amount
+      makeDecision({ action: 'sell' }), // 无 shares
+      { ...OUT_C, shares: 0 }, // shares=0 的 convert_out
+    ], opts)
+    expect(rows).toHaveLength(0)
+  })
+
+  it('convert_out 被剔除时,指向它的 convert_in 也应一并剔除(避免孤立转换对)', () => {
+    const rows = buildTransactionRows([
+      { ...OUT_C, shares: 0 }, // shares=0 → convert_out 被剔除
+      { ...IN_B, relatedIndex: 0 }, // 其配对 convert_in 必须连带剔除
+    ], opts)
+    expect(rows).toHaveLength(0)
+  })
+
+  it('relatedIndex 指向非 convert_out(如 buy)时 convert_in 应被剔除', () => {
+    const rows = buildTransactionRows([
+      makeDecision({ action: 'buy', amount: 100 }),
+      { ...IN_B, relatedIndex: 0 }, // 指向 buy,非法
+    ], opts)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('buy')
+  })
+
+  it('convert_in 的 relatedIndex 指向其后方的 convert_out 时,两者都应被剔除', () => {
+    const rows = buildTransactionRows([
+      { ...IN_B, relatedIndex: 1 }, // 向后引用(非法)→ convert_in 被剔除
+      { ...OUT_A }, // 其目标 convert_out 因此变孤立 → 一并剔除(避免资金黑洞)
+    ], opts)
+    expect(rows).toHaveLength(0)
+  })
+
+  it('孤立的 convert_out(无任何 convert_in 引用)应被后置清理剔除', () => {
+    const rows = buildTransactionRows([
+      makeDecision({ action: 'buy', amount: 100 }),
+      { ...OUT_A }, // 没有配对的 convert_in
+    ], opts)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].type).toBe('buy')
+  })
+
+  it('清理孤立 convert_out 后,剩余 convert_in 的 pairIndex 应正确重排', () => {
+    const rows = buildTransactionRows([
+      { ...OUT_A }, // 保留(被 IN_B 引用)
+      { ...OUT_C }, // 孤立 → 剔除
+      { ...IN_B, relatedIndex: 0 }, // 引用 OUT_A
+    ], opts)
+    expect(rows).toHaveLength(2)
+    expect(rows[0].type).toBe('convert_out')
+    expect(rows[1].type).toBe('convert_in')
+    // OUT_C 被剔除后,IN_B 的 pairIndex 应重排为 0(仍指向 OUT_A)
+    expect(rows[1]?.pairIndex).toBe(0)
+  })
+
+  it('status/orderDate/userId 应透传到每一行', () => {
+    const rows = buildTransactionRows([
+      makeDecision({ action: 'buy', amount: 1 }),
+    ], { userId: 42, status: 'draft', orderDate: '2026-02-01' })
+    expect(rows[0]).toMatchObject({ userId: 42, status: 'draft', orderDate: '2026-02-01' })
+  })
+})
+
 // ============ B. getAiTradeDecisions 资金风控测试 ============
 describe('getAiTradeDecisions', () => {
   beforeEach(() => {
@@ -165,33 +255,71 @@ describe('getAiTradeDecisions', () => {
   })
 
   it('场景2: 超支应触发风控削减(剩余 > 10 时削减金额)', async () => {
-    // 预算 20000,两个 buy:15000 + 10000 = 25000 超支
+    // 可用现金 25000,预算 = 25000 - 10000(保底) = 15000;两个 buy:10000 + 8000 = 18000 超支
     mockResponse([
-      makeDecision({ fundCode: '111', action: 'buy', amount: 15000 }),
-      makeDecision({ fundCode: '222', action: 'buy', amount: 10000 }),
+      makeDecision({ fundCode: '111', action: 'buy', amount: 10000 }),
+      makeDecision({ fundCode: '222', action: 'buy', amount: 8000 }),
     ])
     const result = await getAiTradeDecisions([], {
-      availableCash: 20000,
+      availableCash: 25000,
       aiSystemPrompt: 'test strategy',
     })
-    // 第一个 buy 15000 通过,剩余 5000;第二个触发风控削减为 floor(5000)=5000
+    // 第一个 buy 10000 通过,剩余 5000;第二个触发风控削减为 floor(5000)=5000
     expect(result.decisions).toHaveLength(2)
     expect(result.decisions[1].amount).toBe(5000)
     expect(result.decisions[1].reason).toContain('系统风控')
   })
 
   it('场景2b: 剩余预算 ≤ 10 时应丢弃该 buy', async () => {
-    // 预算 10000,第一个 buy 用掉 9999,剩余 1 < 10 → 第二个应被丢弃
+    // 可用现金 20000,预算 = 10000;第一个 buy 用掉 9999,剩余 1 < 10 → 第二个应被丢弃
     mockResponse([
       makeDecision({ fundCode: '111', action: 'buy', amount: 9999 }),
       makeDecision({ fundCode: '222', action: 'buy', amount: 500 }),
     ])
     const result = await getAiTradeDecisions([], {
-      availableCash: 10000,
+      availableCash: 20000,
       aiSystemPrompt: 'test strategy',
     })
     expect(result.decisions).toHaveLength(1)
     expect(result.decisions[0].fundCode).toBe('111')
+  })
+
+  it('场景2c: 可用现金不足保底金额时预算为 0,所有 buy 应被丢弃', async () => {
+    // 可用现金 8000 < 10000 保底 → 预算 0,任何 buy 都应被风控丢弃
+    mockResponse([
+      makeDecision({ fundCode: '111', action: 'buy', amount: 500 }),
+    ])
+    const result = await getAiTradeDecisions([], {
+      availableCash: 8000,
+      aiSystemPrompt: 'test strategy',
+    })
+    expect(result.decisions).toHaveLength(0)
+  })
+
+  it('场景2d: prompt 预算口径应与代码风控一致(扣除保底后)', async () => {
+    // 可用现金 25000 → prompt 中出现的预算上限应为 15000.00,而不是全额 25000
+    mockResponse([
+      makeDecision({ action: 'sell', shares: 10 }),
+    ])
+    const result = await getAiTradeDecisions([], {
+      availableCash: 25000,
+      aiSystemPrompt: 'test strategy',
+    })
+    expect(result.fullPrompt).toContain('15000.00')
+    expect(result.fullPrompt).toContain(`${AI_CASH_RESERVE} 元保底备用金`)
+  })
+
+  it('场景2e: 可用现金不足保底时 prompt 预算应为 0.00(不出现负数预算)', async () => {
+    // 旧实现会输出 (8000 - 10000).toFixed(2) = "-2000.00" 的负数预算
+    mockResponse([
+      makeDecision({ action: 'sell', shares: 10 }),
+    ])
+    const result = await getAiTradeDecisions([], {
+      availableCash: 8000,
+      aiSystemPrompt: 'test strategy',
+    })
+    expect(result.fullPrompt).toContain('**0.00 元**')
+    expect(result.fullPrompt).not.toContain('-2000.00')
   })
 
   it('场景3: sell 的 shares 应截断到 4 位小数', async () => {
@@ -228,7 +356,7 @@ describe('getAiTradeDecisions', () => {
       }],
     })
     const result = await getAiTradeDecisions([], {
-      availableCash: 10000,
+      availableCash: 20000,
       aiSystemPrompt: 'test strategy',
     })
     expect(result.decisions).toHaveLength(1)

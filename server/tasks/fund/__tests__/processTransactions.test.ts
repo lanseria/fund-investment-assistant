@@ -23,6 +23,11 @@ const { capturedTaskRef } = vi.hoisted(() => {
   // 测试环境注入桩函数(holdingServiceMocks 在下方定义,这里先占位,测试内会重新绑定实现)
   ;(globalThis as any).updateHolding = async () => undefined
   ;(globalThis as any).addHolding = async () => undefined
+  // 任务新调用的 fundService 自动导入函数同样注入桩:
+  //   - findOrCreateFund:新持仓时在事务外确保基金元数据存在
+  //   - syncSingleFundEstimate:确认后刷新估值(尽力而为,失败不影响确认)
+  ;(globalThis as any).findOrCreateFund = async () => undefined
+  ;(globalThis as any).syncSingleFundEstimate = async () => undefined
   return { capturedTaskRef: ref }
 })
 
@@ -137,6 +142,11 @@ const mockDb = {
       },
     }),
   }),
+  // 事务桩:用 mockDb 自身作为事务句柄直接执行回调。
+  // 任务把单笔交易的全部写入(现金/持仓/状态/转换回填)收敛进一个事务,
+  // 桩保证事务内的读写落到与普通调用相同的 mock 函数上。
+  // (executor 显式 any:类型从 mockDb 自身推导会造成循环引用)
+  transaction: async (fn: (executor: any) => Promise<unknown>) => fn(mockDb),
 }
 
 vi.mock('~~/server/utils/db', () => ({
@@ -312,5 +322,61 @@ describe('processTransactions task', () => {
     // 第一笔处理的应是 SELL001(卖出优先),第二笔是 BUY001
     expect(queriedOrder[0]).toBe('SELL001')
     expect(queriedOrder[1]).toBe('BUY001')
+  })
+
+  it('场景7: 转换对应全程不动现金,转入按回填金额成交(资金守恒回归测试)', async () => {
+    resetData({
+      transactions: [
+        // convert_out:转出 FROM1 100 份(净值 2.0 → 确认金额 200)
+        makeTx({ id: 1, type: 'convert_out', fundCode: 'FROM1', orderShares: '100' }),
+        // convert_in:转入 TO1,orderAmount 为空,relatedId 指向转出记录
+        makeTx({ id: 2, type: 'convert_in', fundCode: 'TO1', orderAmount: null, relatedId: 1 }),
+      ],
+      navHistory: [
+        { code: 'FROM1', navDate: '2026-01-10', nav: '2.0' },
+        { code: 'TO1', navDate: '2026-01-10', nav: '4.0' },
+      ],
+      holdings: [
+        { userId: 1, fundCode: 'FROM1', shares: '200', costPrice: '1.5' },
+        { userId: 1, fundCode: 'TO1', shares: '50', costPrice: '3.0' },
+      ],
+      funds: [],
+    })
+
+    // 净值/持仓按调用次序返回:第 1 次处理 convert_out(FROM1),第 2 次 convert_in(TO1)
+    const navSeq = [mockData.navHistory[0], mockData.navHistory[1]]
+    const holdingSeq = [mockData.holdings[0], mockData.holdings[1]]
+    let navCall = 0
+    let holdingCall = 0
+    mockDb.query.navHistory.findFirst.mockImplementation(async () => navSeq[navCall++])
+    mockDb.query.holdings.findFirst.mockImplementation(async () => holdingSeq[holdingCall++]!)
+    // 模拟真实 DB 行为:convert_out 确认事务回填 orderAmount 后,
+    // convert_in 预检查重新读库应拿到已回填 200 的记录
+    mockDb.query.fundTransactions.findFirst.mockImplementation(async () => {
+      const inLeg = mockData.transactions.find(t => t.id === 2)
+      return inLeg ? { ...inLeg, orderAmount: '200' } as any : undefined
+    })
+
+    try {
+      await getTask().run()
+
+      // [核心断言] 基金转换两端都不触碰现金——任何 users 现金更新都意味着资金黑洞
+      expect(mockData.updates.find(u => u.table === 'users')).toBeUndefined()
+
+      // 两笔交易都应确认成功
+      const confirms = mockData.updates.filter(u => u.table === 'fundTransactions' && u.setValues.status === 'confirmed')
+      expect(confirms).toHaveLength(2)
+
+      // 转入端按回填金额成交:200 / 4.0 = 50 份
+      const inConfirm = confirms[1]
+      expect(inConfirm?.setValues.confirmedShares).toBe('50')
+      expect(inConfirm?.setValues.confirmedAmount).toBe('200')
+    }
+    finally {
+      // 恢复默认 mock 实现,避免泄漏到后续用例
+      mockDb.query.navHistory.findFirst.mockImplementation(async () => mockData.navHistory[0])
+      mockDb.query.holdings.findFirst.mockImplementation(async () => mockData.holdings[0])
+      mockDb.query.fundTransactions.findFirst.mockImplementation(async () => undefined)
+    }
   })
 })
