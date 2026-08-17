@@ -11,7 +11,7 @@ trustPolicyExclude:
 packages: []
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.18.1
+    '@nuxtjs/mcp-toolkit': ^0.19.0
     '@types/pg': ^8.21.0
     argon2: ^0.45.1
     drizzle-kit: ^0.31.10
@@ -37,7 +37,7 @@ catalogs:
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^4.1.10
-    vue-tsc: ^3.3.9
+    vue-tsc: ^3.3.10
   frontend:
     '@vueuse/components': ^14.4.0
     '@vueuse/core': ^14.4.0
