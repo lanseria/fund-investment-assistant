@@ -1,5 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import type { RsiChartData } from '~/types/chart'
 import type { Holding } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
@@ -20,15 +21,20 @@ const { holdings } = storeToRefs(holdingStore)
 // 获取当前基金的 holding 数据
 const currentHolding = computed(() => holdingStore.holdings.find(h => h.code === code))
 
-// 请求新的基金详情接口
-const { data: fundDetail, refresh: refreshDetail } = await useAsyncData(
+// 基金详情：懒加载不阻塞路由切换，进入页面后后台请求
+const { data: fundDetail, pending: fundDetailPending, error: fundDetailError, refresh: refreshDetail } = useAsyncData(
   `fund-detail-${code}-${targetUserId || 'me'}`,
   () => apiFetch<any>(`/api/fund/holdings/${code}/detail`, {
     params: targetUserId ? { userId: targetUserId } : undefined,
   }),
+  {
+    lazy: true,
+    server: false,
+    default: () => null,
+  },
 )
 
-// 板块主力行为回顾：仅当基金设置了项目板块时请求
+// 板块主力行为回顾：仅当基金设置了项目板块时请求，懒加载不阻塞路由切换
 const fundSector = computed(() => fundDetail.value?.sector ?? null)
 const { data: sectorCapitalHistoryData, pending: sectorHistoryPending } = useAsyncData(
   `sector-capital-history-${code}`,
@@ -38,6 +44,8 @@ const { data: sectorCapitalHistoryData, pending: sectorHistoryPending } = useAsy
       }).catch(() => null)
     : Promise.resolve(null),
   {
+    lazy: true,
+    server: false,
     watch: [fundSector],
     default: () => null,
   },
@@ -52,10 +60,15 @@ const mergedSectorHistory = computed(() => {
 })
 
 // 重仓股持仓明细：来自实时估值聚合接口(纯展示不落库)，失败时静默降级为 null 不阻塞页面
-const { data: realtimeHoldings } = await useAsyncData(
+// 该接口需聚合多只重仓股实时行情、耗时较长，故改为客户端懒加载：不阻塞路由切换/SSR，进入页面后再后台请求
+const { data: realtimeHoldings, pending: realtimeHoldingsPending } = useAsyncData(
   `fund-realtime-holdings-${code}`,
   () => apiFetch<FundRealtimeDetail>(`/api/fund/realtime/${code}`).catch(() => null),
-  { default: () => null },
+  {
+    lazy: true,
+    server: false,
+    default: () => null,
+  },
 )
 
 onMounted(async () => {
@@ -179,7 +192,8 @@ function getTransactionTypeInfo(type: string) {
   }
 }
 
-const { data, pending, error, refresh } = await useAsyncData(
+// 策略图表数据(基础走势/布林带/区间涨跌)：懒加载不阻塞路由切换，图表区在数据到达前显示整卡加载态
+const { data, pending, error, refresh } = useAsyncData(
   `fund-all-strategies-structured-${code}`,
   async () => {
     const fetchGenericStrategy = (strategy: string = '') => {
@@ -191,24 +205,36 @@ const { data, pending, error, refresh } = await useAsyncData(
 
       return apiFetch(`/api/fund/holdings/${code}/history`, { params })
     }
-    const fetchRsiStrategy = () => apiFetch(`/api/charts/rsi/${code}`)
 
     // 获取区间涨跌幅数据
     const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
 
-    const [baseData, rsiData, bollingerData, performanceData] = await Promise.all([
+    const [baseData, bollingerData, performanceData] = await Promise.all([
       fetchGenericStrategy(''),
-      fetchRsiStrategy(),
       fetchGenericStrategy('bollinger_bands'),
       fetchPerformance(),
     ])
 
     return {
       base: baseData,
-      rsi: rsiData,
       bollingerBands: bollingerData,
       performance: performanceData,
     }
+  },
+  {
+    lazy: true,
+    server: false,
+  },
+)
+
+// RSI 策略图数据代理自外部策略分析服务、耗时较长，独立懒加载：不阻塞路由切换与主图渲染
+const { data: rsiData, pending: rsiPending, error: rsiError, refresh: refreshRsi } = useAsyncData(
+  `fund-rsi-strategy-${code}`,
+  () => apiFetch<RsiChartData>(`/api/charts/rsi/${code}`),
+  {
+    lazy: true,
+    server: false,
+    default: () => null,
   },
 )
 
@@ -229,6 +255,7 @@ async function handleSyncHistory() {
   try {
     await triggerSyncHistory(code)
     await refresh()
+    await refreshRsi() // 历史数据同步后 RSI 指标需重新计算
     await refreshDetail() // 同步历史数据后，刷新详情面板
   }
   finally {
@@ -242,6 +269,7 @@ async function handleRunStrategies() {
   try {
     await runStrategiesForFund(code)
     await refresh()
+    await refreshRsi() // 策略重跑后 RSI 图信号可能变化
   }
   finally {
     isRunningStrategies.value = false
@@ -497,6 +525,14 @@ watch(data, (newData) => {
         </div>
       </div>
     </div>
+    <!-- 基金详情后台加载中/失败占位 -->
+    <div v-else-if="fundDetailPending" class="mb-8 card flex h-100 items-center justify-center">
+      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
+    </div>
+    <div v-else-if="fundDetailError" class="text-red-500 mb-8 py-20 text-center card">
+      <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
+      <p>基金详情加载失败: {{ fundDetailError.message }}</p>
+    </div>
 
     <!-- 重仓股持仓明细(报告期持仓 + 最新行情快照；无股票仓位或数据源不可用时不展示) -->
     <FundHoldingsPanel
@@ -505,6 +541,10 @@ watch(data, (newData) => {
       :holdings="realtimeHoldings.holdings"
       :holdings-date="realtimeHoldings.holdingsDate"
     />
+    <!-- 实时行情后台聚合中，数据到达后自动替换 -->
+    <div v-else-if="realtimeHoldingsPending" class="mb-8 card flex h-40 items-center justify-center">
+      <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
+    </div>
 
     <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
@@ -528,8 +568,17 @@ watch(data, (newData) => {
         @transaction-click="openTransactionDetails"
       />
 
+      <!-- RSI 图数据来自外部策略服务，后台懒加载中 -->
+      <div v-if="rsiPending" class="card flex h-100 items-center justify-center">
+        <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
+      </div>
+      <div v-else-if="rsiError" class="text-red-500 py-20 text-center card">
+        <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
+        <p>RSI 图表加载失败: {{ rsiError.message }}</p>
+      </div>
       <RsiStrategyChart
-        :chart-data="data.rsi"
+        v-else-if="rsiData"
+        :chart-data="rsiData"
         :title="`基金 ${fundName} - RSI 策略`"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"

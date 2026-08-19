@@ -15,11 +15,14 @@ const { holdings, summary, sseStatus, isRefreshing } = storeToRefs(holdingStore)
 
 const todayTxsRef = ref<any>(null)
 
-// 数据获取
-const { data: portfolioData, pending: isDataLoading, refresh: _refreshHoldings } = await useAsyncData(
+// 数据获取：懒加载不阻塞路由切换，进入页面后后台请求
+const { data: portfolioData, pending: isDataLoading, refresh: _refreshHoldings } = useAsyncData(
   'holdings',
   () => holdingStore.fetchHoldings(),
-  { server: true },
+  {
+    lazy: true,
+    server: false,
+  },
 )
 
 watch(portfolioData, (newData) => {
