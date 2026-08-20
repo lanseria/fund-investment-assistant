@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
+import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, parseISO } from 'date-fns'
@@ -15,6 +16,8 @@ const props = defineProps<{
   dataZoomEnd: number
   /** 板块主力行为历史（可选）。传入后将以子图形式叠加在走势图下方，与净值共享同一条时间轴 */
   sectorHistory?: SectorCapitalHistoryResponse['history']
+  /** RSI 策略数据（可选）。传入后将以子图形式叠加在走势图下方，与净值共享同一条时间轴 */
+  rsiData?: RsiChartData
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -32,6 +35,22 @@ const STRENGTH_COLOR_NEG = '#22c55e'
 const hasSector = computed(() => {
   const h = props.sectorHistory
   return !!h && h.dates.length > 0
+})
+
+const hasRsi = computed(() => {
+  const r = props.rsiData
+  return !!r && r.dates.length > 0
+})
+
+// 图表总高度随子图数量增加：单图 400px / +RSI 560px / +板块 640px / 两者皆有 800px
+const chartHeightClass = computed(() => {
+  if (hasSector.value && hasRsi.value)
+    return 'h-200'
+  if (hasSector.value)
+    return 'h-160'
+  if (hasRsi.value)
+    return 'h-140'
+  return 'h-100'
 })
 
 const colorMode = useColorMode()
@@ -245,11 +264,12 @@ const chartOption = computed<EChartsOption>(() => {
   const fundByDate = new Map<string, HoldingHistoryPoint>()
   props.history.forEach(p => fundByDate.set(p.date, p))
 
-  // --- 统一时间轴：基金日期 ∪ 板块日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
+  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
   const fundDates = props.history.map(p => p.date)
   const sectorDates = hasSector.value ? props.sectorHistory!.dates : []
-  const allDates = hasSector.value
-    ? Array.from(new Set([...fundDates, ...sectorDates])).sort()
+  const rsiDates = hasRsi.value ? props.rsiData!.dates : []
+  const allDates = (hasSector.value || hasRsi.value)
+    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates])).sort()
     : fundDates
 
   // 基金序列对齐到 allDates（板块独有日期补 null）
@@ -278,6 +298,16 @@ const chartOption = computed<EChartsOption>(() => {
   const strengthData = allDates.map(d => sectorByDate.get(d)?.strength ?? null)
   const capitalData = allDates.map(d => sectorByDate.get(d)?.capital ?? null)
   const hiddenData = allDates.map(d => sectorByDate.get(d)?.hidden ?? null)
+
+  // --- RSI 策略数据（可选）：按日期建索引并对齐到 allDates ---
+  const rsiByDate = new Map<string, number | null>()
+  if (hasRsi.value) {
+    props.rsiData!.dates.forEach((d, i) => {
+      rsiByDate.set(d, props.rsiData!.rsiValues[i] ?? null)
+    })
+  }
+  const rsiLineData = allDates.map(d => rsiByDate.get(d) ?? null)
+  const rsiSeriesName = hasRsi.value ? `RSI(${props.rsiData!.config.rsiPeriod})` : null
 
   // 主力行为 markPoint（仅在有强度的日期标注抢/建/洗/出）
   const actionMarks = hasSector.value
@@ -316,7 +346,7 @@ const chartOption = computed<EChartsOption>(() => {
       lines.push(`<span style="display:inline-block;padding:1px 5px;border-radius:3px;color:#fff;background:${c};font-size:11px">${sectorInfo.action}</span>`)
     }
 
-    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘']
+    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘', ...(rsiSeriesName ? [rsiSeriesName] : [])]
 
     list
       .filter((item: any) => item?.value !== null && item?.value !== undefined)
@@ -348,6 +378,11 @@ const chartOption = computed<EChartsOption>(() => {
           const v = Number(item.value)
           const sign = v > 0 ? '+' : ''
           lines.push(`${item.marker}${item.seriesName}: ${sign}${v.toFixed(2)} 亿`)
+          return
+        }
+
+        if (rsiSeriesName && item.seriesName === rsiSeriesName) {
+          lines.push(`${item.marker}${item.seriesName}: ${Number(item.value).toFixed(1)}`)
           return
         }
 
@@ -395,8 +430,8 @@ const chartOption = computed<EChartsOption>(() => {
     ...transactionBarSeries,
   ]
 
-  // --- 无板块数据：保持原有单图布局，行为与之前一致 ---
-  if (!hasSector.value) {
+  // --- 无板块且无 RSI 数据：保持原有单图布局，行为与之前一致 ---
+  if (!hasSector.value && !hasRsi.value) {
     return {
       title: { text: props.title, left: 'center', textStyle: { color: textColor } },
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
@@ -432,122 +467,240 @@ const chartOption = computed<EChartsOption>(() => {
     } as EChartsOption
   }
 
-  // --- 有板块数据：三宫格布局（净值 / 主力强度 / 主力资金+暗盘）共享时间轴 ---
-  const strengthSeriesIndex = fundSeries.length // 主力强度序列在 series 数组中的下标，供 visualMap 使用
+  // --- 多子图布局：主图(净值)下方依次叠加 RSI / 板块主力强度 / 主力资金子图，共享时间轴 ---
+  interface SubPanel {
+    key: string
+    /** 子图高度占整个图表的百分比 */
+    height: number
+    yAxis: Record<string, any>
+    series: Record<string, any>[]
+  }
+  const subPanels: SubPanel[] = []
 
-  const sectorSeries: any[] = [
-    {
-      name: '主力强度',
-      type: 'line',
-      xAxisIndex: 1,
-      yAxisIndex: 2,
-      data: strengthData,
-      showSymbol: false,
-      lineStyle: { width: 2 },
-      markLine: {
-        silent: true,
-        symbol: 'none',
-        data: [{ yAxis: 0, lineStyle: { color: gridColor, type: 'dashed' } }],
+  if (hasRsi.value) {
+    const { config, signals } = props.rsiData!
+    // RSI 信号点：以信号日期回查 RSI 值，标注在 RSI 曲线上（买入位于超卖区、卖出位于超买区）
+    const rsiAt = (d: string) => rsiByDate.get(d) ?? null
+    const rsiSignalMarks = [
+      ...signals.buy.map((p) => {
+        const v = rsiAt(p.coord[0])
+        return v === null ? null : { name: '买入', coord: [p.coord[0], v], symbol: 'pin', itemStyle: { color: '#ef4444' } }
+      }),
+      ...signals.sell.map((p) => {
+        const v = rsiAt(p.coord[0])
+        return v === null ? null : { name: '卖出', coord: [p.coord[0], v], symbol: 'triangle', symbolRotate: 180, itemStyle: { color: '#22c55e' } }
+      }),
+    ].filter(Boolean) as { name: string, coord: [string, number], symbol: string, symbolRotate?: number, itemStyle: { color: string } }[]
+
+    subPanels.push({
+      key: 'rsi',
+      height: 16,
+      yAxis: {
+        type: 'value',
+        min: 0,
+        max: 100,
+        axisLine: { show: true, lineStyle: { color: gridColor } },
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor },
       },
-      markPoint: {
-        symbol: 'circle',
-        symbolSize: 22,
-        data: actionMarks,
-        label: {
-          show: true,
-          color: '#fff',
-          fontSize: 11,
-          fontWeight: 'bold' as const,
+      series: [
+        {
+          name: rsiSeriesName!,
+          type: 'line',
+          data: rsiLineData,
+          showSymbol: false,
+          lineStyle: { color: '#8b5cf6', width: 1.5 },
+          markLine: {
+            silent: true,
+            symbol: 'none',
+            data: [
+              { yAxis: config.rsiUpper, lineStyle: { color: '#f87171', type: 'dashed' }, label: { formatter: `超买: ${config.rsiUpper}`, fontSize: 10 } },
+              { yAxis: config.rsiLower, lineStyle: { color: '#4ade80', type: 'dashed' }, label: { formatter: `超卖: ${config.rsiLower}`, fontSize: 10 } },
+            ],
+          },
+          markArea: {
+            silent: true,
+            itemStyle: { opacity: 0.12 },
+            data: [
+              [{ yAxis: config.rsiUpper, itemStyle: { color: '#ef4444' } }, { yAxis: 100 }],
+              [{ yAxis: config.rsiLower, itemStyle: { color: '#22c55e' } }, { yAxis: 0 }],
+            ],
+          },
+          markPoint: {
+            symbolSize: 18,
+            data: rsiSignalMarks,
+            label: {
+              show: true,
+              color: '#fff',
+              fontSize: 10,
+              fontWeight: 'bold' as const,
+              formatter: (p: any) => (p.name === '买入' ? 'B' : 'S'),
+            },
+          },
         },
+      ],
+    })
+  }
+
+  if (hasSector.value) {
+    subPanels.push(
+      {
+        key: 'strength',
+        height: 14,
+        yAxis: {
+          type: 'value',
+          axisLine: { show: true, lineStyle: { color: gridColor } },
+          splitLine: { lineStyle: { color: gridColor } },
+          axisLabel: { color: textColor, formatter: '{value}%' },
+        },
+        series: [
+          {
+            name: '主力强度',
+            type: 'line',
+            data: strengthData,
+            showSymbol: false,
+            lineStyle: { width: 2 },
+            markLine: {
+              silent: true,
+              symbol: 'none',
+              data: [{ yAxis: 0, lineStyle: { color: gridColor, type: 'dashed' } }],
+            },
+            markPoint: {
+              symbol: 'circle',
+              symbolSize: 22,
+              data: actionMarks,
+              label: {
+                show: true,
+                color: '#fff',
+                fontSize: 11,
+                fontWeight: 'bold' as const,
+              },
+            },
+          },
+        ],
       },
+      {
+        key: 'capital',
+        height: 12,
+        yAxis: {
+          type: 'value',
+          axisLine: { show: true, lineStyle: { color: gridColor } },
+          splitLine: { lineStyle: { color: gridColor } },
+          axisLabel: { color: textColor },
+        },
+        series: [
+          {
+            name: '主力资金',
+            type: 'line',
+            data: capitalData,
+            showSymbol: false,
+            lineStyle: { color: '#ef4444', width: 1.5 },
+          },
+          {
+            name: '主力暗盘',
+            type: 'line',
+            data: hiddenData,
+            showSymbol: false,
+            lineStyle: { color: '#f97316', width: 1.5 },
+          },
+        ],
+      },
+    )
+  }
+
+  // 网格纵向布局：标题/图例区 → 主图 → 各子图 → 缩放条，百分比随子图数量自适应
+  const TOP_AREA = 11
+  const BOTTOM_AREA = 8
+  const GRID_GAP = 3
+  const subHeightTotal = subPanels.reduce((sum, p) => sum + p.height, 0)
+  const mainHeight = 100 - TOP_AREA - BOTTOM_AREA - subHeightTotal - GRID_GAP * (subPanels.length + 1)
+
+  const grids: Record<string, any>[] = [{ top: `${TOP_AREA}%`, left: '8%', right: '9%', height: `${mainHeight}%` }]
+  const xAxes: Record<string, any>[] = [
+    { type: 'category', gridIndex: 0, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
+  ]
+  const yAxes: Record<string, any>[] = [
+    {
+      type: 'value',
+      gridIndex: 0,
+      scale: true,
+      axisLine: { show: true, lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
+      splitLine: { lineStyle: { color: gridColor } },
     },
     {
-      name: '主力资金',
-      type: 'line',
-      xAxisIndex: 2,
-      yAxisIndex: 3,
-      data: capitalData,
-      showSymbol: false,
-      lineStyle: { color: '#ef4444', width: 1.5 },
-    },
-    {
-      name: '主力暗盘',
-      type: 'line',
-      xAxisIndex: 2,
-      yAxisIndex: 3,
-      data: hiddenData,
-      showSymbol: false,
-      lineStyle: { color: '#f97316', width: 1.5 },
+      type: 'value',
+      gridIndex: 0,
+      scale: true,
+      position: 'right',
+      axisLine: { lineStyle: { color: gridColor } },
+      axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+      splitLine: { show: false },
     },
   ]
+  const multiSeries: any[] = [...fundSeries]
+  const zoomXAxisIndexes = [0]
+  // 各子图首序列在 series 数组中的下标，供 visualMap 定位主力强度序列
+  const panelSeriesStart = new Map<string, number>()
+
+  let cursorTop = TOP_AREA + mainHeight + GRID_GAP
+  subPanels.forEach((panel, i) => {
+    const gridIndex = i + 1
+    const yAxisIndex = yAxes.length
+    grids.push({ top: `${cursorTop}%`, left: '8%', right: '9%', height: `${panel.height}%` })
+    xAxes.push({
+      type: 'category',
+      gridIndex,
+      data: allDates,
+      axisLine: { lineStyle: { color: gridColor } },
+      // 仅最后一个子图显示 x 轴日期标签，其余与主图共享视觉对齐
+      axisLabel: i === subPanels.length - 1 ? { color: textColor } : { show: false },
+    })
+    yAxes.push({ gridIndex, ...panel.yAxis })
+    panelSeriesStart.set(panel.key, multiSeries.length)
+    panel.series.forEach(s => multiSeries.push({ ...s, xAxisIndex: gridIndex, yAxisIndex }))
+    zoomXAxisIndexes.push(gridIndex)
+    cursorTop += panel.height + GRID_GAP
+  })
+
+  const strengthSeriesIndex = panelSeriesStart.get('strength') ?? -1
+  const legendData = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出']
+  if (rsiSeriesName)
+    legendData.push(rsiSeriesName)
+  if (hasSector.value)
+    legendData.push('主力强度', '主力资金', '主力暗盘')
 
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
     legend: {
-      data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘'],
+      data: legendData,
       top: 40,
       type: 'scroll',
       textStyle: { color: textColor },
     },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },
-    visualMap: {
-      show: false,
-      type: 'continuous',
-      seriesIndex: strengthSeriesIndex,
-      min: -strengthMaxAbs,
-      max: strengthMaxAbs,
-      calculable: false,
-      inRange: { color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS] },
-    },
-    grid: [
-      { top: '12%', left: '8%', right: '9%', height: '38%' },
-      { top: '54%', left: '8%', right: '9%', height: '15%' },
-      { top: '73%', left: '8%', right: '9%', height: '13%' },
-    ],
-    xAxis: [
-      { type: 'category', gridIndex: 0, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
-      { type: 'category', gridIndex: 1, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
-      { type: 'category', gridIndex: 2, data: allDates, axisLine: { lineStyle: { color: gridColor } }, axisLabel: { color: textColor } },
-    ],
-    yAxis: [
-      {
-        type: 'value',
-        gridIndex: 0,
-        scale: true,
-        axisLine: { show: true, lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
-        splitLine: { lineStyle: { color: gridColor } },
-      },
-      {
-        type: 'value',
-        gridIndex: 0,
-        scale: true,
-        position: 'right',
-        axisLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
-        splitLine: { show: false },
-      },
-      {
-        type: 'value',
-        gridIndex: 1,
-        axisLine: { show: true, lineStyle: { color: gridColor } },
-        splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor, formatter: '{value}%' },
-      },
-      {
-        type: 'value',
-        gridIndex: 2,
-        axisLine: { show: true, lineStyle: { color: gridColor } },
-        splitLine: { lineStyle: { color: gridColor } },
-        axisLabel: { color: textColor },
-      },
-    ],
+    ...(strengthSeriesIndex !== -1
+      ? {
+          visualMap: {
+            show: false,
+            type: 'continuous',
+            seriesIndex: strengthSeriesIndex,
+            min: -strengthMaxAbs,
+            max: strengthMaxAbs,
+            calculable: false,
+            inRange: { color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS] },
+          },
+        }
+      : {}),
+    grid: grids,
+    xAxis: xAxes,
+    yAxis: yAxes,
     dataZoom: [
-      { type: 'inside', xAxisIndex: [0, 1, 2], start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
-      { type: 'slider', xAxisIndex: [0, 1, 2], start: props.dataZoomStart, end: props.dataZoomEnd, bottom: 8, height: 22 },
+      { type: 'inside', xAxisIndex: zoomXAxisIndexes, start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
+      { type: 'slider', xAxisIndex: zoomXAxisIndexes, start: props.dataZoomStart, end: props.dataZoomEnd, bottom: 8, height: 22 },
     ],
-    series: [...fundSeries, ...sectorSeries],
+    series: multiSeries,
   } as EChartsOption
 })
 
@@ -565,5 +718,5 @@ function handleChartClick(params: any) {
 </script>
 
 <template>
-  <VChartFull class="w-full" :class="hasSector ? 'h-160' : 'h-100'" :option="chartOption" autoresize @click="handleChartClick" />
+  <VChartFull class="w-full" :class="chartHeightClass" :option="chartOption" autoresize @click="handleChartClick" />
 </template>

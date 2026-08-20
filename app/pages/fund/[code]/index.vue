@@ -6,7 +6,6 @@ import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, isAfter, parseISO } from 'date-fns'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
-import RsiStrategyChart from '~/components/strategy-charts/RsiStrategyChart.vue'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { formatChange, formatCurrency, getChangeColorClass } from '~/utils/format'
 
@@ -227,10 +226,11 @@ const { data, pending, error, refresh } = useAsyncData(
   },
 )
 
-// RSI 策略图数据代理自外部策略分析服务、耗时较长，独立懒加载：不阻塞路由切换与主图渲染
-const { data: rsiData, pending: rsiPending, error: rsiError, refresh: refreshRsi } = useAsyncData(
+// RSI 策略数据代理自外部策略分析服务、耗时较长，独立懒加载：不阻塞路由切换与主图渲染，
+// 到达后作为子图叠加在下方「基础走势」图中（失败时静默降级为主图无 RSI 子图）
+const { data: rsiData, refresh: refreshRsi } = useAsyncData(
   `fund-rsi-strategy-${code}`,
-  () => apiFetch<RsiChartData>(`/api/charts/rsi/${code}`),
+  () => apiFetch<RsiChartData>(`/api/charts/rsi/${code}`).catch(() => null),
   {
     lazy: true,
     server: false,
@@ -555,33 +555,18 @@ watch(data, (newData) => {
     </div>
 
     <div v-else-if="data" class="space-y-8">
-      <!-- 监听 transaction-click 事件；板块主力行为数据存在时合并为同一张图 -->
+      <!-- 监听 transaction-click 事件；板块主力行为 / RSI 策略数据存在时合并为同一张图 -->
       <GenericStrategyChart
         :history="data.base.history"
         :signals="data.base.signals"
         :transactions="(data.base as any).transactions"
         :title="`基金 ${fundName} - 基础走势${mergedSectorHistory && sectorCapitalHistoryData?.sectorName ? ` · 板块「${sectorCapitalHistoryData.sectorName}」主力行为` : ''}`"
         :sector-history="mergedSectorHistory"
+        :rsi-data="rsiData ?? undefined"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
         @transaction-click="openTransactionDetails"
-      />
-
-      <!-- RSI 图数据来自外部策略服务，后台懒加载中 -->
-      <div v-if="rsiPending" class="card flex h-100 items-center justify-center">
-        <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
-      </div>
-      <div v-else-if="rsiError" class="text-red-500 py-20 text-center card">
-        <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
-        <p>RSI 图表加载失败: {{ rsiError.message }}</p>
-      </div>
-      <RsiStrategyChart
-        v-else-if="rsiData"
-        :chart-data="rsiData"
-        :title="`基金 ${fundName} - RSI 策略`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
       />
 
       <GenericStrategyChart

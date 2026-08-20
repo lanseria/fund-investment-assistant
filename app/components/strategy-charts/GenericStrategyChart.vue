@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 
@@ -11,6 +12,8 @@ defineProps<{
   dataZoomEnd: number
   /** 板块主力行为历史（可选）。传入后将作为子图叠加在走势图下方 */
   sectorHistory?: SectorCapitalHistoryResponse['history']
+  /** RSI 策略数据（可选）。传入后将作为子图叠加在走势图下方 */
+  rsiData?: RsiChartData
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -33,6 +36,7 @@ function handleTransactionClick(tx: any) {
       :data-zoom-start="dataZoomStart"
       :data-zoom-end="dataZoomEnd"
       :sector-history="sectorHistory"
+      :rsi-data="rsiData"
       @signal-click="handleSignalClick"
       @transaction-click="handleTransactionClick"
     />

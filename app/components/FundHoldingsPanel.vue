@@ -46,11 +46,18 @@ function formatQuoteTime(date: string | null, time: string | null): string {
     return `${date} ${time}`
   return date || time || '-'
 }
+
+// 默认收起,点击面板头部切换展开/收起
+const expanded = ref(false)
 </script>
 
 <template>
   <div class="card overflow-hidden">
-    <div class="p-5 border-b border-gray-100 flex flex-wrap gap-2 items-center justify-between dark:border-gray-700/60">
+    <div
+      class="p-5 flex flex-wrap gap-2 cursor-pointer select-none transition-colors items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30"
+      :class="expanded ? 'border-b border-gray-100 dark:border-gray-700/60' : ''"
+      @click="expanded = !expanded"
+    >
       <div class="flex gap-2 items-center">
         <div class="i-carbon-data-table text-primary" />
         <h2 class="text-base font-bold">
@@ -60,12 +67,18 @@ function formatQuoteTime(date: string | null, time: string | null): string {
           报告期: {{ holdingsDate || '-' }}
         </span>
       </div>
-      <span v-if="totalPct" class="text-xs text-gray-500 font-mono dark:text-gray-400">
-        合计占比 {{ totalPct }}%
-      </span>
+      <div class="flex gap-3 items-center">
+        <span v-if="totalPct" class="text-xs text-gray-500 font-mono dark:text-gray-400">
+          合计占比 {{ totalPct }}%
+        </span>
+        <div
+          class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
+          :class="expanded ? 'rotate-180' : ''"
+        />
+      </div>
     </div>
 
-    <div class="overflow-x-auto">
+    <div v-if="expanded" class="overflow-x-auto">
       <table class="text-sm text-left w-full">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
@@ -128,7 +141,7 @@ function formatQuoteTime(date: string | null, time: string | null): string {
       </table>
     </div>
 
-    <p class="text-xs text-gray-400 px-5 py-3 border-t border-gray-100 dark:border-gray-700/60">
+    <p v-if="expanded" class="text-xs text-gray-400 px-5 py-3 border-t border-gray-100 dark:border-gray-700/60">
       持仓占比披露于基金定期报告(季度更新);股价行情为最新交易日快照,{{ CHANGE_LEGEND }}。
     </p>
   </div>
