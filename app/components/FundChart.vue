@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { MarkPointComponentOption } from 'echarts/components'
-import type { RsiChartData } from '~/types/chart'
+import type { BollingerSignalData, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { format, parseISO } from 'date-fns'
@@ -18,6 +18,8 @@ const props = defineProps<{
   sectorHistory?: SectorCapitalHistoryResponse['history']
   /** RSI 策略数据（可选）。传入后将以子图形式叠加在走势图下方，与净值共享同一条时间轴 */
   rsiData?: RsiChartData
+  /** 布林带策略买卖信号（可选）。传入后将以子图形式叠加在 RSI 子图下方，只标注买入/卖出信号点 */
+  bollingerData?: BollingerSignalData
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -42,15 +44,32 @@ const hasRsi = computed(() => {
   return !!r && r.dates.length > 0
 })
 
-// 图表总高度随子图数量增加：单图 400px / +RSI 560px / +板块 640px / 两者皆有 800px
+const hasBollinger = computed(() => {
+  const b = props.bollingerData
+  return !!b && (b.buy.length > 0 || b.sell.length > 0)
+})
+
+// 图表总高度随子图组合自适应。必须使用字面量 class：UnoCSS 依静态源码扫描生成样式，
+// 模板字符串拼接的 h-* 不会被提取，会导致图表高度样式缺失。
 const chartHeightClass = computed(() => {
-  if (hasSector.value && hasRsi.value)
-    return 'h-200'
-  if (hasSector.value)
-    return 'h-160'
-  if (hasRsi.value)
-    return 'h-140'
-  return 'h-100'
+  const rsi = hasRsi.value
+  const boll = hasBollinger.value
+  const sector = hasSector.value
+  if (rsi && boll && sector)
+    return 'h-265' // 全部子图 1060px：主图约 254px / RSI 138px / 布林带信号 95px / 主力双图 190px
+  if (rsi && sector)
+    return 'h-215' // 860px
+  if (boll && sector)
+    return 'h-200' // 800px
+  if (sector)
+    return 'h-165' // 660px
+  if (rsi && boll)
+    return 'h-185' // 740px
+  if (rsi)
+    return 'h-150' // 600px
+  if (boll)
+    return 'h-140' // 560px
+  return 'h-100' // 单图 400px
 })
 
 const colorMode = useColorMode()
@@ -264,12 +283,15 @@ const chartOption = computed<EChartsOption>(() => {
   const fundByDate = new Map<string, HoldingHistoryPoint>()
   props.history.forEach(p => fundByDate.set(p.date, p))
 
-  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
+  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 布林带信号日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
   const fundDates = props.history.map(p => p.date)
   const sectorDates = hasSector.value ? props.sectorHistory!.dates : []
   const rsiDates = hasRsi.value ? props.rsiData!.dates : []
-  const allDates = (hasSector.value || hasRsi.value)
-    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates])).sort()
+  const bollingerDates = hasBollinger.value
+    ? [...props.bollingerData!.buy, ...props.bollingerData!.sell].map(p => p.date)
+    : []
+  const allDates = (hasSector.value || hasRsi.value || hasBollinger.value)
+    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates, ...bollingerDates])).sort()
     : fundDates
 
   // 基金序列对齐到 allDates（板块独有日期补 null）
@@ -350,6 +372,7 @@ const chartOption = computed<EChartsOption>(() => {
 
     list
       .filter((item: any) => item?.value !== null && item?.value !== undefined)
+      .filter((item: any) => item.seriesName !== '布林带信号') // 布林带子图的透明承载序列不参与坐标轴 tooltip
       .sort((a: any, b: any) => seriesOrder.indexOf(a.seriesName) - seriesOrder.indexOf(b.seriesName))
       .forEach((item: any) => {
         if (item.seriesType === 'bar') {
@@ -430,18 +453,18 @@ const chartOption = computed<EChartsOption>(() => {
     ...transactionBarSeries,
   ]
 
-  // --- 无板块且无 RSI 数据：保持原有单图布局，行为与之前一致 ---
-  if (!hasSector.value && !hasRsi.value) {
+  // --- 无板块、无 RSI 且无布林带数据：保持原有单图布局，行为与之前一致 ---
+  if (!hasSector.value && !hasRsi.value && !hasBollinger.value) {
     return {
       title: { text: props.title, left: 'center', textStyle: { color: textColor } },
       tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+      // 默认 plain 图例在宽度不足时自动换行，避免滚动条挤压
       legend: {
         data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出'],
         top: 40,
-        type: 'scroll',
         textStyle: { color: textColor },
       },
-      grid: { top: 86, left: '10%', right: '12%', bottom: '18%' },
+      grid: { top: 96, left: '10%', right: '12%', bottom: '18%' },
       xAxis: { type: 'category', data: allDates, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: gridColor } } },
       yAxis: [
         {
@@ -467,7 +490,7 @@ const chartOption = computed<EChartsOption>(() => {
     } as EChartsOption
   }
 
-  // --- 多子图布局：主图(净值)下方依次叠加 RSI / 板块主力强度 / 主力资金子图，共享时间轴 ---
+  // --- 多子图布局：主图(净值)下方依次叠加 RSI / 布林带信号 / 板块主力强度 / 主力资金子图，共享时间轴 ---
   interface SubPanel {
     key: string
     /** 子图高度占整个图表的百分比 */
@@ -494,7 +517,7 @@ const chartOption = computed<EChartsOption>(() => {
 
     subPanels.push({
       key: 'rsi',
-      height: 16,
+      height: 13,
       yAxis: {
         type: 'value',
         min: 0,
@@ -542,11 +565,59 @@ const chartOption = computed<EChartsOption>(() => {
     })
   }
 
+  // 布林带子图：淡色净值线作参照，其上标注放大版买入/卖出信号点（B/S，可点击查看信号详情）
+  if (hasBollinger.value) {
+    const bollingerSignalMarks = [
+      ...props.bollingerData!.buy.map(p => ({ name: '买入', coord: [p.date, p.close], symbol: 'pin', itemStyle: { color: '#ef4444' }, fullData: p.signal })),
+      ...props.bollingerData!.sell.map(p => ({ name: '卖出', coord: [p.date, p.close], symbol: 'triangle', symbolRotate: 180, itemStyle: { color: '#22c55e' }, fullData: p.signal })),
+    ]
+    subPanels.push({
+      key: 'bollinger',
+      height: 9,
+      yAxis: {
+        type: 'value',
+        scale: true,
+        axisLine: { show: true, lineStyle: { color: gridColor } },
+        splitLine: { lineStyle: { color: gridColor } },
+        axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
+      },
+      series: [
+        {
+          name: '布林带信号',
+          type: 'line',
+          data: navData, // 与主图相同的净值序列，子图内作参照线
+          showSymbol: false,
+          lineStyle: { color: '#64748b', width: 1.5, opacity: 0.85 },
+          markPoint: {
+            symbolSize: 30,
+            data: bollingerSignalMarks,
+            label: {
+              show: true,
+              color: '#fff',
+              fontSize: 12,
+              fontWeight: 'bold' as const,
+              formatter: (p: any) => (p.name === '买入' ? 'B' : 'S'),
+            },
+            tooltip: {
+              formatter: (params: any) => {
+                if (params.data?.fullData) {
+                  const d = params.data.fullData
+                  return `<b>${d.signal}信号 (ID: ${d.id})</b><br/>日期: ${d.latestDate}<br/>净值: ${Number(d.latestClose).toFixed(4)}<br/>原因: ${d.reason}`
+                }
+                return params.name
+              },
+            },
+          },
+        },
+      ],
+    })
+  }
+
   if (hasSector.value) {
     subPanels.push(
       {
         key: 'strength',
-        height: 14,
+        height: 10,
         yAxis: {
           type: 'value',
           axisLine: { show: true, lineStyle: { color: gridColor } },
@@ -581,7 +652,7 @@ const chartOption = computed<EChartsOption>(() => {
       },
       {
         key: 'capital',
-        height: 12,
+        height: 8,
         yAxis: {
           type: 'value',
           axisLine: { show: true, lineStyle: { color: gridColor } },
@@ -608,8 +679,8 @@ const chartOption = computed<EChartsOption>(() => {
     )
   }
 
-  // 网格纵向布局：标题/图例区 → 主图 → 各子图 → 缩放条，百分比随子图数量自适应
-  const TOP_AREA = 11
+  // 网格纵向布局：标题/图例区（预留图例换行空间） → 主图 → 各子图 → 缩放条
+  const TOP_AREA = 13
   const BOTTOM_AREA = 8
   const GRID_GAP = 3
   const subHeightTotal = subPanels.reduce((sum, p) => sum + p.height, 0)
@@ -673,10 +744,10 @@ const chartOption = computed<EChartsOption>(() => {
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },
     tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+    // 默认 plain 图例在宽度不足时自动换行，避免滚动条挤压
     legend: {
       data: legendData,
       top: 40,
-      type: 'scroll',
       textStyle: { color: textColor },
     },
     axisPointer: { link: [{ xAxisIndex: 'all' }] },

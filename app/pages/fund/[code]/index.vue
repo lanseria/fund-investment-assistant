@@ -1,6 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
-import type { RsiChartData } from '~/types/chart'
+import type { BollingerSignalData, BollingerSignalPoint, RsiChartData } from '~/types/chart'
 import type { Holding } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
@@ -237,6 +237,38 @@ const { data: rsiData, refresh: refreshRsi } = useAsyncData(
     default: () => null,
   },
 )
+
+// 布林带策略买卖信号：从每日策略信号记录中筛选出买入/卖出点（不含「持有/观望」），
+// 作为「基础走势」图 RSI 下方的独立子图展示（只展示信号点，不展示布林带轨值）
+const bollingerSignalData = computed<BollingerSignalData | undefined>(() => {
+  const signals = data.value?.bollingerBands?.signals
+  if (!signals || signals.length === 0)
+    return undefined
+
+  const buy: BollingerSignalPoint[] = []
+  const sell: BollingerSignalPoint[] = []
+  signals.forEach((s: any) => {
+    const type = String(s.signal ?? '').trim()
+    if (type !== '买入' && type !== '卖出')
+      return
+    const close = Number(s.latestClose)
+    if (Number.isNaN(close))
+      return
+    const point: BollingerSignalPoint = {
+      date: String(s.latestDate),
+      close,
+      signal: s,
+    }
+    if (type === '买入')
+      buy.push(point)
+    else
+      sell.push(point)
+  })
+
+  if (buy.length === 0 && sell.length === 0)
+    return undefined
+  return { buy, sell }
+})
 
 const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
@@ -555,7 +587,7 @@ watch(data, (newData) => {
     </div>
 
     <div v-else-if="data" class="space-y-8">
-      <!-- 监听 transaction-click 事件；板块主力行为 / RSI 策略数据存在时合并为同一张图 -->
+      <!-- 监听 transaction-click 事件；板块主力行为 / RSI / 布林带策略数据存在时合并为同一张图（布林带信号子图位于 RSI 下方） -->
       <GenericStrategyChart
         :history="data.base.history"
         :signals="data.base.signals"
@@ -563,19 +595,11 @@ watch(data, (newData) => {
         :title="`基金 ${fundName} - 基础走势${mergedSectorHistory && sectorCapitalHistoryData?.sectorName ? ` · 板块「${sectorCapitalHistoryData.sectorName}」主力行为` : ''}`"
         :sector-history="mergedSectorHistory"
         :rsi-data="rsiData ?? undefined"
+        :bollinger-data="bollingerSignalData"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
         @transaction-click="openTransactionDetails"
-      />
-
-      <GenericStrategyChart
-        :history="data.bollingerBands.history"
-        :signals="data.bollingerBands.signals"
-        :title="`基金 ${fundName} - 布林带策略`"
-        :data-zoom-start="dataZoomStart"
-        :data-zoom-end="dataZoomEnd"
-        @signal-click="openSignalDetails"
       />
     </div>
 
