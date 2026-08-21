@@ -24,19 +24,19 @@ catalogs:
     '@nuxt/eslint': ^1.17.0
     '@nuxtjs/color-mode': ^4.0.1
     '@pinia/nuxt': ^1.0.2
-    '@unocss/eslint-config': ^66.7.5
-    '@unocss/nuxt': ^66.7.5
-    '@unocss/preset-web-fonts': ^66.7.5
+    '@unocss/eslint-config': ^66.8.0
+    '@unocss/nuxt': ^66.8.0
+    '@unocss/preset-web-fonts': ^66.8.0
     '@vueuse/nuxt': ^14.4.0
     nuxt: ^4.5.2
-    unocss: ^66.7.5
+    unocss: ^66.8.0
   dev:
     '@antfu/eslint-config': ^9.3.0
     '@nuxt/test-utils': ^4.1.0
     eslint: ^10.8.1
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
-    vitest: ^4.1.10
+    vitest: ^4.1.11
     vue-tsc: ^3.3.10
   frontend:
     '@vueuse/components': ^14.4.0
