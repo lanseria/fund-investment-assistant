@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { RsiChartData } from '~/types/chart'
+import type { BollingerSignalData, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 
@@ -14,6 +14,8 @@ defineProps<{
   sectorHistory?: SectorCapitalHistoryResponse['history']
   /** RSI 策略数据（可选）。传入后将作为子图叠加在走势图下方 */
   rsiData?: RsiChartData
+  /** 布林带策略买卖信号（可选）。传入后将作为子图叠加在 RSI 子图下方 */
+  bollingerData?: BollingerSignalData
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -37,6 +39,7 @@ function handleTransactionClick(tx: any) {
       :data-zoom-end="dataZoomEnd"
       :sector-history="sectorHistory"
       :rsi-data="rsiData"
+      :bollinger-data="bollingerData"
       @signal-click="handleSignalClick"
       @transaction-click="handleTransactionClick"
     />
