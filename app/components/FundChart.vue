@@ -305,7 +305,7 @@ const chartOption = computed<EChartsOption>(() => {
   const transactionBarSeries = buildTransactionBarSeries(allDates)
 
   // --- 板块主力行为数据（可选）：按日期建索引并对齐到 allDates ---
-  const sectorByDate = new Map<string, { strength: number | null, capital: number | null, hidden: number | null, action: string }>()
+  const sectorByDate = new Map<string, { strength: number | null, capital: number | null, hidden: number | null, retail: number | null, action: string }>()
   if (hasSector.value) {
     const h = props.sectorHistory!
     h.dates.forEach((d, i) => {
@@ -313,6 +313,7 @@ const chartOption = computed<EChartsOption>(() => {
         strength: h.mainStrength[i] ?? null,
         capital: h.mainCapital[i] ?? null,
         hidden: h.mainHidden[i] ?? null,
+        retail: h.retailCapital[i] ?? null,
         action: h.actions[i] ?? '',
       })
     })
@@ -320,6 +321,7 @@ const chartOption = computed<EChartsOption>(() => {
   const strengthData = allDates.map(d => sectorByDate.get(d)?.strength ?? null)
   const capitalData = allDates.map(d => sectorByDate.get(d)?.capital ?? null)
   const hiddenData = allDates.map(d => sectorByDate.get(d)?.hidden ?? null)
+  const retailData = allDates.map(d => sectorByDate.get(d)?.retail ?? null)
 
   // --- RSI 策略数据（可选）：按日期建索引并对齐到 allDates ---
   const rsiByDate = new Map<string, number | null>()
@@ -368,7 +370,7 @@ const chartOption = computed<EChartsOption>(() => {
       lines.push(`<span style="display:inline-block;padding:1px 5px;border-radius:3px;color:#fff;background:${c};font-size:11px">${sectorInfo.action}</span>`)
     }
 
-    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘', ...(rsiSeriesName ? [rsiSeriesName] : [])]
+    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘', '散户资金', ...(rsiSeriesName ? [rsiSeriesName] : [])]
 
     list
       .filter((item: any) => item?.value !== null && item?.value !== undefined)
@@ -397,7 +399,7 @@ const chartOption = computed<EChartsOption>(() => {
           return
         }
 
-        if (item.seriesName === '主力资金' || item.seriesName === '主力暗盘') {
+        if (item.seriesName === '主力资金' || item.seriesName === '主力暗盘' || item.seriesName === '散户资金') {
           const v = Number(item.value)
           const sign = v > 0 ? '+' : ''
           lines.push(`${item.marker}${item.seriesName}: ${sign}${v.toFixed(2)} 亿`)
@@ -674,6 +676,13 @@ const chartOption = computed<EChartsOption>(() => {
             showSymbol: false,
             lineStyle: { color: '#f97316', width: 1.5 },
           },
+          {
+            name: '散户资金',
+            type: 'line',
+            data: retailData,
+            showSymbol: false,
+            lineStyle: { color: '#3b82f6', width: 1.5 },
+          },
         ],
       },
     )
@@ -739,7 +748,7 @@ const chartOption = computed<EChartsOption>(() => {
   if (rsiSeriesName)
     legendData.push(rsiSeriesName)
   if (hasSector.value)
-    legendData.push('主力强度', '主力资金', '主力暗盘')
+    legendData.push('主力强度', '主力资金', '主力暗盘', '散户资金')
 
   return {
     title: { text: props.title, left: 'center', textStyle: { color: textColor } },

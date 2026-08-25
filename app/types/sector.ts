@@ -57,6 +57,7 @@ export interface SectorCapitalHistoryResponse {
     mainStrength: number | null
     mainCapital: number | null
     mainHidden: number | null
+    retailCapital: number | null
     changePercent: number | null
   } | null
   /** 图表数据 */
@@ -65,6 +66,7 @@ export interface SectorCapitalHistoryResponse {
     mainStrength: (number | null)[]
     mainCapital: (number | null)[]
     mainHidden: (number | null)[]
+    retailCapital: (number | null)[]
     changePercent: (number | null)[]
     actions: string[]
   }

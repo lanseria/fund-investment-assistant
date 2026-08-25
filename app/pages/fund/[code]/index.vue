@@ -650,7 +650,7 @@ watch(data, (newData) => {
         <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
       </div>
 
-      <!-- 最新摘要（完整历史曲线已合并展示在上方「基础走势」图中：净值 / 主力强度 / 主力资金） -->
+      <!-- 最新摘要（完整历史曲线已合并展示在上方「基础走势」图中：净值 / 主力强度 / 主力资金 / 主力暗盘 / 散户资金） -->
       <div
         v-else-if="sectorCapitalHistoryData && sectorCapitalHistoryData.history.dates.length > 0"
         class="text-sm flex flex-wrap gap-x-6 gap-y-2 items-center"
@@ -680,9 +680,15 @@ watch(data, (newData) => {
               {{ (sectorCapitalHistoryData.latest.mainCapital ?? 0).toFixed(2) }} 亿
             </span>
           </span>
+          <span class="text-gray-500 dark:text-gray-400">
+            散户资金
+            <span class="font-mono" :class="getChangeColorClass(sectorCapitalHistoryData.latest.retailCapital ?? 0)">
+              {{ (sectorCapitalHistoryData.latest.retailCapital ?? 0).toFixed(2) }} 亿
+            </span>
+          </span>
         </template>
         <span class="text-xs text-gray-400">
-          完整历史曲线见上方「基础走势」图（净值 / 主力强度 / 主力资金 共享同一条时间轴）。
+          完整历史曲线见上方「基础走势」图（净值 / 主力强度 / 主力资金 / 主力暗盘 / 散户资金 共享同一条时间轴）。
         </span>
       </div>
     </div>

@@ -41,6 +41,7 @@ export default defineEventHandler(async (event) => {
         mainStrength: [],
         mainCapital: [],
         mainHidden: [],
+        retailCapital: [],
         changePercent: [],
         actions: [],
       },
@@ -67,6 +68,7 @@ export default defineEventHandler(async (event) => {
     mainStrength: records.map(r => r.mainStrength !== null ? Number(r.mainStrength) : null),
     mainCapital: records.map(r => r.mainCapital !== null ? Number(r.mainCapital) : null),
     mainHidden: records.map(r => r.mainHidden !== null ? Number(r.mainHidden) : null),
+    retailCapital: records.map(r => r.retailCapital !== null ? Number(r.retailCapital) : null),
     changePercent: records.map(r => r.changePercent !== null ? Number(r.changePercent) : null),
     actions: records.map(r => r.mainAction ?? ''),
   }
@@ -80,6 +82,7 @@ export default defineEventHandler(async (event) => {
         mainStrength: latestRecord.mainStrength !== null ? Number(latestRecord.mainStrength) : null,
         mainCapital: latestRecord.mainCapital !== null ? Number(latestRecord.mainCapital) : null,
         mainHidden: latestRecord.mainHidden !== null ? Number(latestRecord.mainHidden) : null,
+        retailCapital: latestRecord.retailCapital !== null ? Number(latestRecord.retailCapital) : null,
         changePercent: latestRecord.changePercent !== null ? Number(latestRecord.changePercent) : null,
       }
     : null
