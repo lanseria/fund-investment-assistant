@@ -17,7 +17,7 @@ interface FundHistoryPoint {
 
 export default defineMcpTool({
   name: 'get_fund_details',
-  description: '获取指定基金的深度诊断信息，包含：基础信息、MA均线数据（MA5/MA20）、最近30天的净值走势、RSI/布林带等策略信号，以及所属板块的主力资金行为（抢筹/建仓/洗盘/出货、主力强度、主力净流入、暗盘等）。',
+  description: '获取指定基金的深度诊断信息，包含：基础信息、MA均线数据（MA5/MA20）、最近30天的净值走势、RSI/布林带等策略信号，以及所属板块的主力资金行为（抢筹/建仓/洗盘/出货、主力强度、主力净流入、暗盘、散户资金等）。',
   inputSchema: {
     fundCode: z.string().describe('基金代码 (例如 "161725")'),
     days: z.number().optional().default(30).describe('获取历史数据的天数，默认为30天'),
@@ -111,6 +111,7 @@ export default defineMcpTool({
                 main_action: latestRecord.mainAction, // 抢筹 / 建仓 / 洗盘 / 出货
                 main_strength: latestRecord.mainStrength !== null ? Number(latestRecord.mainStrength) : null,
                 main_capital: latestRecord.mainCapital !== null ? Number(latestRecord.mainCapital) : null,
+                retail_capital: latestRecord.retailCapital !== null ? Number(latestRecord.retailCapital) : null,
                 main_hidden: latestRecord.mainHidden !== null ? Number(latestRecord.mainHidden) : null,
                 change_percent: latestRecord.changePercent !== null ? Number(latestRecord.changePercent) : null,
               }
