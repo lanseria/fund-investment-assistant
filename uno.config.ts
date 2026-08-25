@@ -11,6 +11,18 @@ import {
 } from 'unocss'
 
 export default defineConfig({
+  content: {
+    pipeline: {
+      include: [
+        // 模板类文件（UnoCSS 默认扫描范围）
+        /\.(vue|svelte|jsx|tsx|mdx?|astro|elm|php|phtml|html)($|\?)/,
+        // 纯 js/ts：composables / utils / strategy-charts 等模块中存在字面量 class
+        // （图表高度 h-*、徽章配色等）。新版 UnoCSS 默认管道不含纯 js/ts，
+        // 不显式纳入会导致这些样式缺失（如图表高度为 0 整图不显示）。
+        /\.(js|mjs|cjs|ts|mts|cts)($|\?)/,
+      ],
+    },
+  },
   theme: {
     colors: {
       'primary': 'var(--theme-primary)',

@@ -2,7 +2,6 @@
 import { format } from 'date-fns'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
-import { buildTransactionRows, getAiTradeDecisions } from '~~/server/utils/aiTrader'
 import { useDb } from '~~/server/utils/db'
 import { isTradingDay } from '~~/shared/market'
 

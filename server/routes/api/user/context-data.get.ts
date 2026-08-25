@@ -1,4 +1,3 @@
-import { buildAiContext } from '~~/server/utils/aiTrader'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
 

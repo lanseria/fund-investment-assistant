@@ -1,15 +1,12 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
-import type { BollingerSignalData, BollingerSignalPoint, RsiChartData } from '~/types/chart'
-import type { Holding } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
-import { format, isAfter, parseISO } from 'date-fns'
+import { appName } from '~/constants'
+import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
+import SectorBehaviorSummary from '~/components/fund/SectorBehaviorSummary.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
-import { appName, SECTOR_DICT_TYPE } from '~/constants'
-import { formatChange, formatCurrency, getChangeColorClass } from '~/utils/format'
 
-const dictStore = useDictStore()
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
 const targetUserId = route.query.userId ? Number(route.query.userId) : null
@@ -77,37 +74,7 @@ onMounted(async () => {
   }
 })
 
-const activeFilter = ref<string | null>(null)
-const dataZoomStart = ref(50)
-const dataZoomEnd = ref(100)
-
-// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 中性（灰），出货 偏空（绿）
-function getActionClass(action: string): string {
-  switch (action) {
-    case '抢筹':
-      return 'text-red-600 border-red-100 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20'
-    case '建仓':
-      return 'text-orange-600 border-orange-100 bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:bg-orange-900/20'
-    case '洗盘':
-      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
-    case '出货':
-      return 'text-green-600 border-green-100 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'
-    default:
-      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
-  }
-}
-
-const dateFilters = [
-  { label: '近1个月', value: '1m', amount: 1, unit: 'month' },
-  { label: '近3个月', value: '3m', amount: 3, unit: 'months' },
-  { label: '近6个月', value: '6m', amount: 6, unit: 'months' },
-  { label: '近1年', value: '1y', amount: 1, unit: 'year' },
-  { label: '近2年', value: '2y', amount: 2, unit: 'years' },
-  { label: '近5年', value: '5y', amount: 5, unit: 'years' },
-  { label: '全部', value: 'all' },
-]
-
-// --- Modal State ---
+// --- 策略信号详情模态框 ---
 const isStrategyModalOpen = ref(false)
 const selectedSignal = ref<Record<string, any> | null>(null)
 function openSignalDetails(signal: Record<string, any>) {
@@ -115,160 +82,43 @@ function openSignalDetails(signal: Record<string, any>) {
   isStrategyModalOpen.value = true
 }
 
-// --- Transaction Modal State ---
+// --- 交易详情模态框（图表交易标注点点击） ---
 const isTransactionModalOpen = ref(false)
 const selectedTransactionList = ref<any[]>([])
-
 function openTransactionDetails(txList: any[]) {
   selectedTransactionList.value = txList
   isTransactionModalOpen.value = true
 }
 
-// --- 交易模态框状态 ---
-const isTradeModalOpen = ref(false)
-const isConvertModalOpen = ref(false)
-const tradeTarget = ref<Holding | null>(null)
-const tradeType = ref<'buy' | 'sell'>('buy')
-const availableShares = ref(0)
-const tradeTargetTransactions = ref<any[]>([])
+// --- 买入/卖出/转换模态框 ---
+const {
+  isTradeModalOpen,
+  isConvertModalOpen,
+  tradeTarget,
+  tradeType,
+  availableShares,
+  tradeTargetTransactions,
+  openTradeModal,
+  handleConvertSubmit,
+  handleTradeSubmit,
+} = useTradeModals()
 
-// 辅助函数
-function calculateAvailableShares(holding: Holding) {
-  const currentShares = holding.shares || 0
-  if (!holding.pendingTransactions)
-    return currentShares
-  const frozenShares = holding.pendingTransactions
-    .filter(t => t.type === 'sell' || t.type === 'convert_out')
-    .reduce((sum, t) => sum + (Number(t.orderShares) || 0), 0)
-  return Math.max(0, currentShares - frozenShares)
-}
-
-function openTradeModal(holding: Holding, type: 'buy' | 'sell' | 'convert') {
-  tradeTarget.value = holding
-  availableShares.value = calculateAvailableShares(holding)
-  tradeTargetTransactions.value = holding.recentTransactions || []
-
-  if (type === 'convert') {
-    isConvertModalOpen.value = true
-  }
-  else {
-    tradeType.value = type
-    isTradeModalOpen.value = true
-  }
-}
-
-// 处理转换提交
-async function handleConvertSubmit(payload: any) {
-  try {
-    await holdingStore.submitConversion(payload)
-    isConvertModalOpen.value = false
-    alert('转换申请已提交！\n将在卖出确认后自动处理买入。')
-  }
-  catch (e) {
-    console.error(e)
-  }
-}
-
-async function handleTradeSubmit(payload: any) {
-  try {
-    await holdingStore.submitTrade(payload)
-    isTradeModalOpen.value = false
-    alert('交易请求已记录！将在下一交易日净值更新后生效。')
-  }
-  catch (e) {
-    console.error(e)
-  }
-}
-
-// 辅助函数：获取交易类型的显示文本和颜色
-function getTransactionTypeInfo(type: string) {
-  switch (type) {
-    case 'buy': return { label: '买入', color: 'text-red-500' }
-    case 'sell': return { label: '卖出', color: 'text-green-500' }
-    case 'convert_in': return { label: '转换转入', color: 'text-purple-500' }
-    case 'convert_out': return { label: '转换转出', color: 'text-blue-500' }
-    default: return { label: type, color: 'text-gray-500' }
-  }
-}
-
-// 策略图表数据(基础走势/布林带/区间涨跌)：懒加载不阻塞路由切换，图表区在数据到达前显示整卡加载态
-const { data, pending, error, refresh } = useAsyncData(
-  `fund-all-strategies-structured-${code}`,
-  async () => {
-    const fetchGenericStrategy = (strategy: string = '') => {
-      const params: any = { ma: [5, 10, 20, 120] }
-      if (strategy)
-        params.strategy = strategy
-      if (targetUserId)
-        params.userId = targetUserId
-
-      return apiFetch(`/api/fund/holdings/${code}/history`, { params })
-    }
-
-    // 获取区间涨跌幅数据
-    const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
-
-    const [baseData, bollingerData, performanceData] = await Promise.all([
-      fetchGenericStrategy(''),
-      fetchGenericStrategy('bollinger_bands'),
-      fetchPerformance(),
-    ])
-
-    return {
-      base: baseData,
-      bollingerBands: bollingerData,
-      performance: performanceData,
-    }
-  },
-  {
-    lazy: true,
-    server: false,
-  },
-)
-
-// RSI 策略数据代理自外部策略分析服务、耗时较长，独立懒加载：不阻塞路由切换与主图渲染，
-// 到达后作为子图叠加在下方「基础走势」图中（失败时静默降级为主图无 RSI 子图）
-const { data: rsiData, refresh: refreshRsi } = useAsyncData(
-  `fund-rsi-strategy-${code}`,
-  () => apiFetch<RsiChartData>(`/api/charts/rsi/${code}`).catch(() => null),
-  {
-    lazy: true,
-    server: false,
-    default: () => null,
-  },
-)
-
-// 布林带策略买卖信号：从每日策略信号记录中筛选出买入/卖出点（不含「持有/观望」），
-// 作为「基础走势」图 RSI 下方的独立子图展示（只展示信号点，不展示布林带轨值）
-const bollingerSignalData = computed<BollingerSignalData | undefined>(() => {
-  const signals = data.value?.bollingerBands?.signals
-  if (!signals || signals.length === 0)
-    return undefined
-
-  const buy: BollingerSignalPoint[] = []
-  const sell: BollingerSignalPoint[] = []
-  signals.forEach((s: any) => {
-    const type = String(s.signal ?? '').trim()
-    if (type !== '买入' && type !== '卖出')
-      return
-    const close = Number(s.latestClose)
-    if (Number.isNaN(close))
-      return
-    const point: BollingerSignalPoint = {
-      date: String(s.latestDate),
-      close,
-      signal: s,
-    }
-    if (type === '买入')
-      buy.push(point)
-    else
-      sell.push(point)
-  })
-
-  if (buy.length === 0 && sell.length === 0)
-    return undefined
-  return { buy, sell }
-})
+// --- 策略图表数据（基础走势 / RSI / 布林带 / 区间涨跌 / dataZoom 区间筛选） ---
+const {
+  data,
+  pending,
+  error,
+  refresh,
+  rsiData,
+  refreshRsi,
+  bollingerSignalData,
+  activeFilter,
+  dataZoomStart,
+  dataZoomEnd,
+  setDateRange,
+  dateFilters,
+  performance,
+} = useFundStrategyData(code, targetUserId)
 
 const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
@@ -307,70 +157,6 @@ async function handleRunStrategies() {
     isRunningStrategies.value = false
   }
 }
-
-// 辅助函数：获取特定区间的性能数据
-function getPerformanceValue(key: string) {
-  if (!data.value?.performance)
-    return null
-  return data.value.performance[key]
-}
-
-// 辅助函数：格式化显示
-function formatPerformance(key: string) {
-  const val = getPerformanceValue(key)
-  if (val === null || val === undefined)
-    return '--'
-  return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`
-}
-
-// 辅助函数：获取颜色样式
-function getPerformanceClass(key: string) {
-  const val = getPerformanceValue(key)
-  if (val === null || val === undefined)
-    return 'text-gray-400'
-  if (val > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (val < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray-500'
-}
-
-function setDateRange(period: string) {
-  activeFilter.value = period
-  // 现在可以安全地从 data.base.history 获取日期信息
-  const historyData = data.value?.base.history
-  if (!historyData || historyData.length === 0)
-    return
-
-  const totalPoints = historyData.length
-  if (period === 'all') {
-    dataZoomStart.value = 0
-    dataZoomEnd.value = 100
-    return
-  }
-
-  const filter = dateFilters.find(f => f.value === period)
-  if (!filter || !filter.unit)
-    return
-
-  const lastDate = parseISO(historyData[totalPoints - 1]!.date)
-  const targetDate = subtractByUnit(lastDate, filter.amount, filter.unit)
-  const startIndex = historyData.findIndex((p: { date: string }) => isAfter(parseISO(p.date), targetDate))
-
-  if (startIndex !== -1) {
-    dataZoomStart.value = (startIndex / totalPoints) * 100
-    dataZoomEnd.value = 100
-  }
-  else {
-    dataZoomStart.value = 0
-    dataZoomEnd.value = 100
-  }
-}
-
-watch(data, (newData) => {
-  if (newData)
-    setDateRange('3m')
-}, { immediate: true })
 </script>
 
 <template>
@@ -413,150 +199,16 @@ watch(data, (newData) => {
     </header>
 
     <!-- 基金详情总览：核心指标 / 我的持仓 / 区间涨跌 三区合一 -->
-    <div v-if="fundDetail" class="mb-8 card overflow-hidden">
-      <!-- 基金信息头 -->
-      <div class="p-5 from-white to-gray-50 bg-gradient-to-br dark:from-gray-800 dark:to-gray-800/80">
-        <div class="flex gap-3 items-center">
-          <span class="text-xl font-bold">{{ fundDetail.name }}</span>
-          <span class="text-sm text-gray-500 font-mono px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700">{{ fundDetail.code }}</span>
-        </div>
-        <div class="text-xs text-gray-400 mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          <span>类型: {{ fundDetail.fundType === 'qdii_lof' ? '场内/LOF' : '场外基金' }}</span>
-          <span v-if="fundDetail.sector">板块: {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundDetail.sector) }}</span>
-          <span>更新时间: {{ fundDetail.todayEstimateUpdateTime ? format(fundDetail.todayEstimateUpdateTime, 'yyyy-MM-dd HH:mm:ss') : '-' }}</span>
-        </div>
-        <!-- 基金费率信息(仅展示) -->
-        <FundFeesCard :fees="fundDetail.fees" />
-      </div>
-
-      <!-- 核心行情指标 -->
-      <div class="p-5 border-t border-gray-100 dark:border-gray-700/60">
-        <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
-          <StatCard
-            label="最新净值"
-            :value="fundDetail.todayEstimateNav || fundDetail.yesterdayNav || '-'"
-            value-class="!text-xl"
-          />
-          <StatCard
-            label="估算涨跌"
-            :value="fundDetail.percentageChange !== null ? `${(fundDetail.percentageChange > 0 ? '+' : '') + fundDetail.percentageChange.toFixed(2)}%` : '-'"
-            :colored="true"
-            value-class="!text-xl"
-          />
-          <StatCard
-            label="持仓市值"
-            :value="fundDetail.holdingAmount !== null ? formatCurrency(fundDetail.holdingAmount) : '--'"
-            value-class="!text-xl"
-          />
-          <div class="p-2 flex flex-col gap-1">
-            <span class="text-xs text-gray-500 dark:text-gray-400">持仓收益</span>
-            <div class="flex gap-1 items-baseline">
-              <span
-                class="text-xl font-bold font-mono tabular-nums"
-                :class="fundDetail.holdingProfitAmount > 0 ? 'text-red-500 dark:text-red-400' : (fundDetail.holdingProfitAmount < 0 ? 'text-green-500 dark:text-green-400' : 'text-gray-500 dark:text-gray-400')"
-              >
-                {{ fundDetail.holdingProfitAmount !== null ? (fundDetail.holdingProfitAmount > 0 ? '+' : '') + formatCurrency(fundDetail.holdingProfitAmount) : '--' }}
-              </span>
-              <span
-                v-if="fundDetail.holdingProfitRate !== null"
-                class="text-sm font-mono tabular-nums"
-                :class="fundDetail.holdingProfitRate > 0 ? 'text-red-500 dark:text-red-400' : (fundDetail.holdingProfitRate < 0 ? 'text-green-500 dark:text-green-400' : 'text-gray-500 dark:text-gray-400')"
-              >
-                ({{ fundDetail.holdingProfitRate > 0 ? '+' : '' }}{{ fundDetail.holdingProfitRate.toFixed(2) }}%)
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 我的持仓 -->
-      <div v-if="currentHolding" class="p-5 border-t border-gray-100 dark:border-gray-700/60">
-        <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
-          <StatCard
-            label="持有份额"
-            :value="currentHolding.shares !== null ? `${Number(currentHolding.shares).toFixed(2)} 份` : '-'"
-          />
-          <StatCard
-            label="成本价"
-            :value="currentHolding.costPrice !== null ? `¥${Number(currentHolding.costPrice).toFixed(4)}` : '-'"
-          />
-          <StatCard
-            label="乖离率 BIAS20"
-            :value="currentHolding.bias20 !== null ? `${currentHolding.bias20 > 0 ? '+' : ''}${currentHolding.bias20.toFixed(2)}%` : '-'"
-            :colored="true"
-            hint="正偏高估/负偏低估"
-          />
-          <StatCard
-            label="关注度"
-            :value="['', '普通', '重点', '核心'][currentHolding.attentionLevel] || '-'"
-          />
-          <StatCard
-            label="待确认交易"
-            :value="(currentHolding.pendingTransactions?.length || 0)"
-            :hint="(currentHolding.pendingTransactions?.length || 0) > 0 ? '有进行中的交易' : '无'"
-          />
-        </div>
-
-        <!-- 待确认交易列表（可撤销） -->
-        <div
-          v-if="currentHolding.pendingTransactions && currentHolding.pendingTransactions.length > 0"
-          class="mt-4 p-3 border border-amber-100 rounded-md bg-amber-50 dark:border-amber-800 dark:bg-amber-900/20"
-        >
-          <p class="text-xs text-amber-700 font-semibold mb-2 dark:text-amber-300">
-            待确认交易 ({{ currentHolding.pendingTransactions.length }}笔)
-          </p>
-          <div class="space-y-1.5">
-            <div
-              v-for="tx in currentHolding.pendingTransactions"
-              :key="tx.id"
-              class="text-xs flex gap-3 items-center"
-            >
-              <span class="px-1.5 py-0.5 border rounded" :class="tx.type === 'buy' ? 'text-red-600 border-red-200 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20' : 'text-green-600 border-green-200 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'">
-                {{ tx.type === 'buy' ? '买入' : tx.type === 'sell' ? '卖出' : tx.type === 'convert_in' ? '转入' : '转出' }}
-              </span>
-              <span class="text-gray-500">{{ tx.orderDate }}</span>
-              <span class="text-gray-700 font-mono dark:text-gray-300">
-                {{ tx.orderAmount ? formatCurrency(tx.orderAmount) : `${Number(tx.orderShares).toFixed(2)} 份` }}
-              </span>
-              <span class="text-gray-400">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 区间涨跌幅 -->
-      <div class="p-4 border-t border-gray-100 dark:border-gray-700/60">
-        <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
-          <button
-            v-for="filter in dateFilters"
-            :key="filter.value"
-            class="p-2 border rounded-lg flex flex-col transition-all duration-200 items-center justify-center"
-            :class="[
-              activeFilter === filter.value
-                ? 'bg-primary/5 border-primary shadow-sm'
-                : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/60',
-            ]"
-            @click="setDateRange(filter.value)"
-          >
-            <!-- 标签 -->
-            <span
-              class="text-xs mb-1"
-              :class="activeFilter === filter.value ? 'text-primary font-bold' : 'text-gray-500 dark:text-gray-400'"
-            >
-              {{ filter.label }}
-            </span>
-
-            <!-- 数值 -->
-            <div class="flex h-6 items-center justify-center">
-              <span v-if="!data && pending" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
-              <span v-else class="text-sm font-bold font-mono tabular-nums" :class="getPerformanceClass(filter.value)">
-                {{ formatPerformance(filter.value) }}
-              </span>
-            </div>
-          </button>
-        </div>
-      </div>
-    </div>
+    <FundOverviewCard
+      v-if="fundDetail"
+      :detail="fundDetail"
+      :holding="currentHolding"
+      :filters="dateFilters"
+      :active-filter="activeFilter"
+      :performance="performance"
+      :performance-loading="pending"
+      @select-range="setDateRange"
+    />
     <!-- 基金详情后台加载中/失败占位 -->
     <div v-else-if="fundDetailPending" class="mb-8 card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
@@ -609,126 +261,20 @@ watch(data, (newData) => {
     </div>
 
     <!-- 板块主力行为：摘要与状态（图表已合并到上方「基础走势」走势图中） -->
-    <div v-if="fundSector" class="mt-8 p-4 card sm:p-6">
-      <h2 class="text-lg font-bold mb-1">
-        板块主力行为 · 摘要
-        <span class="text-sm text-gray-500 font-normal dark:text-gray-400">
-          · {{ dictStore.getLabel(SECTOR_DICT_TYPE, fundSector) }}
-        </span>
-      </h2>
-
-      <!-- 未绑定东财板块 -->
-      <div
-        v-if="!sectorHistoryPending && sectorCapitalHistoryData && !sectorCapitalHistoryData.bound"
-        class="py-10 text-center flex flex-col gap-3 items-center"
-      >
-        <div class="i-carbon-link text-4xl text-gray-300" />
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          该板块「{{ dictStore.getLabel(SECTOR_DICT_TYPE, fundSector) }}」尚未绑定东财板块，无法查看主力行为回顾。
-        </p>
-        <NuxtLink to="/sector-capital" class="text-sm text-primary hover:underline">
-          前往「板块资金」页面绑定 →
-        </NuxtLink>
-      </div>
-
-      <!-- 已绑定但暂无历史数据 -->
-      <div
-        v-else-if="!sectorHistoryPending && sectorCapitalHistoryData && sectorCapitalHistoryData.bound && sectorCapitalHistoryData.history.dates.length === 0"
-        class="py-10 text-center flex flex-col gap-2 items-center"
-      >
-        <div class="i-carbon-cloud-download text-4xl text-gray-300" />
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          已绑定东财板块「{{ sectorCapitalHistoryData.sectorName }}」，但暂无历史快照数据。
-        </p>
-        <p class="text-xs text-gray-400">
-          请管理员在「板块资金」页面手动抓取一次快照，或等待每日收盘自动抓取。
-        </p>
-      </div>
-
-      <!-- 加载中 -->
-      <div v-else-if="sectorHistoryPending" class="flex h-40 items-center justify-center">
-        <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
-      </div>
-
-      <!-- 最新摘要（完整历史曲线已合并展示在上方「基础走势」图中：净值 / 主力强度 / 主力资金 / 主力暗盘 / 散户资金） -->
-      <div
-        v-else-if="sectorCapitalHistoryData && sectorCapitalHistoryData.history.dates.length > 0"
-        class="text-sm flex flex-wrap gap-x-6 gap-y-2 items-center"
-      >
-        <template v-if="sectorCapitalHistoryData.latest">
-          <span class="text-gray-500 dark:text-gray-400">
-            最新 ({{ sectorCapitalHistoryData.latest.date }}):
-          </span>
-          <span>
-            主力行为
-            <span
-              class="text-xs font-medium ml-1 px-2 py-0.5 border rounded-full"
-              :class="getActionClass(sectorCapitalHistoryData.latest.mainAction ?? '')"
-            >
-              {{ sectorCapitalHistoryData.latest.mainAction || '-' }}
-            </span>
-          </span>
-          <span class="text-gray-500 dark:text-gray-400">
-            主力强度
-            <span class="font-mono font-semibold" :class="getChangeColorClass(sectorCapitalHistoryData.latest.mainStrength ?? 0)">
-              {{ formatChange(sectorCapitalHistoryData.latest.mainStrength ?? 0) }}%
-            </span>
-          </span>
-          <span class="text-gray-500 dark:text-gray-400">
-            主力资金
-            <span class="font-mono" :class="getChangeColorClass(sectorCapitalHistoryData.latest.mainCapital ?? 0)">
-              {{ (sectorCapitalHistoryData.latest.mainCapital ?? 0).toFixed(2) }} 亿
-            </span>
-          </span>
-          <span class="text-gray-500 dark:text-gray-400">
-            散户资金
-            <span class="font-mono" :class="getChangeColorClass(sectorCapitalHistoryData.latest.retailCapital ?? 0)">
-              {{ (sectorCapitalHistoryData.latest.retailCapital ?? 0).toFixed(2) }} 亿
-            </span>
-          </span>
-        </template>
-        <span class="text-xs text-gray-400">
-          完整历史曲线见上方「基础走势」图（净值 / 主力强度 / 主力资金 / 主力暗盘 / 散户资金 共享同一条时间轴）。
-        </span>
-      </div>
-    </div>
+    <SectorBehaviorSummary
+      v-if="fundSector"
+      :fund-sector="fundSector"
+      :data="sectorCapitalHistoryData"
+      :pending="sectorHistoryPending"
+    />
 
     <!-- 策略信号模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
       <StrategyDetailModal :signal="selectedSignal" />
     </Modal>
 
-    <!-- 交易详情模态框: 改为支持列表展示 -->
-    <Modal v-model="isTransactionModalOpen" :title="`交易详情 (${selectedTransactionList.length}笔)`">
-      <div v-if="selectedTransactionList.length > 0" class="pr-1 max-h-[60vh] overflow-y-auto space-y-4">
-        <!-- 遍历交易列表 -->
-        <div v-for="tx in selectedTransactionList" :key="tx.id" class="p-4 rounded-md bg-gray-100 dark:bg-gray-700">
-          <div class="mb-2 flex items-baseline justify-between">
-            <span class="text-lg font-bold" :class="getTransactionTypeInfo(tx.type).color">
-              {{ getTransactionTypeInfo(tx.type).label }}
-            </span>
-            <span class="text-sm text-gray-500 dark:text-gray-400">
-              {{ tx.orderDate }}
-            </span>
-          </div>
-
-          <div class="text-sm pt-2 border-t gap-2 grid dark:border-gray-600">
-            <div class="flex justify-between">
-              <span class="text-gray-500">确认金额</span>
-              <span class="font-mono">{{ tx.confirmedAmount ? formatCurrency(tx.confirmedAmount) : '-' }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">确认份额</span>
-              <span class="font-mono">{{ tx.confirmedShares ? `${Number(tx.confirmedShares).toFixed(2)} 份` : '-' }}</span>
-            </div>
-            <div class="flex justify-between">
-              <span class="text-gray-500">确认净值</span>
-              <span class="font-mono">{{ tx.confirmedNav ? Number(tx.confirmedNav).toFixed(4) : '-' }}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </Modal>
+    <!-- 交易详情模态框: 支持列表展示 -->
+    <TransactionDetailModal v-model="isTransactionModalOpen" :transactions="selectedTransactionList" />
 
     <!-- 交易模态框 -->
     <Modal v-if="tradeTarget" v-model="isTradeModalOpen" :title="tradeType === 'buy' ? '买入基金' : '卖出基金'">

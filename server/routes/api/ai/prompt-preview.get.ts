@@ -1,7 +1,6 @@
 // server/routes/api/ai/prompt-preview.get.ts
 import { eq } from 'drizzle-orm'
 import { users } from '~~/server/database/schemas'
-import { generateAiPrompt } from '~~/server/utils/aiTrader'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
+import { buildActionBadgeHtml, SECTOR_ACTION_STYLE, STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS } from '~/utils/sectorStyle'
 
 const props = withDefaults(defineProps<{
   data: SectorCapitalHistoryResponse['history']
@@ -15,18 +16,6 @@ const props = withDefaults(defineProps<{
 
 const colorMode = useColorMode()
 provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
-
-// 主力行为 → 配色与缩写（用于 markPoint 标注）
-const actionStyle: Record<string, { color: string, label: string }> = {
-  抢筹: { color: '#ef4444', label: '抢' }, // 红
-  建仓: { color: '#f97316', label: '建' }, // 橙
-  洗盘: { color: '#9ca3af', label: '洗' }, // 灰
-  出货: { color: '#22c55e', label: '出' }, // 绿
-}
-
-// 主力强度颜色：正值偏多 → 红，负值偏空 → 绿
-const STRENGTH_COLOR_POS = '#ef4444' // 红
-const STRENGTH_COLOR_NEG = '#22c55e' // 绿
 
 const chartOption = computed<EChartsOption>(() => {
   const isDark = colorMode.value === 'dark'
@@ -46,7 +35,7 @@ const chartOption = computed<EChartsOption>(() => {
     .map((date, i) => {
       const action = actions[i]
       const strength = mainStrength[i]
-      const style = action ? actionStyle[action] : null
+      const style = action ? SECTOR_ACTION_STYLE[action] : null
       // 仅标注有行为且强度值有效的那天
       if (!style || strength === null)
         return null
@@ -84,9 +73,7 @@ const chartOption = computed<EChartsOption>(() => {
         const date = params[0].axisValue
         const idx = dates.indexOf(date)
         const action = idx >= 0 ? actions[idx] : ''
-        const actionBadge = action
-          ? `<span style="display:inline-block;padding:1px 5px;border-radius:3px;color:#fff;background:${actionStyle[action]?.color || '#999'};font-size:11px">${action}</span>`
-          : ''
+        const actionBadge = action ? buildActionBadgeHtml(action) : ''
         let html = `<div style="font-weight:600;margin-bottom:4px">${date} ${actionBadge}</div>`
         for (const p of params) {
           const val = p.value

@@ -1,10 +1,11 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
-import type { SectorBinding, SectorCapitalItem, SectorCapitalResponse, SectorType } from '~/types/sector'
-import { useLocalStorage } from '@vueuse/core'
+import type { SectorCapitalResponse, SectorType } from '~/types/sector'
+import { parseYi } from '~~/shared/sectorCapital'
 import { appName, SECTOR_DICT_TYPE } from '~/constants'
 import { apiFetch } from '~/utils/api'
 import { CHANGE_LEGEND, formatChange, getChangeColorClass } from '~/utils/format'
+import { getActionBadgeClass } from '~/utils/sectorStyle'
 
 useHead({
   title: `板块资金 - ${appName}`,
@@ -39,100 +40,18 @@ const { data: sectorCapitalData, pending, error, refresh } = useAsyncData(
   },
 )
 
-// === 板块绑定 ===
-// 加载所有绑定关系，构造 sectorCode → binding 映射
-const { data: bindingsData, refresh: refreshBindings } = useAsyncData(
-  'sector-bindings',
-  () => apiFetch<SectorBinding[]>('/api/sectors/bindings'),
-)
-
-const bindingMap = computed<Map<string, SectorBinding>>(() => {
-  const map = new Map<string, SectorBinding>()
-  for (const b of bindingsData.value ?? [])
-    map.set(b.sectorCode, b)
-  return map
-})
-
-// 项目板块下拉选项（含「解绑」选项）
-const sectorOptions = computed(() => [
-  { value: null, label: '-- 解绑 / 不绑定 --' },
-  ...dictStore.getDictData(SECTOR_DICT_TYPE).map(opt => ({
-    value: opt.value,
-    label: `${opt.label} (${opt.value})`,
-  })),
-])
-
-// 已被其他东财板块占用的 dictValue（避免重复绑定提示）
-const occupiedDictValues = computed(() => {
-  const set = new Set<string>()
-  for (const b of bindingsData.value ?? [])
-    set.add(b.dictValue)
-  return set
-})
-
-// 当前正在编辑绑定的东财板块
-const editingBindingSector = ref<SectorCapitalItem | null>(null)
-const selectedDictValue = ref<string | null>(null)
-const isBindingModalOpen = ref(false)
-const isBindingSubmitting = ref(false)
-
-function openBindingModal(sector: SectorCapitalItem) {
-  editingBindingSector.value = sector
-  // 预填当前已绑定的 dictValue
-  selectedDictValue.value = bindingMap.value.get(sector.code)?.dictValue ?? null
-  isBindingModalOpen.value = true
-}
-
-async function handleBindingSubmit() {
-  const sector = editingBindingSector.value
-  if (!sector)
-    return
-
-  isBindingSubmitting.value = true
-  try {
-    const existing = bindingMap.value.get(sector.code)
-    const newDictValue = selectedDictValue.value
-
-    if (newDictValue === null) {
-      // 解绑
-      if (existing) {
-        await apiFetch(`/api/admin/sector-bindings/${existing.dictValue}`, { method: 'DELETE' })
-      }
-    }
-    else if (existing) {
-      // 已有绑定 → 修改（重新绑定到新东财板块）
-      await apiFetch(`/api/admin/sector-bindings/${existing.dictValue}`, {
-        method: 'PUT',
-        body: {
-          sectorCode: sector.code,
-          sectorType: sectorType.value,
-          sectorName: sector.name,
-        },
-      })
-    }
-    else {
-      // 新建绑定
-      await apiFetch('/api/admin/sector-bindings', {
-        method: 'POST',
-        body: {
-          dictValue: newDictValue,
-          sectorCode: sector.code,
-          sectorType: sectorType.value,
-          sectorName: sector.name,
-        },
-      })
-    }
-
-    isBindingModalOpen.value = false
-    await refreshBindings()
-  }
-  catch (error: any) {
-    alert(`绑定失败: ${error.data?.statusMessage || '未知错误'}`)
-  }
-  finally {
-    isBindingSubmitting.value = false
-  }
-}
+// === 板块绑定（绑定关系、绑定/解绑模态框） ===
+const {
+  bindingMap,
+  sectorOptions,
+  occupiedDictValues,
+  editingBindingSector,
+  selectedDictValue,
+  isBindingModalOpen,
+  isBindingSubmitting,
+  openBindingModal,
+  handleBindingSubmit,
+} = useSectorBinding(sectorType)
 
 // === admin 手动抓取快照 ===
 const isSyncing = ref(false)
@@ -152,22 +71,18 @@ async function handleSyncSnapshot() {
   }
 }
 
-// 主力行为筛选
-const actionFilters: ('全部' | SectorCapitalItem['mainAction'])[] = ['全部', '抢筹', '建仓', '洗盘', '出货']
-const actionFilter = ref<(typeof actionFilters)[number]>('全部')
-
-// 搜索（按板块名/代码子串匹配）
-const search = ref('')
-
-// 成交额过滤（单位：亿元，0 / 空 = 不限）— 持久化到本地浏览器
-const amountPresets = [
-  { label: '不限', value: 0 },
-  { label: '≥10亿', value: 10 },
-  { label: '≥50亿', value: 50 },
-  { label: '≥100亿', value: 100 },
-  { label: '≥500亿', value: 500 },
-]
-const amountMin = useLocalStorage('sector-capital-amount-min', 0)
+// === 筛选与排序（主力行为 / 搜索 / 成交额 / 排序列） ===
+const {
+  actionFilters,
+  actionFilter,
+  search,
+  amountPresets,
+  amountMin,
+  sortKey,
+  sortOrder,
+  toggleSort,
+  filteredSectors,
+} = useSectorFilters(computed(() => sectorCapitalData.value?.sectors))
 
 // 数据最近更新时间（客户端成功抓取时刻；上游为盘中实时数据，无自带时间戳）
 const lastUpdated = ref<Date | null>(null)
@@ -175,85 +90,6 @@ watch(sectorCapitalData, (val) => {
   if (val)
     lastUpdated.value = new Date()
 })
-
-// 排序
-type SortKey = 'mainStrength' | 'changePercent' | 'amount' | 'mainCapital' | 'mainHidden'
-const sortKey = ref<SortKey>('mainStrength')
-const sortOrder = ref<'asc' | 'desc'>('desc')
-
-function toggleSort(key: SortKey) {
-  if (sortKey.value === key) {
-    sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
-  }
-  else {
-    sortKey.value = key
-    sortOrder.value = 'desc'
-  }
-}
-
-// 剥离「亿」转为数值，供字符串列排序使用
-function parseYi(str: string | null | undefined): number {
-  if (!str)
-    return 0
-  const num = Number(str.replace(/亿/g, '').trim())
-  return Number.isNaN(num) ? 0 : num
-}
-
-const filteredSectors = computed<SectorCapitalItem[]>(() => {
-  const list = sectorCapitalData.value?.sectors ?? []
-  const keyword = search.value.trim().toLowerCase()
-
-  let result = list.filter((s) => {
-    const matchAction = actionFilter.value === '全部' || s.mainAction === actionFilter.value
-    const matchKeyword = !keyword
-      || s.name.toLowerCase().includes(keyword)
-      || s.code.toLowerCase().includes(keyword)
-    const matchAmount = !amountMin.value || parseYi(s.amount) >= amountMin.value
-    return matchAction && matchKeyword && matchAmount
-  })
-
-  result = [...result].sort((a, b) => {
-    let valA: number
-    let valB: number
-    switch (sortKey.value) {
-      case 'amount':
-        valA = parseYi(a.amount)
-        valB = parseYi(b.amount)
-        break
-      case 'mainCapital':
-        valA = parseYi(a.mainCapital)
-        valB = parseYi(b.mainCapital)
-        break
-      case 'mainHidden':
-        valA = parseYi(a.mainHidden)
-        valB = parseYi(b.mainHidden)
-        break
-      default:
-        // changePercent / mainStrength 均为数值
-        valA = Number(a[sortKey.value]) || 0
-        valB = Number(b[sortKey.value]) || 0
-    }
-    return sortOrder.value === 'asc' ? valA - valB : valB - valA
-  })
-
-  return result
-})
-
-// 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 中性（灰），出货 偏空（绿）
-function getActionClass(action: string): string {
-  switch (action) {
-    case '抢筹':
-      return 'text-red-600 border-red-100 bg-red-50 dark:text-red-400 dark:border-red-800 dark:bg-red-900/20'
-    case '建仓':
-      return 'text-orange-600 border-orange-100 bg-orange-50 dark:text-orange-400 dark:border-orange-800 dark:bg-orange-900/20'
-    case '洗盘':
-      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
-    case '出货':
-      return 'text-green-600 border-green-100 bg-green-50 dark:text-green-400 dark:border-green-800 dark:bg-green-900/20'
-    default:
-      return 'text-gray-500 border-gray-200 bg-gray-50 dark:text-gray-400 dark:border-gray-600 dark:bg-gray-700/40'
-  }
-}
 </script>
 
 <template>
@@ -510,7 +346,7 @@ function getActionClass(action: string): string {
             <td class="px-4 py-3 text-center align-middle">
               <span
                 class="text-xs font-medium px-2 py-0.5 border rounded-full whitespace-nowrap"
-                :class="getActionClass(sector.mainAction)"
+                :class="getActionBadgeClass(sector.mainAction)"
               >
                 {{ sector.mainAction }}
               </span>

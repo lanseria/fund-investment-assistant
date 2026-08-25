@@ -5,17 +5,7 @@ import { sql } from 'drizzle-orm'
 import { ofetch } from 'ofetch'
 import { sectorCapitalHistory } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
-
-/**
- * 剥离「亿」转为数值（与前端 parseYi 逻辑一致）。
- * 例如 "440.19 亿" → 440.19
- */
-export function parseYi(str: string | null | undefined): number | null {
-  if (!str)
-    return null
-  const num = Number(str.replace(/亿/g, '').trim())
-  return Number.isNaN(num) ? null : num
-}
+import { parseYi } from '~~/shared/sectorCapital'
 
 /**
  * 请求上游策略服务的 /sector/capital 全量板块资金接口。
