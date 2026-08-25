@@ -10,7 +10,7 @@ import '../processTransactions'
 // vi.hoisted 的回调会被提升并优先执行,确保被测模块求值时 defineTask 已就绪。
 // (不能用普通赋值:ESM 的 import 语句会先于模块顶层代码执行,导致 defineTask 未定义)
 // ============================================================
-const { capturedTaskRef } = vi.hoisted(() => {
+const { capturedTaskRef, syncEstimateMock } = vi.hoisted(() => {
   const ref = { current: null as any }
   // defineTask:捕获任务定义,使测试可调用 task.run()
   ;(globalThis as any).defineTask = (task: any) => {
@@ -25,10 +25,12 @@ const { capturedTaskRef } = vi.hoisted(() => {
   ;(globalThis as any).addHolding = async () => undefined
   // 任务新调用的 fundService 自动导入函数同样注入桩:
   //   - findOrCreateFund:新持仓时在事务外确保基金元数据存在
-  //   - syncSingleFundEstimate:确认后刷新估值(尽力而为,失败不影响确认)
+  //   - syncSingleFundEstimate:确认后刷新估值(尽力而为,失败不影响确认),
+  //     用 vi.fn 以便断言调用参数(须保留 todayEstimateUpdateTime)
   ;(globalThis as any).findOrCreateFund = async () => undefined
-  ;(globalThis as any).syncSingleFundEstimate = async () => undefined
-  return { capturedTaskRef: ref }
+  const syncEstimateMock = vi.fn(async () => undefined)
+  ;(globalThis as any).syncSingleFundEstimate = syncEstimateMock
+  return { capturedTaskRef: ref, syncEstimateMock }
 })
 
 // ============================================================
@@ -173,6 +175,7 @@ function resetData(seed: Partial<MockData> = {}) {
   txFindManyCallCount = 0
   // 重置所有 mock 的调用记录(mockClear 不影响实现)
   Object.values(mockDb.query).forEach(q => Object.values(q).forEach(fn => (fn as any).mockClear?.()))
+  syncEstimateMock.mockClear()
 }
 
 /** 构造一笔交易 */
@@ -229,6 +232,9 @@ describe('processTransactions task', () => {
     expect(txUpdate?.setValues.status).toBe('confirmed')
     expect(txUpdate?.setValues.confirmedShares).toBe('500')
     expect(txUpdate?.setValues.confirmedAmount).toBe('1000')
+
+    // 验证:确认后刷新估值时须保留 todayEstimateUpdateTime(9 点执行不能写当日估值时间)
+    expect(syncEstimateMock).toHaveBeenCalledWith('001111', { preserveEstimateUpdateTime: true })
   })
 
   it('场景3: 卖出流程应正确回款、扣减份额、状态变为 confirmed', async () => {

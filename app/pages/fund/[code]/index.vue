@@ -2,10 +2,10 @@
 <script setup lang="ts">
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
-import { appName } from '~/constants'
-import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import SectorBehaviorSummary from '~/components/fund/SectorBehaviorSummary.vue'
+import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
+import { appName } from '~/constants'
 
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string

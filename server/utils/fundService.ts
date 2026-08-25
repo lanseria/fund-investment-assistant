@@ -101,8 +101,13 @@ export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lo
 
 /**
  * 同步单个基金的最新估值
+ * @param code 基金代码
+ * @param options 可选配置
+ * @param options.preserveEstimateUpdateTime 保留 todayEstimateUpdateTime 不写入。
+ *   该字段表示"当日盘中估值"的更新时间(供 isEstimateFresh 等新鲜度判断),
+ *   交易确认等场景刷新估值时应开启,避免开盘前的刷新被误判为当日估值已更新。
  */
-export async function syncSingleFundEstimate(code: string) {
+export async function syncSingleFundEstimate(code: string, options?: { preserveEstimateUpdateTime?: boolean }) {
   const db = useDb()
   // 先查询基金类型
   const fundInfo = await db.query.funds.findFirst({
@@ -132,11 +137,14 @@ export async function syncSingleFundEstimate(code: string) {
       estimateNavBN = yesterdayNavBN.times(multiplier)
     }
 
-    await db.update(funds).set({
+    const updates: Partial<typeof funds.$inferInsert> = {
       percentageChange: percentageChangeBN.toNumber(),
       todayEstimateNav: estimateNavBN ? estimateNavBN.toNumber() : null,
-      todayEstimateUpdateTime: new Date(realtimeData.updateTime),
-    }).where(eq(funds.code, code))
+    }
+    if (!options?.preserveEstimateUpdateTime)
+      updates.todayEstimateUpdateTime = new Date(realtimeData.updateTime)
+
+    await db.update(funds).set(updates).where(eq(funds.code, code))
   }
 }
 

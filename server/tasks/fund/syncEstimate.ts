@@ -11,7 +11,7 @@ export default defineTask({
     // --- 交易日检查 ---
     const check = isTradingDay()
     if (!check.isTrading) {
-      console.log(`[syncEstimate] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
+      console.warn(`[syncEstimate] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
       return { result: 'Skipped', reason: check.reason }
     }
 

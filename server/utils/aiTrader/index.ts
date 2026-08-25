@@ -5,7 +5,6 @@ import { AI_CASH_RESERVE, AI_MIN_BUY_BUDGET, generateAiPrompt } from './prompt'
 import { AiResponseSchema } from './schemas'
 import { enforceConvertPairs } from './transactions'
 
-
 export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: UserAiConfig): Promise<AiTradeResult> {
   const config = useRuntimeConfig()
 
