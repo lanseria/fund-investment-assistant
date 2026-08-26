@@ -37,3 +37,18 @@ export interface LeaderboardUser {
     draft: number
   }
 }
+
+/** 排行榜收益走势数据点（仅绘图所需字段） */
+export interface LeaderboardTrendPoint {
+  date: string
+  totalProfit: number // 累计盈亏额
+  totalProfitRate: number // 累计收益率 (%)
+}
+
+/** 排行榜收益走势的单用户曲线 */
+export interface LeaderboardTrendUser {
+  id: number
+  username: string
+  aiMode: 'auto' | 'draft' | 'off'
+  history: LeaderboardTrendPoint[]
+}

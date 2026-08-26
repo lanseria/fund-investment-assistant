@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
+import type { LeaderboardPeriod, LeaderboardTrendUser, LeaderboardUser } from '~/types/leaderboard'
 import { appName } from '~/constants'
 import { formatCurrency as formatCurrencyUtil } from '~/utils/format'
 
@@ -23,18 +23,35 @@ const activePeriod = computed<LeaderboardPeriod>({
   set: val => router.replace({ query: { ...route.query, period: val } }),
 })
 
-// 切换周期时自动重新请求
+// 仅 AI 筛选，同步到 URL Query
+const aiOnly = computed<boolean>({
+  get: () => route.query.aiOnly === 'true',
+  set: val => router.replace({ query: { ...route.query, aiOnly: val ? 'true' : undefined } }),
+})
+
+// 切换周期/筛选时自动重新请求
 const { data: leaderboardData, pending, error } = useAsyncData(
   'leaderboard',
   () => apiFetch<LeaderboardUser[]>('/api/leaderboard', {
-    params: { period: activePeriod.value },
+    params: { period: activePeriod.value, ...(aiOnly.value ? { aiOnly: true } : {}) },
   }),
   {
-    watch: [activePeriod],
+    watch: [activePeriod, aiOnly],
   },
 )
 
-const sortKey = ref<'periodProfit' | 'periodProfitRate' | 'periodProfitRateOnCost'>('periodProfit')
+const sortKey = ref<'periodProfit' | 'periodProfitRate' | 'periodProfitRateOnCost' | 'totalAssets'>('periodProfit')
+
+// 收益走势数据（跟随仅 AI 筛选联动）
+const { data: trendData, pending: trendPending } = useAsyncData(
+  'leaderboard-trend',
+  () => apiFetch<LeaderboardTrendUser[]>('/api/leaderboard/trend', {
+    params: { ...(aiOnly.value ? { aiOnly: true } : {}) },
+  }),
+  {
+    watch: [aiOnly],
+  },
+)
 
 const sortedLeaderboardData = computed(() => {
   if (!leaderboardData.value)
@@ -101,22 +118,37 @@ function openStrategyModal(user: LeaderboardUser) {
         收益排行榜
       </h1>
       <p class="text-gray-500 mt-1 dark:text-gray-400">
-        发现社区中的顶尖投资者
+        {{ aiOnly ? '对比各个 AI 账号的投资表现' : '发现社区中的顶尖投资者' }}
       </p>
     </header>
 
-    <!-- Period Tabs -->
-    <div class="mb-6 p-1 rounded-lg bg-gray-100 inline-flex dark:bg-gray-800">
+    <!-- Period Tabs + AI Filter -->
+    <div class="mb-6 flex flex-wrap gap-3 items-center">
+      <div class="p-1 rounded-lg bg-gray-100 inline-flex dark:bg-gray-800">
+        <button
+          v-for="p in periods"
+          :key="p.value"
+          class="text-sm font-medium px-4 py-1.5 rounded-md transition-all"
+          :class="activePeriod === p.value
+            ? 'bg-white text-primary shadow-sm dark:bg-gray-700 dark:text-white'
+            : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
+          @click="activePeriod = p.value"
+        >
+          {{ p.label }}
+        </button>
+      </div>
+
+      <!-- 仅 AI 筛选开关 -->
       <button
-        v-for="p in periods"
-        :key="p.value"
-        class="text-sm font-medium px-4 py-1.5 rounded-md transition-all"
-        :class="activePeriod === p.value
-          ? 'bg-white text-primary shadow-sm dark:bg-gray-700 dark:text-white'
-          : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'"
-        @click="activePeriod = p.value"
+        class="text-sm font-medium px-4 py-2 border rounded-lg flex gap-1.5 transition-all items-center"
+        :class="aiOnly
+          ? 'bg-primary/10 border-primary text-primary'
+          : 'border-gray-200 text-gray-500 bg-white hover:text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:text-gray-200'"
+        :title="aiOnly ? '当前仅展示 AI 账号，点击查看全部' : '点击仅展示 AI 账号'"
+        @click="aiOnly = !aiOnly"
       >
-        {{ p.label }}
+        <div i-carbon-machine-learning-model />
+        仅 AI
       </button>
     </div>
 
@@ -165,6 +197,15 @@ function openStrategyModal(user: LeaderboardUser) {
           >
             <span>总资产收益率</span>
             <div v-if="sortKey === 'periodProfitRate'" class="i-carbon-arrow-down ml-0.5" />
+          </div>
+          <div
+            class="text-right flex shrink-0 w-24 cursor-pointer select-none transition-colors items-center justify-end hover:text-primary sm:w-28"
+            :class="{ 'text-primary font-bold': sortKey === 'totalAssets' }"
+            title="账户总资产 (现金 + 基金市值)"
+            @click="sortKey = 'totalAssets'"
+          >
+            <span>总资金</span>
+            <div v-if="sortKey === 'totalAssets'" class="i-carbon-arrow-down ml-0.5" />
           </div>
         </div>
         <div class="w-8" /> <!-- Chevron placeholder -->
@@ -261,9 +302,6 @@ function openStrategyModal(user: LeaderboardUser) {
                     {{ formatCurrency(user.cash) }}
                   </span>
                 </div>
-                <div class="text-gray-600 font-bold dark:text-gray-300" title="总资产">
-                  Total: {{ formatCurrency(user.totalAssets) }}
-                </div>
               </div>
             </div>
           </div>
@@ -286,6 +324,9 @@ function openStrategyModal(user: LeaderboardUser) {
                 {{ user.periodProfitRate > 0 ? '+' : '' }}{{ user.periodProfitRate.toFixed(2) }}%
               </span>
             </div>
+            <div class="flex flex-col w-24 items-end justify-center sm:w-28" title="账户总资产 (现金 + 基金市值)">
+              <span class="text-base font-bold font-mono tabular-nums sm:text-lg">{{ formatCurrency(user.totalAssets) }}</span>
+            </div>
           </div>
 
           <!-- Chevron -->
@@ -298,9 +339,15 @@ function openStrategyModal(user: LeaderboardUser) {
 
     <!-- Empty State -->
     <div v-else class="text-gray-400 py-20 text-center card">
-      <div i-carbon-trophy class="text-5xl mx-auto mb-4 opacity-30" />
-      <p>暂无排行数据</p>
+      <div :class="aiOnly ? 'i-carbon-machine-learning-model' : 'i-carbon-trophy'" class="text-5xl mx-auto mb-4 opacity-30" />
+      <p>{{ aiOnly ? '暂无 AI 账号排行数据' : '暂无排行数据' }}</p>
     </div>
+
+    <!-- 收益走势图 -->
+    <div v-if="trendPending" class="mt-6 card flex h-64 items-center justify-center">
+      <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
+    </div>
+    <LeaderboardTrendChart v-else-if="trendData && trendData.length > 0" :users="trendData" class="mt-6 block" />
 
     <!-- 操作策略展示模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`${selectedStrategyUser?.username} 的操作策略`">
