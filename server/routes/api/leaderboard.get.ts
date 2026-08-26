@@ -4,9 +4,10 @@ import { getLeaderboardData } from '~~/server/utils/leaderboard'
 export default defineEventHandler(async (event) => {
   const query = getQuery(event)
   const period = (query.period as LeaderboardPeriod) || '1d'
+  const aiOnly = query.aiOnly === 'true' || query.aiOnly === '1'
 
   try {
-    const leaderboardData = await getLeaderboardData(period)
+    const leaderboardData = await getLeaderboardData(period, { aiOnly })
     return leaderboardData
   }
   catch (error) {

@@ -33,7 +33,7 @@ catalogs:
   dev:
     '@antfu/eslint-config': ^9.3.0
     '@nuxt/test-utils': ^4.1.0
-    eslint: ^10.9.0
+    eslint: ^10.9.1
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^4.1.11
@@ -42,7 +42,7 @@ catalogs:
     '@vueuse/components': ^14.4.0
     '@vueuse/core': ^14.4.0
     echarts: ^6.1.0
-    markdown-exit: ^1.2.0
+    markdown-exit: ^1.3.0
     nuxt-echarts: ^1.0.1
     pinia: ^4.0.3
     vue: ^3.5.41

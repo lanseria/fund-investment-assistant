@@ -1,15 +1,17 @@
 import type { LeaderboardPeriod, LeaderboardUser } from '~/types/leaderboard'
 import BigNumber from 'bignumber.js'
 import { format, isSameDay, startOfMonth, startOfWeek, startOfYear } from 'date-fns'
-import { eq, sql } from 'drizzle-orm'
+import { eq, ne, sql } from 'drizzle-orm'
 import { funds, fundTransactions, holdings, navHistory, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
 /**
  * 获取排行榜数据
  * @param period 时间周期: '1d' (日), '1w' (周), '1m' (月), '1y' (年)
+ * @param options 附加选项
+ * @param options.aiOnly 仅展示 AI 账号 (aiMode != 'off')，空仓的 AI 账号也会计入
  */
-export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Promise<LeaderboardUser[]> {
+export async function getLeaderboardData(period: LeaderboardPeriod = '1d', options: { aiOnly?: boolean } = {}): Promise<LeaderboardUser[]> {
   const db = useDb()
 
   // 1. 获取所有用户的持仓数据 + 用户的可用现金
@@ -160,6 +162,37 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     user.periodProfit += profit
   }
 
+  // 4.5 AI 榜：持仓查询以 holdings 为起点，空仓 AI 账号不会出现在 userMap 中，需单独补齐
+  if (options.aiOnly) {
+    const aiUsers = await db.select({
+      id: users.id,
+      username: users.username,
+      aiMode: users.aiMode,
+      aiOperating: users.aiOperating,
+      aiSystemPrompt: users.aiSystemPrompt,
+      availableCash: users.availableCash,
+    }).from(users).where(ne(users.aiMode, 'off'))
+
+    for (const au of aiUsers) {
+      if (userMap.has(au.id))
+        continue
+      userMap.set(au.id, {
+        id: au.id,
+        rank: 0,
+        username: au.username,
+        aiMode: au.aiMode,
+        aiOperating: au.aiOperating,
+        aiSystemPrompt: au.aiSystemPrompt,
+        cash: Number(au.availableCash || 0),
+        fundValue: 0,
+        totalAssets: 0,
+        periodProfit: 0,
+        periodProfitRate: 0,
+        holdingCount: 0,
+      })
+    }
+  }
+
   // 5. 最终结算与排序
   const usersList = Array.from(userMap.values(), (u) => {
     // 挂载今日操作统计
@@ -201,11 +234,14 @@ export async function getLeaderboardData(period: LeaderboardPeriod = '1d'): Prom
     return u
   })
 
+  // AI 榜仅保留 AI 账号
+  const resultList = options.aiOnly ? usersList.filter(u => u.aiMode !== 'off') : usersList
+
   // 默认按收益额降序排序
-  usersList.sort((a, b) => b.periodProfit - a.periodProfit)
+  resultList.sort((a, b) => b.periodProfit - a.periodProfit)
 
   // 添加排名并截取前 50 名
-  return usersList.slice(0, 50).map((u, index) => {
+  return resultList.slice(0, 50).map((u, index) => {
     u.rank = index + 1
     return u
   })
