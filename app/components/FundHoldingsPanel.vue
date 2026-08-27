@@ -52,7 +52,7 @@ const expanded = ref(false)
 </script>
 
 <template>
-  <div class="card overflow-hidden">
+  <div class="mt-4 card overflow-hidden">
     <div
       class="p-5 flex flex-wrap gap-2 cursor-pointer select-none transition-colors items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/30"
       :class="expanded ? 'border-b border-gray-100 dark:border-gray-700/60' : ''"

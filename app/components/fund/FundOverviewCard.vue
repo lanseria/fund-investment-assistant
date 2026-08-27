@@ -5,51 +5,20 @@ import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
 /**
- * 基金详情总览卡：基金信息头 + 费率 / 核心行情指标 / 我的持仓(含待确认交易) / 区间涨跌。
- * 区间涨跌按钮组的数据与选中态由父级传入，点击时抛出 select-range 事件。
+ * 基金详情总览卡：基金信息头 + 费率 / 核心行情指标 / 我的持仓(含待确认交易)。
  */
 const props = defineProps<{
   /** 基金详情 (/api/fund/holdings/[code]/detail) */
   detail: any
   /** 当前用户在该基金的持仓（查看他人持仓时为空） */
   holding?: Holding | null
-  /** 区间筛选选项（来自 useFundStrategyData） */
-  filters: { label: string, value: string }[]
-  /** 当前选中的区间 */
-  activeFilter: string | null
-  /** 区间涨跌幅数据（key 与 filters.value 对应） */
-  performance: Record<string, number | null> | null | undefined
-  /** 区间涨跌幅请求加载中 */
-  performanceLoading: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'select-range', value: string): void
 }>()
 
 const dictStore = useDictStore()
-
-function formatPerformance(key: string) {
-  const val = props.performance?.[key]
-  if (val === null || val === undefined)
-    return '--'
-  return `${val > 0 ? '+' : ''}${val.toFixed(2)}%`
-}
-
-function getPerformanceClass(key: string) {
-  const val = props.performance?.[key]
-  if (val === null || val === undefined)
-    return 'text-gray-400'
-  if (val > 0)
-    return 'text-red-500 dark:text-red-400'
-  if (val < 0)
-    return 'text-green-500 dark:text-green-400'
-  return 'text-gray-500'
-}
 </script>
 
 <template>
-  <div class="mb-8 card overflow-hidden">
+  <div class="mb-4 card overflow-hidden">
     <!-- 基金信息头 -->
     <div class="p-5 from-white to-gray-50 bg-gradient-to-br dark:from-gray-800 dark:to-gray-800/80">
       <div class="flex gap-3 items-center">
@@ -157,39 +126,6 @@ function getPerformanceClass(key: string) {
             <span class="text-gray-400">{{ tx.status === 'draft' ? '(预操作)' : '(待确认)' }}</span>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 区间涨跌幅 -->
-    <div class="p-4 border-t border-gray-100 dark:border-gray-700/60">
-      <div class="gap-2 grid grid-cols-3 md:grid-cols-7 sm:grid-cols-4">
-        <button
-          v-for="filter in props.filters"
-          :key="filter.value"
-          class="p-2 border rounded-lg flex flex-col transition-all duration-200 items-center justify-center"
-          :class="[
-            props.activeFilter === filter.value
-              ? 'bg-primary/5 border-primary shadow-sm'
-              : 'border-transparent bg-gray-50 hover:bg-gray-100 dark:bg-gray-700/30 dark:hover:bg-gray-700/60',
-          ]"
-          @click="emit('select-range', filter.value)"
-        >
-          <!-- 标签 -->
-          <span
-            class="text-xs mb-1"
-            :class="props.activeFilter === filter.value ? 'text-primary font-bold' : 'text-gray-500 dark:text-gray-400'"
-          >
-            {{ filter.label }}
-          </span>
-
-          <!-- 数值 -->
-          <div class="flex h-6 items-center justify-center">
-            <span v-if="props.performance === undefined && props.performanceLoading" class="i-carbon-circle-dash text-xs text-gray-400 animate-spin" />
-            <span v-else class="text-sm font-bold font-mono tabular-nums" :class="getPerformanceClass(filter.value)">
-              {{ formatPerformance(filter.value) }}
-            </span>
-          </div>
-        </button>
       </div>
     </div>
   </div>

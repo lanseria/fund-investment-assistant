@@ -137,7 +137,7 @@ export function useFundStrategyData(code: string, targetUserId: number | null) {
 
   watch(data, (newData) => {
     if (newData)
-      setDateRange('3m')
+      setDateRange('1m')
   }, { immediate: true })
 
   // --- 区间涨跌展示 ---

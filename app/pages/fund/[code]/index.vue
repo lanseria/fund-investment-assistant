@@ -3,7 +3,6 @@
 import type { EstimatePoint } from '~/types/chart'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
-import SectorBehaviorSummary from '~/components/fund/SectorBehaviorSummary.vue'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import { appName } from '~/constants'
@@ -33,7 +32,7 @@ const { data: fundDetail, pending: fundDetailPending, error: fundDetailError, re
 
 // 板块主力行为回顾：仅当基金设置了项目板块时请求，懒加载不阻塞路由切换
 const fundSector = computed(() => fundDetail.value?.sector ?? null)
-const { data: sectorCapitalHistoryData, pending: sectorHistoryPending } = useAsyncData(
+const { data: sectorCapitalHistoryData } = useAsyncData(
   `sector-capital-history-${code}`,
   () => fundSector.value
     ? apiFetch<SectorCapitalHistoryResponse>(`/api/sectors/${fundSector.value}/history`, {
@@ -210,37 +209,29 @@ async function handleRunStrategies() {
       </div>
     </header>
 
-    <!-- 基金详情总览：核心指标 / 我的持仓 / 区间涨跌 三区合一 -->
+    <!-- 基金详情总览：核心指标 / 我的持仓 -->
     <FundOverviewCard
       v-if="fundDetail"
       :detail="fundDetail"
       :holding="currentHolding"
+    />
+    <!-- 基金详情后台加载中/失败占位 -->
+    <div v-else-if="fundDetailPending" class="mb-4 card flex h-100 items-center justify-center">
+      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
+    </div>
+    <div v-else-if="fundDetailError" class="text-red-500 mb-4 py-20 text-center card">
+      <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
+      <p>基金详情加载失败: {{ fundDetailError.message }}</p>
+    </div>
+
+    <!-- 区间涨跌幅：数据来自策略图表请求，点击切换图表区间(dataZoom) -->
+    <FundRangePerformance
       :filters="dateFilters"
       :active-filter="activeFilter"
       :performance="performance"
       :performance-loading="pending"
       @select-range="setDateRange"
     />
-    <!-- 基金详情后台加载中/失败占位 -->
-    <div v-else-if="fundDetailPending" class="mb-8 card flex h-100 items-center justify-center">
-      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
-    </div>
-    <div v-else-if="fundDetailError" class="text-red-500 mb-8 py-20 text-center card">
-      <div i-carbon-warning-alt class="text-5xl mx-auto mb-4" />
-      <p>基金详情加载失败: {{ fundDetailError.message }}</p>
-    </div>
-
-    <!-- 重仓股持仓明细(报告期持仓 + 最新行情快照；无股票仓位或数据源不可用时不展示) -->
-    <FundHoldingsPanel
-      v-if="realtimeHoldings?.holdings?.length"
-      class="mb-8"
-      :holdings="realtimeHoldings.holdings"
-      :holdings-date="realtimeHoldings.holdingsDate"
-    />
-    <!-- 实时行情后台聚合中，数据到达后自动替换 -->
-    <div v-else-if="realtimeHoldingsPending" class="mb-8 card flex h-40 items-center justify-center">
-      <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
-    </div>
 
     <div v-if="pending" class="card flex h-100 items-center justify-center">
       <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
@@ -250,7 +241,7 @@ async function handleRunStrategies() {
       <p>加载失败: {{ error.message }}</p>
     </div>
 
-    <div v-else-if="data" class="space-y-8">
+    <div v-else-if="data" class="space-y-4">
       <!-- 监听 transaction-click 事件；板块主力行为 / RSI / 布林带策略数据存在时合并为同一张图（布林带信号子图位于 RSI 下方） -->
       <GenericStrategyChart
         :history="data.base.history"
@@ -273,13 +264,16 @@ async function handleRunStrategies() {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- 板块主力行为：摘要与状态（图表已合并到上方「基础走势」走势图中） -->
-    <SectorBehaviorSummary
-      v-if="fundSector"
-      :fund-sector="fundSector"
-      :data="sectorCapitalHistoryData"
-      :pending="sectorHistoryPending"
+    <!-- 重仓股持仓明细(报告期持仓 + 最新行情快照；无股票仓位或数据源不可用时不展示) -->
+    <FundHoldingsPanel
+      v-if="realtimeHoldings?.holdings?.length"
+      :holdings="realtimeHoldings.holdings"
+      :holdings-date="realtimeHoldings.holdingsDate"
     />
+    <!-- 实时行情后台聚合中，数据到达后自动替换 -->
+    <div v-else-if="realtimeHoldingsPending" class="card flex h-40 items-center justify-center">
+      <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
+    </div>
 
     <!-- 策略信号模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">
