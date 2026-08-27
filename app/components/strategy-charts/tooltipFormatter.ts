@@ -1,4 +1,5 @@
 import type { SectorAlignedData } from './panels'
+import type { EstimatePoint } from '~/types/chart'
 import { formatCurrency } from '~/utils/format'
 import { buildActionBadgeHtml } from '~/utils/sectorStyle'
 
@@ -10,9 +11,13 @@ import { buildActionBadgeHtml } from '~/utils/sectorStyle'
 export function buildTooltipFormatter(opts: {
   sectorByDate: Map<string, SectorAlignedData>
   rsiSeriesName: string | null
+  estimate?: EstimatePoint | null
   textColor: string
 }) {
-  const { sectorByDate, rsiSeriesName, textColor } = opts
+  const { sectorByDate, rsiSeriesName, estimate, textColor } = opts
+
+// 净值线配色：项目未注册自定义主题，ECharts 内置 default/dark 主题 palette 首色一致
+const NAV_COLOR = '#5070dd'
 
   return (params: any) => {
     const list = Array.isArray(params) ? params : [params]
@@ -25,6 +30,15 @@ export function buildTooltipFormatter(opts: {
     const sectorInfo = sectorByDate.get(date)
     if (sectorInfo?.action)
       lines.push(buildActionBadgeHtml(sectorInfo.action))
+
+    // 当日估值延伸点：该日期官方净值未出（净值序列为空），补充净值线的盘中估值行
+    if (estimate && estimate.date === date) {
+      const rate = estimate.growthRate != null
+        ? ` <span style="color:${textColor}">(估 ${estimate.growthRate > 0 ? '+' : ''}${estimate.growthRate.toFixed(2)}%)</span>`
+        : ''
+      const marker = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${NAV_COLOR};"></span>`
+      lines.push(`${marker}净值(盘中估值): ${estimate.nav.toFixed(4)}${rate}`)
+    }
 
     const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘', '散户资金', ...(rsiSeriesName ? [rsiSeriesName] : [])]
 

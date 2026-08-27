@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
 import type { SectorAlignedData, SubPanel } from './strategy-charts/panels'
-import type { BollingerSignalData, RsiChartData } from '~/types/chart'
+import type { BollingerSignalData, EstimatePoint, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { formatCurrency } from '~/utils/format'
@@ -24,6 +24,8 @@ const props = defineProps<{
   rsiData?: RsiChartData
   /** 布林带策略买卖信号（可选）。传入后将作为子图叠加在 RSI 子图下方，只标注买入/卖出信号点 */
   bollingerData?: BollingerSignalData
+  /** 当日盘中估值点（可选）。估值日期晚于历史最后净值日期时，以虚线延伸到该估值点 */
+  estimate?: EstimatePoint
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -60,15 +62,26 @@ const chartOption = computed<EChartsOption>(() => {
   const fundByDate = new Map<string, HoldingHistoryPoint>()
   props.history.forEach(p => fundByDate.set(p.date, p))
 
-  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 布林带信号日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
+  // --- 当日估值延伸点：仅当估值日期晚于历史最后净值日期（官方净值未出）时展示 ---
+  const lastHistoryDate = props.history.length > 0 ? props.history[props.history.length - 1]!.date : ''
+  // 估值日期统一为 yyyy-MM-dd：上游实测带 "HH:mm:ss" 后缀(如 "2026-08-27 16:04:00")，
+  // 与净值/板块日期字符串不一致时 Set 去重失效，时间轴会重复出现同一天
+  const rawEstimateDate = props.estimate?.date ?? ''
+  const estimateDate = /^\d{4}-\d{2}-\d{2}/.test(rawEstimateDate) ? rawEstimateDate.slice(0, 10) : rawEstimateDate
+  const estimatePoint = props.estimate && lastHistoryDate && estimateDate > lastHistoryDate
+    ? { ...props.estimate, date: estimateDate }
+    : null
+
+  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 布林带信号日期 ∪ 估值日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
   const fundDates = props.history.map(p => p.date)
   const sectorDates = hasSector.value ? props.sectorHistory!.dates : []
   const rsiDates = hasRsi.value ? props.rsiData!.dates : []
   const bollingerDates = hasBollinger.value
     ? [...props.bollingerData!.buy, ...props.bollingerData!.sell].map(p => p.date)
     : []
-  const allDates = (hasSector.value || hasRsi.value || hasBollinger.value)
-    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates, ...bollingerDates])).sort()
+  const estimateDates = estimatePoint ? [estimatePoint.date] : []
+  const allDates = (hasSector.value || hasRsi.value || hasBollinger.value || estimatePoint)
+    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates, ...bollingerDates, ...estimateDates])).sort()
     : fundDates
 
   // 基金序列对齐到 allDates（板块独有日期补 null）
@@ -107,7 +120,7 @@ const chartOption = computed<EChartsOption>(() => {
   const rsiSeriesName = hasRsi.value ? `RSI(${props.rsiData!.config.rsiPeriod})` : null
 
   // 统一的 tooltip：合并基金走势与板块主力行为信息
-  const tooltipFormatter = buildTooltipFormatter({ sectorByDate, rsiSeriesName, textColor })
+  const tooltipFormatter = buildTooltipFormatter({ sectorByDate, rsiSeriesName, estimate: estimatePoint, textColor })
 
   // --- 基金走势序列（净值 + 均线 + 交易量柱），统一绑定到第 0 个网格 ---
   const fundSeries: any[] = [
@@ -119,6 +132,26 @@ const chartOption = computed<EChartsOption>(() => {
       data: navData,
       showSymbol: false,
       z: 3,
+      // 净值线末端的当日估值延伸段：虚线、继承净值线配色，末端标注估值数字
+      ...(estimatePoint
+        ? {
+            markLine: {
+              silent: true,
+              symbol: 'none',
+              lineStyle: { type: 'dashed', width: 2 },
+              label: {
+                show: true,
+                position: 'end',
+                formatter: () => estimatePoint.nav.toFixed(4),
+                fontSize: 11,
+              },
+              data: [[
+                { coord: [lastHistoryDate, fundByDate.get(lastHistoryDate)?.nav] },
+                { coord: [estimatePoint.date, estimatePoint.nav] },
+              ]],
+            },
+          }
+        : {}),
       markPoint: {
         symbolKeepAspect: true,
         data: [

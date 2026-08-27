@@ -1,5 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import type { EstimatePoint } from '~/types/chart'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import SectorBehaviorSummary from '~/components/fund/SectorBehaviorSummary.vue'
@@ -66,6 +67,17 @@ const { data: realtimeHoldings, pending: realtimeHoldingsPending } = useAsyncDat
     default: () => null,
   },
 )
+
+// 当日盘中估值点：复用实时估值接口(无额外请求)，由「基础走势」图以虚线延伸到估值日期
+const latestEstimate = computed<EstimatePoint | undefined>(() => {
+  const r = realtimeHoldings.value
+  if (!r?.estimateNav)
+    return undefined
+  const nav = Number(r.estimateNav)
+  if (Number.isNaN(nav))
+    return undefined
+  return { date: r.estimateDate, nav, growthRate: r.estimateGrowthRate }
+})
 
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
@@ -248,6 +260,7 @@ async function handleRunStrategies() {
         :sector-history="mergedSectorHistory"
         :rsi-data="rsiData ?? undefined"
         :bollinger-data="bollingerSignalData"
+        :estimate="latestEstimate"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"
