@@ -1,7 +1,8 @@
 import type { AiTradeResult, TradeDecision, UserAiConfig } from './schemas'
 import OpenAI from 'openai'
 import { withRetry } from '~~/server/utils/retry'
-import { AI_CASH_RESERVE, AI_MIN_BUY_BUDGET, generateAiPrompt } from './prompt'
+import { calcAvailableShares } from './context'
+import { AI_CASH_RESERVE, AI_DUST_POSITION_SHARES, AI_MIN_BUY_BUDGET, generateAiPrompt } from './prompt'
 import { AiResponseSchema } from './schemas'
 import { enforceConvertPairs } from './transactions'
 
@@ -108,6 +109,34 @@ export async function getAiTradeDecisions(fullHoldingsData: any[], userConfig: U
   // [配对兜底] 基金转换必须 convert_out + convert_in 成对出现且 out 在 in 之前，
   // 否则下游写入会因 relatedIndex 失效而抛 400。这里剔除孤立项并补全 relatedIndex。
   const finalActions = enforceConvertPairs(validActions)
+
+  // [碎仓兜底] 可用份额低于 AI_DUST_POSITION_SHARES 的持仓无条件全额清仓(与 prompt 规则同口径)。
+  // AI 未按要求清仓或只卖一部分时,这里按差额补一笔 sell,确保碎仓不再残留;
+  // 放在配对兜底之后,只统计最终留存的卖出/转出决策,避免把被剔除的 convert_out 重复计入。
+  for (const h of fullHoldingsData) {
+    if (h.holdingAmount === null)
+      continue // 仅关注、未持仓
+
+    const available = calcAvailableShares(h)
+    if (available <= 0 || available >= AI_DUST_POSITION_SHARES)
+      continue
+
+    const decidedSell = finalActions
+      .filter(a => (a.action === 'sell' || a.action === 'convert_out') && a.fundCode === h.code)
+      .reduce((sum, a) => sum + (Number(a.shares) || 0), 0)
+
+    const shortfall = Math.floor((available - decidedSell) * 10000) / 10000
+    if (shortfall <= 0)
+      continue
+
+    console.warn(`[AI Trader] 碎仓兜底: ${h.code} 可用份额 ${available} < ${AI_DUST_POSITION_SHARES},强制清仓 ${shortfall} 份`)
+    finalActions.push({
+      fundCode: h.code,
+      action: 'sell',
+      shares: shortfall,
+      reason: `碎仓清理:可用份额 ${available} 份,低于 ${AI_DUST_POSITION_SHARES} 份阈值,直接全额清仓`,
+    })
+  }
 
   // 返回详细结果对象
   return {

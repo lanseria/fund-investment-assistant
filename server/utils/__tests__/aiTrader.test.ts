@@ -1,8 +1,11 @@
-import type { TradeDecision } from '../aiTrader'
+import type { TradeDecision } from '../aiTrader/schemas'
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// --- import 被测模块 ---
-import { AI_CASH_RESERVE, buildTransactionRows, enforceConvertPairs, getAiTradeDecisions, isRetryableError, withRetry } from '../aiTrader'
+// --- import 被测模块(从各子模块直接导入,避免 index 再导出引发 unimport 重复警告) ---
+import { getAiTradeDecisions } from '../aiTrader'
+import { AI_CASH_RESERVE, AI_DUST_POSITION_SHARES } from '../aiTrader/prompt'
+import { buildTransactionRows, enforceConvertPairs } from '../aiTrader/transactions'
+import { isRetryableError, withRetry } from '../retry'
 
 // --- Mock 外部依赖(必须在 import 被测模块之前) ---
 
@@ -53,10 +56,10 @@ describe('enforceConvertPairs', () => {
       { ...IN_B, relatedIndex: 0 },
     ])
     expect(result).toHaveLength(2)
-    expect(result[0].action).toBe('convert_out')
-    expect(result[0].relatedIndex).toBeNull()
-    expect(result[1].action).toBe('convert_in')
-    expect(result[1].relatedIndex).toBe(0)
+    expect(result[0]!.action).toBe('convert_out')
+    expect(result[0]!.relatedIndex).toBeNull()
+    expect(result[1]!.action).toBe('convert_in')
+    expect(result[1]!.relatedIndex).toBe(0)
   })
 
   it('场景2: 孤立 convert_in(无对应 convert_out)应被剔除', () => {
@@ -75,7 +78,7 @@ describe('enforceConvertPairs', () => {
       { ...IN_B }, // 没有 relatedIndex
     ])
     expect(result).toHaveLength(2)
-    expect(result[1].relatedIndex).toBe(0)
+    expect(result[1]!.relatedIndex).toBe(0)
   })
 
   it('场景5: 无效 relatedIndex(越界)应自动回填到未配对的 convert_out', () => {
@@ -84,7 +87,7 @@ describe('enforceConvertPairs', () => {
       { ...IN_B, relatedIndex: 999 }, // 越界
     ])
     expect(result).toHaveLength(2)
-    expect(result[1].relatedIndex).toBe(0)
+    expect(result[1]!.relatedIndex).toBe(0)
   })
 
   it('场景5b: 无效 relatedIndex(指向非 convert_out)应自动回填', () => {
@@ -111,8 +114,8 @@ describe('enforceConvertPairs', () => {
     // 两个 convert_in 都应存在
     const ins = result.filter(d => d.action === 'convert_in')
     expect(ins).toHaveLength(2)
-    expect(ins[0].relatedIndex).toBe(0)
-    expect(ins[1].relatedIndex).toBe(1)
+    expect(ins[0]!.relatedIndex).toBe(0)
+    expect(ins[1]!.relatedIndex).toBe(1)
   })
 
   it('场景7: convert_out 的 relatedIndex 应被强制清为 null', () => {
@@ -120,7 +123,7 @@ describe('enforceConvertPairs', () => {
       { ...OUT_A, relatedIndex: 5 } as TradeDecision, // AI 乱填了 relatedIndex
       { ...IN_B, relatedIndex: 0 },
     ])
-    expect(result[0].relatedIndex).toBeNull()
+    expect(result[0]!.relatedIndex).toBeNull()
   })
 
   it('场景8: buy/sell 操作应原样保留,不受配对逻辑影响', () => {
@@ -186,7 +189,7 @@ describe('buildTransactionRows', () => {
       { ...IN_B, relatedIndex: 0 }, // 指向 buy,非法
     ], opts)
     expect(rows).toHaveLength(1)
-    expect(rows[0].type).toBe('buy')
+    expect(rows[0]!.type).toBe('buy')
   })
 
   it('convert_in 的 relatedIndex 指向其后方的 convert_out 时,两者都应被剔除', () => {
@@ -203,7 +206,7 @@ describe('buildTransactionRows', () => {
       { ...OUT_A }, // 没有配对的 convert_in
     ], opts)
     expect(rows).toHaveLength(1)
-    expect(rows[0].type).toBe('buy')
+    expect(rows[0]!.type).toBe('buy')
   })
 
   it('清理孤立 convert_out 后,剩余 convert_in 的 pairIndex 应正确重排', () => {
@@ -213,8 +216,8 @@ describe('buildTransactionRows', () => {
       { ...IN_B, relatedIndex: 0 }, // 引用 OUT_A
     ], opts)
     expect(rows).toHaveLength(2)
-    expect(rows[0].type).toBe('convert_out')
-    expect(rows[1].type).toBe('convert_in')
+    expect(rows[0]!.type).toBe('convert_out')
+    expect(rows[1]!.type).toBe('convert_in')
     // OUT_C 被剔除后,IN_B 的 pairIndex 应重排为 0(仍指向 OUT_A)
     expect(rows[1]?.pairIndex).toBe(0)
   })
@@ -250,8 +253,8 @@ describe('getAiTradeDecisions', () => {
       aiSystemPrompt: 'test strategy',
     })
     expect(result.decisions).toHaveLength(1)
-    expect(result.decisions[0].action).toBe('buy')
-    expect(result.decisions[0].amount).toBe(5000)
+    expect(result.decisions[0]!.action).toBe('buy')
+    expect(result.decisions[0]!.amount).toBe(5000)
   })
 
   it('场景2: 超支应触发风控削减(剩余 > 10 时削减金额)', async () => {
@@ -266,8 +269,8 @@ describe('getAiTradeDecisions', () => {
     })
     // 第一个 buy 10000 通过,剩余 5000;第二个触发风控削减为 floor(5000)=5000
     expect(result.decisions).toHaveLength(2)
-    expect(result.decisions[1].amount).toBe(5000)
-    expect(result.decisions[1].reason).toContain('系统风控')
+    expect(result.decisions[1]!.amount).toBe(5000)
+    expect(result.decisions[1]!.reason).toContain('系统风控')
   })
 
   it('场景2b: 剩余预算 ≤ 10 时应丢弃该 buy', async () => {
@@ -281,7 +284,7 @@ describe('getAiTradeDecisions', () => {
       aiSystemPrompt: 'test strategy',
     })
     expect(result.decisions).toHaveLength(1)
-    expect(result.decisions[0].fundCode).toBe('111')
+    expect(result.decisions[0]!.fundCode).toBe('111')
   })
 
   it('场景2c: 可用现金不足保底金额时预算为 0,所有 buy 应被丢弃', async () => {
@@ -330,7 +333,7 @@ describe('getAiTradeDecisions', () => {
       availableCash: 10000,
       aiSystemPrompt: 'test strategy',
     })
-    expect(result.decisions[0].shares).toBe(123.4567)
+    expect(result.decisions[0]!.shares).toBe(123.4567)
   })
 
   it('场景4: convert_out 的 shares 应截断到 4 位小数', async () => {
@@ -360,8 +363,8 @@ describe('getAiTradeDecisions', () => {
       aiSystemPrompt: 'test strategy',
     })
     expect(result.decisions).toHaveLength(1)
-    expect(result.decisions[0].fundCode).toBe('001111')
-    expect(result.decisions[0].amount).toBe(1000)
+    expect(result.decisions[0]!.fundCode).toBe('001111')
+    expect(result.decisions[0]!.amount).toBe(1000)
   })
 
   it('场景6: LLM 返回的响应无法通过校验时应抛错', async () => {
@@ -387,6 +390,114 @@ describe('getAiTradeDecisions', () => {
       availableCash: 10000,
       aiSystemPrompt: '',
     })).rejects.toThrow('AI 策略提示词')
+  })
+})
+
+// ============ B2. 碎仓强制清仓测试(prompt 规则 + 代码兜底) ============
+describe('getAiTradeDecisions 碎仓强制清仓', () => {
+  beforeEach(() => {
+    mockCreate.mockReset()
+    runtimeConfigOverride.value = null
+  })
+
+  function mockResponse(decisions: any) {
+    mockCreate.mockResolvedValueOnce({
+      choices: [{ message: { content: JSON.stringify({ decisions }) } }],
+    })
+  }
+
+  const userConfig = { availableCash: 20000, aiSystemPrompt: 'test strategy' }
+
+  // 可用份额 88.5 < 100 的碎仓
+  const dustHolding = {
+    code: '001111',
+    name: '碎仓基金',
+    holdingAmount: 80,
+    shares: 88.5,
+    costPrice: 1.2,
+    pendingTransactions: [],
+  }
+  // 正常份额持仓
+  const normalHolding = {
+    code: '005555',
+    name: '正常基金',
+    holdingAmount: 5000,
+    shares: 4000,
+    costPrice: 1.25,
+    pendingTransactions: [],
+  }
+
+  it('场景1: AI 未处理碎仓时应注入全额 sell 清仓', async () => {
+    mockResponse([]) // AI 全部观望
+    const result = await getAiTradeDecisions([dustHolding, normalHolding], userConfig)
+    const sells = result.decisions.filter(d => d.action === 'sell')
+    expect(sells).toHaveLength(1)
+    expect(sells[0]).toMatchObject({ fundCode: '001111', shares: 88.5 })
+    expect(sells[0]!.reason).toContain('碎仓清理')
+  })
+
+  it('场景2: AI 已按要求全额卖出碎仓时不重复注入', async () => {
+    mockResponse([
+      makeDecision({ fundCode: '001111', action: 'sell', shares: 88.5, reason: '碎仓清理:测试' }),
+    ])
+    const result = await getAiTradeDecisions([dustHolding], userConfig)
+    const sells = result.decisions.filter(d => d.action === 'sell')
+    expect(sells).toHaveLength(1)
+    expect(sells[0]!.shares).toBe(88.5)
+  })
+
+  it('场景3: AI 只卖出部分碎仓时应按差额补齐清仓', async () => {
+    mockResponse([
+      makeDecision({ fundCode: '001111', action: 'sell', shares: 50 }),
+    ])
+    const result = await getAiTradeDecisions([dustHolding], userConfig)
+    const sells = result.decisions.filter(d => d.action === 'sell')
+    expect(sells).toHaveLength(2)
+    expect(sells[0]!.shares).toBe(50)
+    expect(sells[1]!.shares).toBe(38.5) // 88.5 - 50
+    expect(sells[1]!.reason).toContain('碎仓清理')
+  })
+
+  it('场景4: 可用份额 ≥ 阈值的正常持仓不受碎仓规则影响', async () => {
+    mockResponse([])
+    const result = await getAiTradeDecisions([normalHolding], userConfig)
+    expect(result.decisions).toHaveLength(0)
+  })
+
+  it('场景5: 总份额 ≥ 阈值但在途卖出冻结后可用份额不足时应清仓可用部分', async () => {
+    // 总份额 150(≥100),在途卖出冻结 60 → 可用 90 < 100,应清仓 90
+    const holding = {
+      code: '006666',
+      name: '部分冻结基金',
+      holdingAmount: 150,
+      shares: 150,
+      costPrice: 1.0,
+      pendingTransactions: [{ type: 'sell', orderShares: 60 }],
+    }
+    mockResponse([])
+    const result = await getAiTradeDecisions([holding], userConfig)
+    const sells = result.decisions.filter(d => d.action === 'sell')
+    expect(sells).toHaveLength(1)
+    expect(sells[0]).toMatchObject({ fundCode: '006666', shares: 90 })
+  })
+
+  it('场景6: 碎仓已被 convert_out 全额转出时不重复注入 sell', async () => {
+    mockResponse([
+      makeDecision({ fundCode: '001111', action: 'convert_out', shares: 88.5 }),
+      makeDecision({ fundCode: '002222', action: 'convert_in', relatedIndex: 0 }),
+    ])
+    const result = await getAiTradeDecisions([dustHolding], userConfig)
+    expect(result.decisions.filter(d => d.action === 'sell')).toHaveLength(0)
+    expect(result.decisions.filter(d => d.action === 'convert_out')).toHaveLength(1)
+  })
+
+  it('场景7: prompt 应包含碎仓清理规则且与代码常量同口径', async () => {
+    mockResponse([])
+    const result = await getAiTradeDecisions([dustHolding], userConfig)
+    expect(result.fullPrompt).toContain('碎仓强制清理')
+    expect(result.fullPrompt).toContain(`${AI_DUST_POSITION_SHARES} 份`)
+    // sell 动作的 7 天费率限制应声明碎仓例外
+    expect(result.fullPrompt).toContain('例外')
   })
 })
 

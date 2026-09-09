@@ -11,6 +11,12 @@ export const AI_CASH_RESERVE = 10000
 export const AI_MIN_BUY_BUDGET = 10
 
 /**
+ * 碎仓阈值:可用份额低于该值的持仓不做任何分析,直接全额清仓。
+ * Prompt 文案与代码层兜底(getAiTradeDecisions)必须使用同一常量,否则会出现口径不一致。
+ */
+export const AI_DUST_POSITION_SHARES = 100
+
+/**
  * 仅生成 Prompt 内容，不执行 AI 调用
  * 用于前端"复制 Prompt"功能
  */
@@ -56,7 +62,13 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
    - **自我校验**：在输出 JSON 前,请务必在内心计算：Sum(buy.amount) <= ${availableCashStr}。如果超过,必须**削减**每个买入项的金额,或**删除**部分买入建议。
    - **若预算不足**：如果可动用买入预算 ≤ ${AI_MIN_BUY_BUDGET} 元(无法支撑一笔有效买入),请**不要输出任何 buy 决策**。
 
-2. **交易动作规范 (Action Rules)：**
+2. **碎仓强制清理 (Dust Position Cleanup - 无条件直接执行)：**
+   - 若某持仓的 \`availableShares\` **大于 0 且小于 ${AI_DUST_POSITION_SHARES} 份**：**跳过一切分析,直接输出 \`sell\` 决策卖出全部 \`availableShares\`**,无论趋势、信号、盈亏如何。
+   - **优先级高于 sell 动作的 7 天惩罚性费率限制**：碎仓即使持有不足 7 天也必须立即清仓。
+   - 对碎仓**不要输出任何 buy / convert 决策**,清仓即为最终处理。
+   - 清仓决策的 \`reason\` 请以「碎仓清理」开头。
+
+3. **交易动作规范 (Action Rules)：**
 请从以下动作中选择。**注意：sell 与 convert 的区别**——\`sell\` 是变现回现金，\`convert\` 是不经过现金环节、直接把持仓换成另一只基金。
 
   1.  **buy (现金买入)**:
@@ -69,6 +81,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
         - 请务必检查 input 中的 \`recentTransactions\` 日期。
         - 规则: 若最近一次买入(\`buy\`/\`convert_in\`)发生在 **7天以内**,卖出将强制扣除 **1.5%** 的惩罚性手续费。
         - **决策逻辑**: 除非预判未来短期跌幅 **> 2.0%** (即持有亏损将超过手续费),否则对于不足7天的持仓 **严禁卖出**。建议输出 \`hold\` 等待期满。
+        - **例外**: 碎仓强制清理(规则 2)优先于本条——\`availableShares\` 小于 ${AI_DUST_POSITION_SHARES} 份的持仓即使不满 7 天也必须清仓。
 
   3.  **基金转换 (convert_out + convert_in) —— 🔴 CRITICAL: 必须成对出现**:
       - **核心铁律**：\`convert_out\` 与 \`convert_in\` 描述的是同一次"换基"操作的两端,**严禁单独出现**。
@@ -87,6 +100,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
 
 4. **输出前最终自检 (Final Self-Check before emit) —— 必须逐条核对：**
    - [ ] 所有 \`buy\` 的 amount 之和 ≤ ${availableCashStr} 元。
+   - [ ] 所有 \`availableShares\` 在 (0, ${AI_DUST_POSITION_SHARES}) 区间的持仓,均已输出卖出**全部**可用份额的 \`sell\` 决策(碎仓强制清理)。
    - [ ] **\`convert_out\` 的数量 == \`convert_in\` 的数量**(逐对匹配)。
    - [ ] 每个 \`convert_in\` 都设置了 \`relatedIndex\`,且指向的位置 **确实是** 一个 \`convert_out\` 且其在数组中 **更靠前**。
    - [ ] 没有任何孤立的 \`convert_out\` 或 \`convert_in\`。
