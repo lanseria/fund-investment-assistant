@@ -48,6 +48,7 @@ export async function generateAiPrompt(fullHoldingsData: any[], userConfig: User
   1. market_indices: 实时市场指数。
   2. holdings: 当前持仓 (包含量化决策bias20)。
   3. watchlist: 关注列表 (同样包含量化决策)。
+  4. userStrategy (若存在): 用户为该基金设定的操作策略说明,是用户的个人意愿,**优先级高于量化信号**——请在做出该基金相关决策前先核对是否满足其策略要求,若与信号冲突以策略为准。
 `
 
   const fixedOutputRules = `

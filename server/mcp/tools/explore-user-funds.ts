@@ -117,6 +117,7 @@ export default defineMcpTool({
           fundType: funds.fundType,
           shares: holdings.shares,
           attentionLevel: holdings.attentionLevel,
+          operationStrategy: holdings.operationStrategy,
         })
           .from(holdings)
           .innerJoin(funds, eq(holdings.fundCode, funds.code))
@@ -149,6 +150,8 @@ export default defineMcpTool({
             sector: r.sector || '未分类',
             status: isHeld ? 'held' : 'watched',
             attention_level: `${r.attentionLevel} (${levelLabel})`,
+            // 用户自定义操作策略 (可为 null)，供参考他人的操作思路
+            operation_strategy: r.operationStrategy || null,
           }
         })
 

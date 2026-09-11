@@ -164,6 +164,16 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           {{ holding.code }}
         </div>
 
+        <!-- 用户自定义操作策略标记 (悬停查看内容) -->
+        <div
+          v-if="holding.operationStrategy"
+          class="text-[10px] text-violet-600 px-1.5 py-0.5 border border-violet-300 rounded bg-violet-50 flex gap-1 cursor-help items-center dark:text-violet-300 dark:border-violet-700 dark:bg-violet-900/30"
+          :title="`操作策略: ${holding.operationStrategy}`"
+        >
+          <div class="i-carbon-notebook" />
+          <span class="font-bold">策略</span>
+        </div>
+
         <!-- 分隔线 (持有期提示或赎回费率存在时显示) -->
         <div
           v-if="(holding.holdingAmount !== null && holding.recentTransactions?.some(t => t.type === 'buy' || t.type === 'convert_in')) || lastRedemptionTag"

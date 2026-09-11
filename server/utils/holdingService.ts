@@ -9,6 +9,8 @@ interface HoldingCreateData {
   shares?: number | null
   costPrice?: number | null
   attentionLevel?: number
+  /** 操作策略 (自由文本, 供 AI 分析参考) */
+  operationStrategy?: string | null
   userId: number
   fundType: 'open' | 'qdii_lof'
 }
@@ -37,6 +39,7 @@ export async function addHolding(data: HoldingCreateData) {
     shares: data.shares ? String(data.shares) : null,
     costPrice: data.costPrice ? String(data.costPrice) : null,
     attentionLevel: data.attentionLevel ?? 1,
+    operationStrategy: data.operationStrategy?.trim() || null,
   }
 
   const [result] = await db.insert(holdings).values(newHoldingData).returning()
@@ -46,7 +49,7 @@ export async function addHolding(data: HoldingCreateData) {
 /**
  * 更新用户持仓记录
  */
-export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null, attentionLevel?: number }) {
+export async function updateHolding(userId: number, code: string, data: { shares?: number | null, costPrice?: number | null, attentionLevel?: number, operationStrategy?: string | null }) {
   const db = useDb()
 
   const updatePayload: any = {}
@@ -56,6 +59,8 @@ export async function updateHolding(userId: number, code: string, data: { shares
     updatePayload.costPrice = data.costPrice ? String(data.costPrice) : null
   if (data.attentionLevel !== undefined)
     updatePayload.attentionLevel = data.attentionLevel
+  if (data.operationStrategy !== undefined)
+    updatePayload.operationStrategy = data.operationStrategy?.trim() || null
 
   const [updatedHolding] = await db.update(holdings)
     .set(updatePayload)

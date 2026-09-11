@@ -152,7 +152,7 @@ async function handleSubmit(formData: any) {
   isHoldingSubmitting.value = true
   try {
     if (editingHolding.value)
-      await holdingStore.updateHolding(formData.code, { shares: formData.shares, costPrice: formData.costPrice })
+      await holdingStore.updateHolding(formData.code, { shares: formData.shares, costPrice: formData.costPrice, operationStrategy: formData.operationStrategy })
     else
       await holdingStore.addHolding(formData)
     closeModal()

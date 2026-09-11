@@ -57,6 +57,8 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     percentageChange: h.percentageChange ? `${h.percentageChange.toFixed(2)}%` : '0%',
     signals: h.signals,
     bias20: h.bias20,
+    // 用户为该基金自定义的操作策略，是决策的强参考：与信号冲突时应优先尊重用户策略
+    ...(h.operationStrategy ? { userStrategy: h.operationStrategy } : {}),
     recentTransactions: h.recentTransactions?.slice(0, 3).map((t: any) => ({
       type: t.type,
       date: t.date,

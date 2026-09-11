@@ -41,6 +41,8 @@ export interface Holding {
   name: string
   sector: string | null
   attentionLevel: number
+  /** 用户自定义操作策略 (作为 AI 分析参考) */
+  operationStrategy: string | null
   // shares 和 costPrice 可以为 null
   shares: number | null
   costPrice: number | null

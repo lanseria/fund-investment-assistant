@@ -1,0 +1,1 @@
+ALTER TABLE "fund_app"."holdings" ADD COLUMN "operation_strategy" text;

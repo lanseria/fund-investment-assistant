@@ -2,7 +2,7 @@ import { getUserHoldingsAndSummary } from '~~/server/utils/holdingAnalysis'
 
 export default defineMcpTool({
   name: 'get_portfolio',
-  description: '获取用户的当前基金持仓摘要、总资产、可用现金、近期交易记录和详细列表。列表包含基金代码、名称、板块、持有金额、收益率、策略信号建议及近期交易记录。',
+  description: '获取用户的当前基金持仓摘要、总资产、可用现金、近期交易记录和详细列表。列表包含基金代码、名称、板块、持有金额、收益率、策略信号建议、用户自定义操作策略 (userStrategy) 及近期交易记录。',
   // 不需要任何参数，直接从 Context 获取用户
   inputSchema: {},
   handler: async () => {
@@ -33,6 +33,8 @@ export default defineMcpTool({
         profitRate: h.holdingProfitRate,
         todayChange: h.percentageChange,
         recommendation: h.signals?.rsi === '买入' ? 'RSI买入信号' : (h.signals?.rsi === '卖出' ? 'RSI卖出信号' : '持有'),
+        // 用户自定义操作策略 (可能为 null),作为分析该基金时的重要参考
+        userStrategy: h.operationStrategy || null,
         recentTransactions: h.recentTransactions,
       }))
 
