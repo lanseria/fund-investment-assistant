@@ -161,6 +161,8 @@ export default defineMcpTool({
             code: fund.code,
             name: fund.name,
             sector: fund.sector || '未分类',
+            // 全局操作策略 (所有用户共享, 可通过 manage_fund_strategy 修改)
+            operation_strategy: fund.operationStrategy || null,
             latest_nav: currentPoint?.nav,
             latest_date: currentPoint?.date,
           },

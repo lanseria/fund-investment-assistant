@@ -142,9 +142,9 @@ function handleSubmit() {
         />
       </div>
 
-      <!-- 操作策略 -->
+      <!-- 操作策略 (全局) -->
       <div>
-        <label for="operation-strategy" class="text-sm font-medium mb-1 block">操作策略 (选填)</label>
+        <label for="operation-strategy" class="text-sm font-medium mb-1 block">操作策略 (选填, 全局)</label>
         <textarea
           id="operation-strategy"
           v-model="formData.operationStrategy"
@@ -154,7 +154,7 @@ function handleSubmit() {
           class="input-base"
         />
         <p class="text-xs text-gray-500 mt-1">
-          描述你对这只基金的操作计划，AI 分析与自动交易决策时会优先参考。
+          描述这只基金的操作计划。策略为全局设置，所有用户共享同一份；AI 分析与自动交易决策时会优先参考。
         </p>
       </div>
     </div>

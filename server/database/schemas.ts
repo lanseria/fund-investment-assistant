@@ -62,6 +62,8 @@ export const funds = fundSchema.table('funds', {
   percentageChange: real('percentage_change'),
   /** 估值更新时间 */
   todayEstimateUpdateTime: timestamp('today_estimate_update_time', { withTimezone: true }),
+  /** 全局操作策略 (自由文本，所有用户共享，作为每次 AI 分析的参考) */
+  operationStrategy: text('operation_strategy'),
 })
 
 /**
@@ -79,8 +81,6 @@ export const holdings = fundSchema.table('holdings', {
   costPrice: numeric('cost_price', { precision: 10, scale: 4 }),
   /** 关注程度 (1: 普通, 2: 重点, 3: 核心) */
   attentionLevel: integer('attention_level').default(1).notNull(),
-  /** 操作策略 (用户自定义文本，作为每次 AI 分析的参考) */
-  operationStrategy: text('operation_strategy'),
 }, (table) => {
   return {
     /** 使用 用户ID 和 基金代码 创建复合主键，确保一个用户对一个基金只能有一条持仓记录 */

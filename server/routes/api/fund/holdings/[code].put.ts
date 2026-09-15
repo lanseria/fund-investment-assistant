@@ -6,7 +6,7 @@ const holdingUpdateSchema = z.object({
   shares: z.number().positive('份额必须为正数').nullable().optional(),
   costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
   attentionLevel: z.number().int().min(1).max(3).optional(),
-  /** 操作策略 (自由文本, 供 AI 分析参考) */
+  /** 全局操作策略 (自由文本, 写入 funds 表对所有用户生效, 供 AI 分析参考) */
   operationStrategy: z.string().max(2000).nullable().optional(),
 }).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
   message: '持有份额和持仓成本价必须同时填写或同时不填。',
@@ -22,7 +22,11 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const data = await holdingUpdateSchema.parseAsync(body)
-    const updated = await updateHolding(user.id, code, data)
+    const { operationStrategy, ...holdingData } = data
+    const updated = await updateHolding(user.id, code, holdingData)
+    // 操作策略是基金级全局设置, 单独写入 funds 表
+    if (operationStrategy !== undefined)
+      await setFundOperationStrategy(code, operationStrategy)
     return updated
   }
   catch (error) {

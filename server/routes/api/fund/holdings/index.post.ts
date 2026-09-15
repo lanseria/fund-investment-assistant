@@ -6,7 +6,7 @@ const holdingCreateSchema = z.object({
   shares: z.number().positive('份额必须为正数').nullable().optional(),
   costPrice: z.number().positive('成本价必须为正数').nullable().optional(),
   attentionLevel: z.number().int().min(1).max(3).optional().default(1),
-  /** 操作策略 (自由文本, 供 AI 分析参考) */
+  /** 全局操作策略 (自由文本, 写入 funds 表对所有用户生效, 供 AI 分析参考) */
   operationStrategy: z.string().max(2000).nullable().optional(),
   fundType: z.enum(['open', 'qdii_lof']),
 }).refine(data => (data.shares && data.costPrice) || (!data.shares && !data.costPrice), {
@@ -19,7 +19,11 @@ export default defineEventHandler(async (event) => {
   try {
     const body = await readBody(event)
     const data = await holdingCreateSchema.parseAsync(body)
-    const newHolding = await addHolding({ ...data, userId: user.id })
+    const { operationStrategy, ...holdingData } = data
+    const newHolding = await addHolding({ ...holdingData, userId: user.id })
+    // 操作策略是基金级全局设置, 添加持仓后单独写入 funds 表
+    if (operationStrategy)
+      await setFundOperationStrategy(data.code, operationStrategy)
     return newHolding
   }
   catch (error) {

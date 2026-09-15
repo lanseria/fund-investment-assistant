@@ -253,6 +253,13 @@
       "when": 1789111129203,
       "tag": "0035_add_operation_strategy",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1789456314238,
+      "tag": "0036_global_operation_strategy",
+      "breakpoints": true
     }
   ]
 }

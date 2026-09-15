@@ -100,6 +100,23 @@ export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lo
 }
 
 /**
+ * 设置基金的全局操作策略 (存于 funds 表, 所有用户共享同一份策略)
+ * 传入空字符串或 null 表示清空策略。
+ */
+export async function setFundOperationStrategy(code: string, operationStrategy: string | null) {
+  const db = useDb()
+  const [updated] = await db.update(funds)
+    .set({ operationStrategy: operationStrategy?.trim() || null })
+    .where(eq(funds.code, code))
+    .returning({ code: funds.code, name: funds.name, operationStrategy: funds.operationStrategy })
+
+  if (!updated)
+    throw new FundNotFoundError(code)
+
+  return updated
+}
+
+/**
  * 同步单个基金的最新估值
  * @param code 基金代码
  * @param options 可选配置
