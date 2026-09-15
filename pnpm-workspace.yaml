@@ -57,7 +57,7 @@ catalogs:
     es-toolkit: ^1.52.0
     mitt: ^3.0.1
     paseto-ts: ^2.0.7
-    zod: ^4.6.4
+    zod: ^4.6.5
 onlyBuiltDependencies:
   - '@parcel/watcher'
   - esbuild
