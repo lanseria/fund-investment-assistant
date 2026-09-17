@@ -171,7 +171,6 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
           :title="`操作策略 (全局): ${holding.operationStrategy}`"
         >
           <div class="i-carbon-notebook" />
-          <span class="font-bold">策略</span>
         </div>
 
         <!-- 分隔线 (持有期提示或赎回费率存在时显示) -->
