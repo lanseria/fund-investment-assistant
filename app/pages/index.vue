@@ -275,76 +275,81 @@ async function handleUpdateAttention(code: string, newLevel: number) {
 </script>
 
 <template>
-  <div class="p-4 lg:p-8 sm:p-6">
-    <!-- 市场概览（默认折叠，降低噪音） -->
-    <div class="mb-6">
-      <button
-        class="px-4 py-2 card flex w-full transition-colors items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-800"
-        @click="isMarketOpen = !isMarketOpen"
-      >
-        <span class="text-sm text-gray-600 font-semibold flex gap-2 items-center dark:text-gray-300">
-          <div i-carbon-dashboard />
-          市场速览
-        </span>
-        <div i-carbon-chevron-down class="text-gray-400 transition-transform" :class="{ 'rotate-180': isMarketOpen }" />
-      </button>
-      <Transition name="collapse">
-        <div v-show="isMarketOpen" class="mt-2">
-          <MarketOverview />
-        </div>
-      </Transition>
+  <div class="page-root p-4 relative lg:p-8 sm:p-6">
+    <!-- 装饰性背景层：主题色光晕 + 渐隐网格，固定全屏，随主题与深色模式联动 -->
+    <div class="page-bg pointer-events-none inset-0 fixed z-0" aria-hidden="true" />
+
+    <div class="relative z-5">
+      <!-- 市场概览（默认折叠，降低噪音） -->
+      <div class="mb-6">
+        <button
+          class="px-4 py-2 border border-white/60 rounded-lg bg-white/70 flex w-full shadow-sm transition-colors items-center justify-between backdrop-blur dark:border-white/10 hover:border-primary/40 dark:bg-white/5 hover:bg-white/90 dark:hover:bg-white/10"
+          @click="isMarketOpen = !isMarketOpen"
+        >
+          <span class="text-sm text-gray-600 font-semibold flex gap-2 items-center dark:text-gray-300">
+            <div i-carbon-dashboard />
+            市场速览
+          </span>
+          <div i-carbon-chevron-down class="text-gray-400 transition-transform" :class="{ 'rotate-180': isMarketOpen }" />
+        </button>
+        <Transition name="collapse">
+          <div v-show="isMarketOpen" class="mt-2">
+            <MarketOverview />
+          </div>
+        </Transition>
+      </div>
+
+      <DashboardHeader
+        :is-refreshing="isRefreshing"
+        :is-data-loading="!!isDataLoading"
+        :is-processing-transactions="isProcessingTransactions"
+        :is-held-only="isHeldOnly"
+        :has-active-filters="hasActiveFilters"
+        :active-filter-count="activeFilterCount"
+        @refresh-server-user="holdingStore.refreshServerEstimates('user')"
+        @refresh-data="refresh"
+        @process-transactions="handleProcessTransactions"
+        @toggle-held="toggleHeldFilter"
+        @open-filter="isFilterDialogOpen = true"
+        @import="isImportModalOpen = true"
+        @export="handleExport"
+        @copy-info="handleCopyInfo"
+        @add-fund="openAddModal"
+      />
+
+      <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
+
+      <!-- 插入今日操作组件 -->
+      <TodayTransactionsCard v-if="authStore.user" ref="todayTxsRef" :user-id="authStore.user.id" class="mb-8" />
+
+      <div v-if="isDataLoading" class="card flex h-64 items-center justify-center">
+        <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
+      </div>
+      <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
+        <div i-carbon-search class="text-5xl mx-auto mb-4" />
+        <p>暂无持仓数据，请先添加基金。</p>
+      </div>
+      <div v-else-if="displayData.length === 0" class="text-gray-500 py-20 text-center card">
+        <div i-carbon-filter-remove class="text-5xl mx-auto mb-4" />
+        <p>当前筛选条件下无基金数据。</p>
+      </div>
+      <HoldingList
+        v-else
+        :data="displayData"
+        :is-grouped="false"
+        :sort-key="sortKey"
+        :sort-order="sortOrder"
+        @edit="openEditModal"
+        @delete="handleDelete"
+        @set-sort="handleSetSort"
+        @clear-position="handleClearPosition"
+        @trade="openTradeModal"
+        @delete-transaction="handleDeleteTransaction"
+        @update-attention="handleUpdateAttention"
+      />
     </div>
 
-    <DashboardHeader
-      :is-refreshing="isRefreshing"
-      :is-data-loading="!!isDataLoading"
-      :is-processing-transactions="isProcessingTransactions"
-      :is-held-only="isHeldOnly"
-      :has-active-filters="hasActiveFilters"
-      :active-filter-count="activeFilterCount"
-      @refresh-server-user="holdingStore.refreshServerEstimates('user')"
-      @refresh-data="refresh"
-      @process-transactions="handleProcessTransactions"
-      @toggle-held="toggleHeldFilter"
-      @open-filter="isFilterDialogOpen = true"
-      @import="isImportModalOpen = true"
-      @export="handleExport"
-      @copy-info="handleCopyInfo"
-      @add-fund="openAddModal"
-    />
-
-    <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
-
-    <!-- 插入今日操作组件 -->
-    <TodayTransactionsCard v-if="authStore.user" ref="todayTxsRef" :user-id="authStore.user.id" class="mb-8" />
-
-    <div v-if="isDataLoading" class="card flex h-64 items-center justify-center">
-      <div i-carbon-circle-dash class="text-4xl text-primary animate-spin" />
-    </div>
-    <div v-else-if="holdings.length === 0" class="text-gray-500 py-20 text-center card">
-      <div i-carbon-search class="text-5xl mx-auto mb-4" />
-      <p>暂无持仓数据，请先添加基金。</p>
-    </div>
-    <div v-else-if="displayData.length === 0" class="text-gray-500 py-20 text-center card">
-      <div i-carbon-filter-remove class="text-5xl mx-auto mb-4" />
-      <p>当前筛选条件下无基金数据。</p>
-    </div>
-    <HoldingList
-      v-else
-      :data="displayData"
-      :is-grouped="false"
-      :sort-key="sortKey"
-      :sort-order="sortOrder"
-      @edit="openEditModal"
-      @delete="handleDelete"
-      @set-sort="handleSetSort"
-      @clear-position="handleClearPosition"
-      @trade="openTradeModal"
-      @delete-transaction="handleDeleteTransaction"
-      @update-attention="handleUpdateAttention"
-    />
-
-    <!-- Modals -->
+    <!-- Modals（置于内容层之外，避免嵌套在 z-5 包装层的堆叠上下文中被顶栏遮挡） -->
     <DashboardHoldingFilterDialog
       v-model:open="isFilterDialogOpen"
       :filters="filters"
@@ -397,6 +402,99 @@ async function handleUpdateAttention(code: string, newLevel: number) {
 </template>
 
 <style scoped>
+/* --- 页面级排版：中文友好的系统无衬线栈；数字全局等宽（tabular），金融表格对齐 --- */
+.page-root {
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    'PingFang SC',
+    'Hiragino Sans GB',
+    'Microsoft YaHei',
+    'Noto Sans CJK SC',
+    sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* --- 氛围背景：主题色光晕（color-mix 挂在 --theme-primary 上，换主题自动跟随） --- */
+.page-bg {
+  background:
+    radial-gradient(
+      42rem 42rem at 85% -10%,
+      color-mix(in srgb, var(--theme-primary) 15%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      36rem 36rem at -12% 25%,
+      color-mix(in srgb, var(--theme-primary) 10%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(32rem 32rem at 55% 115%, color-mix(in srgb, var(--theme-primary) 8%, transparent), transparent 62%);
+}
+
+/* 细网格纹理，向下渐隐 */
+.page-bg::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(to right, rgb(15 23 42 / 0.05) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(15 23 42 / 0.05) 1px, transparent 1px);
+  background-size: 2.5rem 2.5rem;
+  -webkit-mask-image: linear-gradient(to bottom, black, transparent 70%);
+  mask-image: linear-gradient(to bottom, black, transparent 70%);
+}
+
+html.dark .page-bg {
+  background:
+    radial-gradient(
+      42rem 42rem at 85% -10%,
+      color-mix(in srgb, var(--theme-primary) 24%, transparent),
+      transparent 62%
+    ),
+    radial-gradient(
+      36rem 36rem at -12% 25%,
+      color-mix(in srgb, var(--theme-primary) 16%, transparent),
+      transparent 58%
+    ),
+    radial-gradient(32rem 32rem at 55% 115%, color-mix(in srgb, var(--theme-primary) 12%, transparent), transparent 62%);
+}
+
+html.dark .page-bg::before {
+  background-image:
+    linear-gradient(to right, rgb(148 163 184 / 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(148 163 184 / 0.06) 1px, transparent 1px);
+}
+
+/* --- 本页卡片玻璃化：半透明 + 背景模糊 + 细边框，让氛围背景微微透出 --- */
+.page-root :deep(.card) {
+  background: rgb(255 255 255 / 0.78);
+  border: 1px solid rgb(255 255 255 / 0.6);
+  box-shadow: 0 4px 24px rgb(15 23 42 / 0.06);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+
+html.dark .page-root :deep(.card) {
+  background: rgb(31 41 55 / 0.72);
+  border-color: rgb(255 255 255 / 0.08);
+  box-shadow: 0 4px 24px rgb(0 0 0 / 0.35);
+}
+
+/* --- 页面主标题：品牌色渐变文字 --- */
+.page-root :deep(h1) {
+  letter-spacing: -0.02em;
+  background-image: linear-gradient(120deg, #0f172a 35%, color-mix(in srgb, var(--theme-primary) 75%, #0f172a));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+html.dark .page-root :deep(h1) {
+  background-image: linear-gradient(120deg, #f9fafb 35%, color-mix(in srgb, var(--theme-primary) 65%, #f9fafb));
+}
+
 /* 市场概览折叠动画 */
 .collapse-enter-active,
 .collapse-leave-active {
