@@ -2,7 +2,6 @@
 defineProps<{
   isRefreshing: boolean
   isDataLoading: boolean
-  isProcessingTransactions: boolean
   isHeldOnly: boolean
   hasActiveFilters: boolean
   activeFilterCount: number
@@ -11,7 +10,6 @@ defineProps<{
 const emit = defineEmits([
   'refresh-server-user', // 同步我的基金估值 (User Scope,后端执行)
   'refresh-data',
-  'process-transactions',
   'toggle-held',
   'open-filter', // 打开基金筛选对话框
   'import',
@@ -45,9 +43,6 @@ const emit = defineEmits([
       <button class="icon-btn" title="刷新列表数据" :disabled="isDataLoading" @click="emit('refresh-data')">
         <div i-carbon-renew :class="{ 'animate-spin': isDataLoading }" />
       </button>
-      <button class="icon-btn" title="手动处理待确认交易" :disabled="isProcessingTransactions" @click="emit('process-transactions')">
-        <div i-carbon-calculator-check :class="{ 'animate-pulse': isProcessingTransactions }" />
-      </button>
       <button
         class="icon-btn"
         :class="{ 'text-primary': isHeldOnly }"
@@ -75,10 +70,6 @@ const emit = defineEmits([
       <button class="icon-btn" title="导出数据" @click="emit('export')">
         <div i-carbon-download />
       </button>
-      <!-- 收益明细入口 -->
-      <NuxtLink to="/profit-analysis" class="icon-btn" title="收益明细">
-        <div i-carbon-chart-line-data />
-      </NuxtLink>
       <button class="icon-btn" title="复制持仓信息" @click="emit('copy-info')">
         <div i-carbon-copy />
       </button>

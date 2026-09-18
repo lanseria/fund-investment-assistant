@@ -190,29 +190,6 @@ async function handleClearPosition(holding: Holding) {
   }
 }
 
-const isProcessingTransactions = ref(false)
-async function handleProcessTransactions() {
-  if (isProcessingTransactions.value)
-    return
-  isProcessingTransactions.value = true
-  try {
-    const res: any = await apiFetch('/api/dev/process-transactions', { method: 'POST' })
-    const { processed, skipped, skippedReasons } = res.result || {}
-    let msg = `交易处理完成！\n成功: ${processed ?? 0}, 跳过: ${skipped ?? 0}`
-    if (skippedReasons && skippedReasons.length > 0)
-      msg += `\n\n跳过原因:\n${skippedReasons.join('\n')}`
-    alert(msg)
-    await refresh()
-  }
-  catch (e: any) {
-    console.error(e)
-    alert(`处理失败: ${e.data?.statusMessage || e.message}`)
-  }
-  finally {
-    isProcessingTransactions.value = false
-  }
-}
-
 const isImportModalOpen = ref(false)
 const isImportSubmitting = ref(false)
 async function handleExport() {
@@ -302,13 +279,11 @@ async function handleUpdateAttention(code: string, newLevel: number) {
       <DashboardHeader
         :is-refreshing="isRefreshing"
         :is-data-loading="!!isDataLoading"
-        :is-processing-transactions="isProcessingTransactions"
         :is-held-only="isHeldOnly"
         :has-active-filters="hasActiveFilters"
         :active-filter-count="activeFilterCount"
         @refresh-server-user="holdingStore.refreshServerEstimates('user')"
         @refresh-data="refresh"
-        @process-transactions="handleProcessTransactions"
         @toggle-held="toggleHeldFilter"
         @open-filter="isFilterDialogOpen = true"
         @import="isImportModalOpen = true"
