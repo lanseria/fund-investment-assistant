@@ -2,10 +2,11 @@ import { and, eq, isNotNull, isNull } from 'drizzle-orm'
 import { z } from 'zod'
 import { funds, holdings, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
+import { buildMcpMeta, localDateStr } from '~~/server/utils/mcpMeta'
 
 export default defineMcpTool({
   name: 'explore_user_funds',
-  description: '查看其他用户的基金持仓/关注列表，便于发现并参考别人的标的。支持列出所有用户（含持仓/关注数量），或查看指定用户的基金。配合 manage_watchlist 可将心仪基金加入自己的关注。',
+  description: '查看其他用户的基金持仓/关注列表，便于发现并参考别人的标的。支持列出所有用户（含持仓/关注数量，纯文本），或查看指定用户的基金（JSON，外层含 meta 外壳，data 内为 user/summary/funds）。status 字段 held=已持仓, watched=仅关注；不返回他人份额/成本等敏感明细。配合 manage_watchlist 可将心仪基金加入自己的关注。',
   inputSchema: {
     action: z.enum(['list_users', 'view']).describe('操作类型：list_users (列出所有用户及其持仓/关注数量) 或 view (查看指定用户的基金列表)'),
     targetUserId: z.number().int().optional().describe('目标用户 ID。view 时与 username 二选一。'),
@@ -159,15 +160,21 @@ export default defineMcpTool({
           content: [{
             type: 'text',
             text: JSON.stringify({
-              user: { id: targetUser.id, username: targetUser.username },
-              summary: {
-                total: rows.length,
-                held: heldCount,
-                watched: watchedCount,
-                filter: args.type,
+              meta: buildMcpMeta({
+                asOf: localDateStr(),
+                staleness: { holdings: 'realtime (查询即返回)', nav: '不涉及净值' },
+              }),
+              data: {
+                user: { id: targetUser.id, username: targetUser.username },
+                summary: {
+                  total: rows.length,
+                  held: heldCount,
+                  watched: watchedCount,
+                  filter: args.type,
+                },
+                funds: fundList,
+                hint: '对感兴趣的基金，可调用 manage_watchlist (action=add, fundCode=...) 加入你自己的关注。',
               },
-              funds: fundList,
-              hint: '对感兴趣的基金，可调用 manage_watchlist (action=add, fundCode=...) 加入你自己的关注。',
             }, null, 2),
           }],
         }

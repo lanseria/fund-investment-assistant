@@ -232,8 +232,31 @@ export interface MarketIndexData {
   value: number
   changeAmount: number
   changeRate: number
+  /** 报价时间 HH:mm:ss（交易所当地时区，兼容旧缓存的紧凑格式已归一化） */
   time: string
+  /** 报价完整时间 yyyy-MM-dd HH:mm:ss（交易所当地时区） */
+  datetime: string | null
+  /** 报价日期 yyyy-MM-dd（= datetime 的日期部分，供 MCP/前端标注 as_of） */
+  as_of: string | null
+  /** 是否延迟行情（日经期货、COMEX 黄金、NYMEX 原油等为延迟） */
+  delayed: boolean
   chartData: [string, number][] // 用于分时图的数据点 [时间, 价格]
+}
+
+/**
+ * 解析行情源时间字段。上游存在三种格式：
+ * - A股: "20260918153802" (紧凑数字)
+ * - 港股: "2026/09/18 15:23:54"
+ * - 美股/期货: "2026-09-17 16:35:03"
+ * 统一归一化为 { date: yyyy-MM-dd, time: HH:mm:ss, datetime }。
+ */
+export function parseQuoteTime(raw: string): { date: string, time: string, datetime: string } | null {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 14)
+    return null
+  const date = `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`
+  const time = `${digits.slice(8, 10)}:${digits.slice(10, 12)}:${digits.slice(12, 14)}`
+  return { date, time, datetime: `${date} ${time}` }
 }
 
 export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexData[]> {
@@ -300,13 +323,19 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
       }
 
       // 为了调试，我们先返回一个包含 chartData 长度的对象
+      // parts[0] 形如 v_sh000001="1 / v_hkHSI="100 / v_fuNIY="delay，= 后标记行情类型
+      const quoteKindFlag = parts[0]!.split('=')[1] ?? ''
+      const parsedTime = parts[30] ? parseQuoteTime(parts[30]) : null
       const result = {
         code,
         name: parts[1]!,
         value: Number.parseFloat(parts[3]!),
         changeAmount: Number.parseFloat(parts[31]!),
         changeRate: Number.parseFloat(parts[32]!),
-        time: parts[30] ? `${parts[30].substring(8, 10)}:${parts[30].substring(10, 12)}:${parts[30].substring(12, 14)}` : 'N/A',
+        time: parsedTime?.time ?? 'N/A',
+        datetime: parsedTime?.datetime ?? null,
+        as_of: parsedTime?.date ?? null,
+        delayed: quoteKindFlag === 'delay',
         chartData,
       }
       return result

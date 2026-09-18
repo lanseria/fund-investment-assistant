@@ -53,6 +53,49 @@ export const marketGroups = {
  */
 export const ALL_INDEX_CODES = Object.values(marketGroups).flatMap(group => group.codes)
 
+/** 行情品种类型：index=指数，stock=个股，etf=交易所交易基金，futures=期货合约/期货代理 */
+export type MarketCodeKind = 'index' | 'stock' | 'etf' | 'futures'
+
+/**
+ * 每个行情代码的品种类型。
+ * get_market_index (MCP) 与前端均用它在"指数"与"个股/ETF/期货"之间做区分，
+ * 避免客户端把小米、特斯拉等个股误当成大盘指数。
+ * 新增 marketGroups 成员时必须在此同步登记。
+ */
+export const marketCodeKind: Record<string, MarketCodeKind> = {
+  // A 股
+  sh000001: 'index',
+  sh000300: 'index',
+  sh000016: 'index',
+  sh000003: 'index',
+  sh000688: 'index',
+  // 深市
+  sz399001: 'index',
+  sz399006: 'index',
+  sz399106: 'index',
+  sz399003: 'index',
+  // 港股
+  hkHSI: 'index',
+  hk02837: 'etf',
+  hk01810: 'stock',
+  hk00981: 'stock',
+  hk09988: 'stock',
+  hk00700: 'stock',
+  // 美股
+  usDJI: 'index',
+  usIXIC: 'index',
+  usTSLA: 'stock',
+  usAAPL: 'stock',
+  usNVDA: 'stock',
+  // 日本
+  fuNIY: 'futures',
+  // 期货
+  fuGC: 'futures',
+  usPAAS: 'stock',
+  usSLV: 'etf',
+  fuCL: 'futures',
+}
+
 // 节假日配置 (Single Source of Truth)
 // 未来可以从数据库或API动态获取
 export const HOLIDAYS_CONFIG: [string, string][] = [

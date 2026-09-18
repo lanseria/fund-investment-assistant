@@ -7,7 +7,8 @@ import { emitter } from './emitter'
 
 let isPolling = false
 let pollingInterval: NodeJS.Timeout | null = null
-const CACHE_KEY = 'market:indexes'
+// v2：MarketIndexData 新增 datetime/as_of/delayed 字段，旧缓存缺少这些字段，直接换 key 作废旧数据
+const CACHE_KEY = 'market:indexes:v2'
 
 /**
  * 获取缓存的市场数据 (Record<code, data>)
