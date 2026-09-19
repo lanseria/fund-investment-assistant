@@ -1,0 +1,176 @@
+import type { StockRealtimeQuote } from '../dataFetcher'
+import type { FundStockHoldingRow } from '../stockHoldingService'
+import { describe, expect, it } from 'vitest'
+import { calcSelfEstimate } from '../selfEstimateService'
+import { enrichStocksWithQuotes, extractStockHoldings, parseHoldingPct } from '../stockHoldingService'
+
+function holding(stockCode: string, pct: number): FundStockHoldingRow {
+  return { stockCode, stockName: `股票${stockCode}`, pct, reportDate: '2026-06-30' }
+}
+
+function quote(code: string, changePct: number | null): [string, StockRealtimeQuote] {
+  return [code, { code, name: `股票${code}`, price: 10, changePct, date: '2026-09-18', time: '15:00:00' }]
+}
+
+describe('parseHoldingPct (powercloud 占比字符串解析)', () => {
+  it('解析带百分号的字符串', () => {
+    expect(parseHoldingPct('17.28%')).toBe(17.28)
+    expect(parseHoldingPct(' 9.5% ')).toBe(9.5)
+  })
+
+  it('解析纯数字', () => {
+    expect(parseHoldingPct(17.28)).toBe(17.28)
+    expect(parseHoldingPct('0.5')).toBe(0.5)
+  })
+
+  it('非法/非正值返回 null', () => {
+    expect(parseHoldingPct(null)).toBeNull()
+    expect(parseHoldingPct(undefined)).toBeNull()
+    expect(parseHoldingPct('')).toBeNull()
+    expect(parseHoldingPct('%')).toBeNull()
+    expect(parseHoldingPct('abc')).toBeNull()
+    expect(parseHoldingPct('-1.2%')).toBeNull()
+    expect(parseHoldingPct('0%')).toBeNull()
+  })
+})
+
+describe('extractStockHoldings (重仓股列表提取)', () => {
+  it('过滤掉代码非法、名称为空、占比无效的条目', () => {
+    const rows = extractStockHoldings([
+      { code: '600519', name: '贵州茅台', pct: '17.28%' },
+      { code: '00700', name: '腾讯控股', pct: '9%' }, // 港股 5 位代码,过滤
+      { code: '60051', name: '短代码', pct: '5%' }, // 非 6 位,过滤
+      { code: '000858', name: '', pct: '8%' }, // 无名称,过滤
+      { code: '000858', name: '五粮液', pct: 'abc' }, // 占比非法,过滤
+    ] as any)
+    expect(rows).toHaveLength(1)
+    expect(rows[0]).toEqual({ stockCode: '600519', stockName: '贵州茅台', pct: 17.28, reportDate: '' })
+  })
+
+  it('非数组输入返回空数组', () => {
+    expect(extractStockHoldings(null)).toEqual([])
+    expect(extractStockHoldings(undefined)).toEqual([])
+  })
+})
+
+describe('calcSelfEstimate (重仓股加权自算估值)', () => {
+  const holdings = [holding('600519', 50), holding('000858', 30), holding('300750', 20)]
+
+  it('全部有行情:按占比加权归一化', () => {
+    const quotes = Object.fromEntries([
+      quote('600519', -1), // 50 × -1 = -50
+      quote('000858', 2), // 30 × 2 = 60
+      quote('300750', 0), // 20 × 0 = 0
+    ])
+    // 加权涨跌幅 = (-50 + 60 + 0) / 100 = 0.1%
+    // 净值 = 1.5 × (1 + 0.1/100) = 1.5015
+    const result = calcSelfEstimate('1.5', holdings, quotes)
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(0.1, 6)
+    expect(result!.nav).toBe(1.5015)
+    expect(result!.coverage).toBe(100)
+  })
+
+  it('部分股票缺行情:剔除权重后重新归一化', () => {
+    const quotes = Object.fromEntries([
+      quote('600519', -1), // 50 × -1 = -50
+      quote('000858', 2), // 30 × 2 = 60
+      // 300750 缺行情
+    ])
+    // 加权涨跌幅 = (-50 + 60) / 80 = 0.125%
+    const result = calcSelfEstimate('1.5', holdings, quotes)
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(0.125, 6)
+    // 净值保留 4 位小数: 1.5 × (1 + 0.125/100) = 1.501875 → 1.5019
+    expect(result!.nav).toBe(1.5019)
+    // 覆盖率仍按全部持仓统计
+    expect(result!.coverage).toBe(100)
+  })
+
+  it('changePct 为 null (停牌) 视为缺行情', () => {
+    const quotes = Object.fromEntries([
+      quote('600519', null),
+      quote('000858', 1), // 30 × 1 = 30
+      quote('300750', 3), // 20 × 3 = 60
+    ])
+    // 加权涨跌幅 = (30 + 60) / 50 = 1.8%
+    const result = calcSelfEstimate('2', holdings, quotes)
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(1.8, 6)
+  })
+
+  it('全部股票无行情返回 null', () => {
+    const quotes = Object.fromEntries([quote('600519', null), quote('000858', null)])
+    expect(calcSelfEstimate('1.5', holdings, quotes)).toBeNull()
+  })
+
+  it('行情里完全没有这些股票返回 null', () => {
+    expect(calcSelfEstimate('1.5', holdings, {})).toBeNull()
+  })
+
+  it('空持仓返回 null', () => {
+    const quotes = Object.fromEntries([quote('600519', 1)])
+    expect(calcSelfEstimate('1.5', [], quotes)).toBeNull()
+  })
+
+  it('昨净非法返回 null', () => {
+    const quotes = Object.fromEntries([quote('600519', 1)])
+    expect(calcSelfEstimate('0', holdings, quotes)).toBeNull()
+    expect(calcSelfEstimate('-1', holdings, quotes)).toBeNull()
+  })
+
+  it('覆盖率按持仓行合计(而非行情命中数)', () => {
+    const rows = [holding('600519', 8.5), holding('000858', 6.2)]
+    const result = calcSelfEstimate('1', rows, Object.fromEntries([quote('600519', 1), quote('000858', 1)]))
+    expect(result!.coverage).toBe(14.7)
+  })
+})
+
+describe('enrichStocksWithQuotes (持仓行补全行情快照)', () => {
+  const rows = [holding('600519', 17.28), holding('000858', 9.5)]
+
+  it('按股票代码匹配行情并补全四个行情字段', () => {
+    const quotes = [
+      { code: '600519', name: '贵州茅台', price: 1257.12, changePct: -0.78, date: '2026-09-18', time: '15:00:00' },
+      { code: '000858', name: '五粮液', price: 70, changePct: 1.26, date: '2026-09-18', time: '15:00:02' },
+    ]
+    const result = enrichStocksWithQuotes(rows, quotes)
+    expect(result[0]).toEqual({
+      stockCode: '600519',
+      stockName: '股票600519',
+      pct: 17.28,
+      price: 1257.12,
+      changePct: -0.78,
+      quoteDate: '2026-09-18',
+      quoteTime: '15:00:00',
+    })
+  })
+
+  it('行情列表中缺失的股票行情字段为 null,持仓字段保留', () => {
+    const quotes = [{ code: '600519', name: '贵州茅台', price: 1257.12, changePct: -0.78, date: '2026-09-18', time: '15:00:00' }]
+    const result = enrichStocksWithQuotes(rows, quotes)
+    expect(result[1]).toEqual({
+      stockCode: '000858',
+      stockName: '股票000858',
+      pct: 9.5,
+      price: null,
+      changePct: null,
+      quoteDate: null,
+      quoteTime: null,
+    })
+  })
+
+  it('行情接口不可用 (null/undefined) 时全部行情字段为 null', () => {
+    for (const quotes of [null, undefined]) {
+      const result = enrichStocksWithQuotes(rows, quotes)
+      expect(result).toHaveLength(2)
+      for (const row of result) {
+        expect(row.price).toBeNull()
+        expect(row.changePct).toBeNull()
+        expect(row.quoteDate).toBeNull()
+        expect(row.quoteTime).toBeNull()
+      }
+      expect(result[0]!.pct).toBe(17.28)
+    }
+  })
+})

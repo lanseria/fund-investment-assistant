@@ -22,6 +22,10 @@ export default defineEventHandler(async (event) => {
     todayEstimateNav: funds.todayEstimateNav,
     percentageChange: funds.percentageChange,
     todayEstimateUpdateTime: funds.todayEstimateUpdateTime,
+    // 自算估值(重仓股行情加权)
+    selfEstimateNav: funds.selfEstimateNav,
+    selfPercentageChange: funds.selfPercentageChange,
+    selfEstimateUpdateTime: funds.selfEstimateUpdateTime,
     // 持仓人数：shares 不为空且 > 0
     holderCount: sql<number>`count(${holdings.fundCode}) filter (where ${holdings.shares} is not null and ${holdings.shares} > 0)`.as('holder_count'),
     // 关注人数：shares 为空或 = 0

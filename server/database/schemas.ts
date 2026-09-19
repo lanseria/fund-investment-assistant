@@ -64,6 +64,38 @@ export const funds = fundSchema.table('funds', {
   todayEstimateUpdateTime: timestamp('today_estimate_update_time', { withTimezone: true }),
   /** 全局操作策略 (自由文本，所有用户共享，作为每次 AI 分析的参考) */
   operationStrategy: text('operation_strategy'),
+  /** 自算估算净值 (按重仓股行情加权计算，与官方估算 todayEstimateNav 并存) */
+  selfEstimateNav: real('self_estimate_nav'),
+  /** 自算估算涨跌幅 (%) */
+  selfPercentageChange: real('self_percentage_change'),
+  /** 自算估值更新时间 */
+  selfEstimateUpdateTime: timestamp('self_estimate_update_time', { withTimezone: true }),
+})
+
+/**
+ * 基金重仓股持仓表 (fund_stock_holdings)
+ * 存储基金季报披露的重仓股持仓明细 (全局共享，每基金一份最新报告期数据)，
+ * 供盘中按重仓股行情加权自算基金估值。数据来源为 Python 服务
+ * /fund/realtime/{code} 的 holdings 字段 (底层 powercloud 聚合接口)。
+ */
+export const fundStockHoldings = fundSchema.table('fund_stock_holdings', {
+  /** 基金代码 (复合主键之一, 外键关联 funds 表) */
+  fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
+  /** 股票代码 (复合主键之一, 6 位数字) */
+  stockCode: varchar('stock_code', { length: 10 }).notNull(),
+  /** 股票名称 */
+  stockName: text('stock_name').notNull(),
+  /** 占净值比例 (%) */
+  pct: real('pct').notNull(),
+  /** 持仓报告期 (yyyy-mm-dd, 季报披露口径) */
+  reportDate: date('report_date').notNull(),
+  /** 行同步时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow().notNull(),
+}, (table) => {
+  return {
+    /** 基金代码 + 股票代码 复合主键，新报告期数据通过 upsert 覆盖 */
+    pk: primaryKey({ columns: [table.fundCode, table.stockCode] }),
+  }
 })
 
 /**

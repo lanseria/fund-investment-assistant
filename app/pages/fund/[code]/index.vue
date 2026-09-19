@@ -1,6 +1,7 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
 import type { EstimatePoint } from '~/types/chart'
+import type { FundStockHoldingsSummary } from '~/types/holding'
 import type { FundRealtimeDetail } from '~/types/realtime'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
@@ -55,9 +56,9 @@ const mergedSectorHistory = computed(() => {
   return undefined
 })
 
-// 重仓股持仓明细：来自实时估值聚合接口(纯展示不落库)，失败时静默降级为 null 不阻塞页面
-// 该接口需聚合多只重仓股实时行情、耗时较长，故改为客户端懒加载：不阻塞路由切换/SSR，进入页面后再后台请求
-const { data: realtimeHoldings, pending: realtimeHoldingsPending } = useAsyncData(
+// 盘中估值数据：来自实时估值聚合接口(纯展示不落库)，失败时静默降级为 null 不阻塞页面
+// 仅用于「基础走势」图的估值延伸点；重仓股面板已改由详情接口(数据库+行情快照)提供
+const { data: realtimeHoldings } = useAsyncData(
   `fund-realtime-holdings-${code}`,
   () => apiFetch<FundRealtimeDetail>(`/api/fund/realtime/${code}`).catch(() => null),
   {
@@ -66,6 +67,30 @@ const { data: realtimeHoldings, pending: realtimeHoldingsPending } = useAsyncDat
     default: () => null,
   },
 )
+
+// 重仓股面板数据源：优先用详情接口(数据库季报持仓 + 行情快照);
+// 库中无持仓的基金(QDII 等重仓为港股/美股)回退到实时估值接口的原始重仓股,保持面板可用
+const stockHoldingsPanel = computed<FundStockHoldingsSummary | null>(() => {
+  if (fundDetail.value?.stockHoldings)
+    return fundDetail.value.stockHoldings
+
+  const r = realtimeHoldings.value
+  if (!r?.holdings?.length)
+    return null
+  const stocks = r.holdings
+    .map(h => ({
+      stockCode: h.code,
+      stockName: h.name,
+      pct: Number.parseFloat(h.pct) || 0,
+      price: h.price != null && h.price !== '' ? Number(h.price) : null,
+      changePct: h.change_pct != null && h.change_pct !== '' ? Number(h.change_pct) : null,
+      quoteDate: h.quote_date,
+      quoteTime: h.quote_time,
+    }))
+    .sort((a, b) => b.pct - a.pct)
+  const coverage = Number(stocks.reduce((sum, s) => sum + s.pct, 0).toFixed(2))
+  return { reportDate: r.holdingsDate || '', coverage, stocks }
+})
 
 // 当日盘中估值点：复用实时估值接口(无额外请求)，由「基础走势」图以虚线延伸到估值日期
 const latestEstimate = computed<EstimatePoint | undefined>(() => {
@@ -264,16 +289,11 @@ async function handleRunStrategies() {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- 重仓股持仓明细(报告期持仓 + 最新行情快照；无股票仓位或数据源不可用时不展示) -->
+    <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照;库中无持仓时回退实时接口,如 QDII 港股重仓) -->
     <FundHoldingsPanel
-      v-if="realtimeHoldings?.holdings?.length"
-      :holdings="realtimeHoldings.holdings"
-      :holdings-date="realtimeHoldings.holdingsDate"
+      v-if="stockHoldingsPanel"
+      :stock-holdings="stockHoldingsPanel"
     />
-    <!-- 实时行情后台聚合中，数据到达后自动替换 -->
-    <div v-else-if="realtimeHoldingsPending" class="card flex h-40 items-center justify-center">
-      <div i-carbon-circle-dash class="text-3xl text-primary animate-spin" />
-    </div>
 
     <!-- 策略信号模态框 -->
     <Modal v-model="isStrategyModalOpen" :title="`策略信号详情 (ID: ${selectedSignal?.id})`">

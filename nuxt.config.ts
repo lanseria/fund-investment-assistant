@@ -23,6 +23,13 @@ const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
   .filter(Boolean)
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
+// 自算估值: 盘中每 5 分钟 (任务内部再用 isTradingHours 收敛到 9:30-15:00 交易时段)
+const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-15 * * *')
+  .split(',')
+  .map(c => c.trim())
+  .filter(Boolean)
+// 重仓股持仓明细同步: 每天 17:30 收盘后 (季报口径,变化低频;新基金添加时会即时同步)
+const syncStockHoldingsCron = env.CRON_FUND_SYNC_STOCK_HOLDINGS ?? '30 17 * * *'
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
 // 清理 AI 用户灰尘份额: 每天 10:00 (在 9:00 处理交易之后)
@@ -52,6 +59,14 @@ if (!disableScheduler && syncEstimateCrons.length) {
 }
 if (!disableScheduler && runStrategiesCron) {
   addTask(runStrategiesCron, 'fund:runStrategies')
+}
+if (!disableScheduler && syncSelfEstimateCrons.length) {
+  for (const cron of syncSelfEstimateCrons) {
+    addTask(cron, 'fund:syncSelfEstimate')
+  }
+}
+if (!disableScheduler && syncStockHoldingsCron) {
+  addTask(syncStockHoldingsCron, 'fund:syncStockHoldings')
 }
 if (!disableScheduler && processTransactionsCron) {
   addTask(processTransactionsCron, 'fund:processTransactions')

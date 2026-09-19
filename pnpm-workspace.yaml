@@ -1,14 +1,26 @@
 catalogMode: prefer
-
-strictPeerDependencies: false
-shellEmulator: true
+minimumReleaseAgeExcludePrune: true
 
 trustPolicy: no-downgrade
-
 trustPolicyExclude:
   - semver@6.3.1
 
+strictPeerDependencies: false
+shellEmulator: true
 packages: []
+
+allowBuilds:
+  '@parcel/watcher': true
+  argon2: true
+  better-sqlite3: true
+  esbuild: true
+  unrs-resolver: true
+
+onlyBuiltDependencies:
+  - '@parcel/watcher'
+  - esbuild
+  - unrs-resolver
+
 catalogs:
   backend:
     '@nuxtjs/mcp-toolkit': ^0.21.0
@@ -17,7 +29,7 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^7.17.0
+    openai: ^7.18.0
     pg: ^8.23.0
     secure-exec: ^0.3.3
   build:
@@ -45,7 +57,7 @@ catalogs:
     markdown-exit: ^1.3.0
     nuxt-echarts: ^1.1.0
     pinia: ^4.0.3
-    vue: ^3.5.42
+    vue: ^3.5.43
     vue-echarts: ^8.3.0
   icons:
     '@iconify-json/carbon': ^1.2.27
@@ -58,13 +70,3 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.7
     zod: ^4.6.5
-onlyBuiltDependencies:
-  - '@parcel/watcher'
-  - esbuild
-  - unrs-resolver
-allowBuilds:
-  '@parcel/watcher': true
-  argon2: true
-  better-sqlite3: true
-  esbuild: true
-  unrs-resolver: true

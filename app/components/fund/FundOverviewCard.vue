@@ -15,6 +15,16 @@ const props = defineProps<{
 }>()
 
 const dictStore = useDictStore()
+
+/** 自算估算卡的副文案:展示自算净值与重仓覆盖率 */
+const selfEstimateHint = computed(() => {
+  const d = props.detail
+  if (d?.selfPercentageChange == null)
+    return d?.stockHoldings ? '重仓加权 · 待盘中更新' : '无重仓持仓数据'
+  const nav = d.selfEstimateNav != null ? Number(d.selfEstimateNav).toFixed(4) : '-'
+  const coverage = d.stockHoldings?.coverage ?? '-'
+  return `净值 ${nav} · 覆盖率 ${coverage}%`
+})
 </script>
 
 <template>
@@ -36,16 +46,24 @@ const dictStore = useDictStore()
 
     <!-- 核心行情指标 -->
     <div class="p-5 border-t border-gray-100 dark:border-gray-700/60">
-      <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
+      <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
         <StatCard
           label="最新净值"
           :value="props.detail.todayEstimateNav || props.detail.yesterdayNav || '-'"
           value-class="!text-xl"
         />
         <StatCard
-          label="估算涨跌"
-          :value="props.detail.percentageChange !== null ? `${(props.detail.percentageChange > 0 ? '+' : '') + props.detail.percentageChange.toFixed(2)}%` : '-'"
+          label="官方估算"
+          :value="props.detail.percentageChange !== null ? props.detail.percentageChange : null"
           :colored="true"
+          hint="数据源盘中估算"
+          value-class="!text-xl"
+        />
+        <StatCard
+          label="自算估算"
+          :value="props.detail.selfPercentageChange !== null && props.detail.selfPercentageChange !== undefined ? props.detail.selfPercentageChange : null"
+          :colored="true"
+          :hint="selfEstimateHint"
           value-class="!text-xl"
         />
         <StatCard

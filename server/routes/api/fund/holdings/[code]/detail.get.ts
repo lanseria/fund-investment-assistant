@@ -1,8 +1,10 @@
 import BigNumber from 'bignumber.js'
-import { and, eq } from 'drizzle-orm'
-import { fundFees, funds, holdings } from '~~/server/database/schemas'
+import { and, desc, eq } from 'drizzle-orm'
+import { fundFees, funds, fundStockHoldings, holdings } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
+import { fetchStocksRealtime } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
+import { enrichStocksWithQuotes } from '~~/server/utils/stockHoldingService'
 
 export default defineEventHandler(async (event) => {
   const user = getUserFromEvent(event)
@@ -49,6 +51,25 @@ export default defineEventHandler(async (event) => {
     where: eq(fundFees.fundCode, code),
   })
 
+  // 查询重仓股持仓(季报口径,占净值比降序),并补全最新行情快照(腾讯源,Python 端 60s 缓存)。
+  // 行情接口不可用时行情字段为 null,持仓列表仍正常返回(详情页高频接口,超时收紧到 5s)。
+  const stockHoldingRows = await db.query.fundStockHoldings.findMany({
+    where: eq(fundStockHoldings.fundCode, code),
+    orderBy: [desc(fundStockHoldings.pct)],
+  })
+  const stockQuotes = stockHoldingRows.length > 0
+    ? await fetchStocksRealtime(stockHoldingRows.map(row => row.stockCode), { timeoutMs: 5000 })
+    : []
+  const coverage = Number(stockHoldingRows.reduce((sum, row) => sum + row.pct, 0).toFixed(2))
+  const stockHoldingsSummary = stockHoldingRows.length > 0
+    ? {
+        reportDate: stockHoldingRows[0]!.reportDate,
+        /** 重仓合计占净值比例 (%) */
+        coverage,
+        stocks: enrichStocksWithQuotes(stockHoldingRows, stockQuotes),
+      }
+    : null
+
   return {
     code: fundInfo.code,
     name: fundInfo.name,
@@ -58,6 +79,11 @@ export default defineEventHandler(async (event) => {
     todayEstimateNav: fundInfo.todayEstimateNav ? Number(fundInfo.todayEstimateNav) : null,
     percentageChange: fundInfo.percentageChange ? Number(fundInfo.percentageChange) : null,
     todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime,
+    // 自算估值(重仓股行情加权,与官方估算并存)
+    selfEstimateNav: fundInfo.selfEstimateNav ?? null,
+    selfPercentageChange: fundInfo.selfPercentageChange ?? null,
+    selfEstimateUpdateTime: fundInfo.selfEstimateUpdateTime,
+    stockHoldings: stockHoldingsSummary,
     shares: holdingInfo?.shares ? Number(holdingInfo.shares) : null,
     costPrice: holdingInfo?.costPrice ? Number(holdingInfo.costPrice) : null,
     holdingAmount,

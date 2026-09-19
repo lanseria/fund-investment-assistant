@@ -1,43 +1,25 @@
 <script setup lang="ts">
-import type { FundHoldingStock } from '~/types/realtime'
+import type { FundStockHoldingsSummary } from '~/types/holding'
 import { CHANGE_LEGEND, formatChange, getChangeColorClass } from '~/utils/format'
 
 /**
  * 基金重仓股持仓明细面板。
- * 数据来自 /api/fund/realtime/{code} 的 holdings 字段:
- * 持仓占比取自基金定期报告(holdingsDate 报告期),股价行情为最新交易日快照(quote_date)。
+ * 数据来自基金详情接口(/api/fund/holdings/[code]/detail)的 stockHoldings 字段:
+ * 持仓占比为数据库中的季报口径数据,股价行情为接口实时补全的最新快照
+ * (行情接口不可用时行情列显示 '-',持仓列表不受影响)。
  */
 const props = defineProps<{
-  /** 重仓股列表(按占净值比降序) */
-  holdings: FundHoldingStock[]
-  /** 持仓报告期(yyyy-mm-dd) */
-  holdingsDate: string | null
+  /** 重仓股持仓汇总(按占净值比降序) */
+  stockHoldings: FundStockHoldingsSummary
 }>()
-
-// pct 为带 % 的字符串(如 "10.82%"),parseFloat 会忽略尾部 % 得到数值;异常值按 0 处理
-function parsePct(pct: string): number {
-  const num = parseFloat(pct)
-  return Number.isNaN(num) ? 0 : num
-}
 
 // 占比条以列表中最大占比为基准缩放,直观对比个股集中度
 const maxPct = computed(() => {
-  return Math.max(...props.holdings.map(h => parsePct(h.pct)), 0)
+  return Math.max(...props.stockHoldings.stocks.map(h => h.pct), 0)
 })
 
-function barWidth(pct: string): string {
-  return maxPct.value > 0 ? `${(parsePct(pct) / maxPct.value) * 100}%` : '0%'
-}
-
-// 前十大重仓股合计占净值比
-const totalPct = computed(() => {
-  const sum = props.holdings.reduce((acc, h) => acc + parsePct(h.pct), 0)
-  return sum > 0 ? sum.toFixed(2) : null
-})
-
-// pct 原值已带 %,直接展示;空值兜底为 '-'
-function formatPct(pct: string): string {
-  return pct || '-'
+function barWidth(pct: number): string {
+  return maxPct.value > 0 ? `${(pct / maxPct.value) * 100}%` : '0%'
 }
 
 // quote_date + quote_time 组合为行情更新时间,缺一时退化为另一者
@@ -64,12 +46,12 @@ const expanded = ref(false)
           重仓股持仓明细
         </h2>
         <span class="text-xs text-gray-500 dark:text-gray-400">
-          报告期: {{ holdingsDate || '-' }}
+          报告期: {{ stockHoldings.reportDate || '-' }}
         </span>
       </div>
       <div class="flex gap-3 items-center">
-        <span v-if="totalPct" class="text-xs text-gray-500 font-mono dark:text-gray-400">
-          合计占比 {{ totalPct }}%
+        <span class="text-xs text-gray-500 font-mono dark:text-gray-400">
+          合计占比 {{ stockHoldings.coverage }}%
         </span>
         <div
           class="i-carbon-chevron-down text-gray-400 transition-transform duration-200"
@@ -104,24 +86,24 @@ const expanded = ref(false)
         </thead>
         <tbody>
           <tr
-            v-for="(stock, index) in holdings"
-            :key="stock.code"
-            class="border-b border-gray-100 last:border-0 dark:border-gray-700/60"
+            v-for="(stock, index) in stockHoldings.stocks"
+            :key="stock.stockCode"
+            class="border-b border-gray-100 dark:border-gray-700/60 last:border-0"
           >
             <td class="text-gray-400 font-mono p-2.5 tabular-nums">
               {{ index + 1 }}
             </td>
             <td class="p-2.5">
               <div class="font-medium">
-                {{ stock.name }}
+                {{ stock.stockName }}
               </div>
               <div class="text-xs text-gray-400 font-mono">
-                {{ stock.code }}
+                {{ stock.stockCode }}
               </div>
             </td>
             <td class="p-2.5 text-right">
               <div class="font-mono tabular-nums">
-                {{ formatPct(stock.pct) }}
+                {{ stock.pct.toFixed(2) }}%
               </div>
               <div class="ml-auto mt-1 rounded-full bg-gray-100 h-1 w-16 overflow-hidden dark:bg-gray-700">
                 <div class="rounded-full bg-primary h-full" :style="{ width: barWidth(stock.pct) }" />
@@ -130,11 +112,11 @@ const expanded = ref(false)
             <td class="font-mono p-2.5 text-right tabular-nums">
               {{ stock.price ?? '-' }}
             </td>
-            <td class="font-mono p-2.5 text-right tabular-nums" :class="getChangeColorClass(stock.change_pct)">
-              {{ formatChange(stock.change_pct) }}
+            <td class="font-mono p-2.5 text-right tabular-nums" :class="getChangeColorClass(stock.changePct)">
+              {{ formatChange(stock.changePct) }}
             </td>
             <td class="text-xs text-gray-400 font-mono p-2.5 text-right whitespace-nowrap">
-              {{ formatQuoteTime(stock.quote_date, stock.quote_time) }}
+              {{ formatQuoteTime(stock.quoteDate, stock.quoteTime) }}
             </td>
           </tr>
         </tbody>

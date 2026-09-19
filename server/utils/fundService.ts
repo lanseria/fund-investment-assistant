@@ -7,6 +7,7 @@ import { fundFees, funds, holdings, navHistory } from '~~/server/database/schema
 import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
+import { syncFundStockHoldings } from '~~/server/utils/stockHoldingService'
 
 /** Python 接口 /fund/info/{code} 的返回结构 */
 interface FundInfoResponse {
@@ -82,6 +83,15 @@ export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lo
     }
     catch (e) {
       console.error(`[AutoSync] 新基金 ${code} 首次实时估值获取失败:`, e)
+    }
+
+    // 新基金立即同步一次重仓股持仓明细(季报口径,供自算估值),
+    // 失败不阻塞添加流程,每日 fund:syncStockHoldings 任务会重试补数。
+    try {
+      await syncFundStockHoldings(code)
+    }
+    catch (e) {
+      console.error(`[AutoSync] 新基金 ${code} 重仓股持仓同步失败:`, e)
     }
 
     // 写入费率信息(仅前端展示用)

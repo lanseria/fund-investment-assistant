@@ -89,3 +89,35 @@ export interface HoldingSummary {
   /** 估值未更新（非今日）的持仓数 */
   staleCount: number
 }
+
+/**
+ * 重仓股单行(detail 接口返回:季报持仓 + 最新行情快照;行情接口不可用时行情字段为 null)
+ */
+export interface FundStockHoldingStock {
+  /** 股票代码(6 位) */
+  stockCode: string
+  /** 股票名称 */
+  stockName: string
+  /** 占净值比例 (%) */
+  pct: number
+  /** 最新价 */
+  price: number | null
+  /** 当日涨跌幅 (%),如 -4.23 表示 -4.23% */
+  changePct: number | null
+  /** 行情日期(yyyy-mm-dd) */
+  quoteDate: string | null
+  /** 行情时间(HH:mm:ss,与 quoteDate 组合即行情更新时间) */
+  quoteTime: string | null
+}
+
+/**
+ * 基金重仓股持仓汇总(detail 接口 stockHoldings 字段;无股票持仓的基金为 null)
+ */
+export interface FundStockHoldingsSummary {
+  /** 持仓报告期(yyyy-mm-dd,季报口径) */
+  reportDate: string
+  /** 重仓合计占净值比例 (%) */
+  coverage: number
+  /** 按占净值比降序 */
+  stocks: FundStockHoldingStock[]
+}

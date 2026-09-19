@@ -177,6 +177,58 @@ export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRe
   return await $fetch<StrategyRealtimeResponse>(url)
 }
 
+/** Python 服务 /stocks/realtime 返回的单只股票实时行情 */
+export interface StockRealtimeQuote {
+  code: string // 股票代码(6 位)
+  name: string // 股票名称
+  price: number | null // 最新价(停牌等无行情为 null)
+  changePct: number | null // 当日涨跌幅(%,停牌等无行情为 null)
+  date: string // 行情日期(yyyy-mm-dd,北京时间)
+  time: string // 行情时间(HH:mm:ss,北京时间)
+}
+
+/** Python 服务 /stocks/realtime 的完整响应结构 */
+export interface StocksRealtimeResponse {
+  count: number
+  stocks: StockRealtimeQuote[]
+  missing: string[] // 不支持的市场(北交所/港美股)、非法代码或拉取失败的代码
+}
+
+/**
+ * 批量获取 A 股股票实时行情(供重仓股加权自算估值/详情页行情快照)。
+ *
+ * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/stocks/realtime`，
+ * 底层腾讯行情 qt.gtimg.cn,进程内 60s TTL 缓存,单次上限 200 只)。
+ *
+ * 任何错误(接口未部署 404 / 服务不可用 / 超时)都返回 null,
+ * 由调用方降级处理(自算跳过本轮/详情页行情字段置 null)。
+ */
+export async function fetchStocksRealtime(codes: string[], opts?: { timeoutMs?: number }): Promise<StockRealtimeQuote[] | null> {
+  if (codes.length === 0)
+    return []
+
+  const config = useRuntimeConfig()
+  const url = `${config.strategyApiUrl}/stocks/realtime`
+
+  try {
+    const data = await $fetch<StocksRealtimeResponse>(url, {
+      params: { codes: codes.join(',') },
+      timeout: opts?.timeoutMs ?? 15_000,
+    })
+    if (data.missing.length > 0)
+      console.warn(`[StockRealtime] ${data.missing.length} 只股票无行情:`, data.missing.slice(0, 10).join(','))
+    return data.stocks
+  }
+  catch (error: any) {
+    const status = error?.response?.status || error?.statusCode
+    if (status === 404)
+      console.warn('[StockRealtime] /stocks/realtime 接口不存在(Python 服务未部署新版本),自算估值跳过。')
+    else
+      console.error(`[StockRealtime] 批量获取 ${codes.length} 只股票行情失败:`, error?.message || error)
+    return null
+  }
+}
+
 /**
  * 获取基金的历史净值数据
  * @param fundCode 基金代码

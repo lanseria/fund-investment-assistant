@@ -159,10 +159,15 @@ NUXT_OPEN_ROUTER_API_KEY=your_openrouter_api_key
 # 定时任务 Cron (可选，有默认值)
 CRON_FUND_SYNC_HISTORY=0 2 * * *
 CRON_FUND_SYNC_ESTIMATE=*/30 10-16 * * *
+CRON_FUND_SYNC_SELF_ESTIMATE=*/5 9-15 * * *
+CRON_FUND_SYNC_STOCK_HOLDINGS=30 17 * * *
 CRON_FUND_RUN_STRATEGIES=0 6 * * *
 CRON_FUND_PROCESS_TRANSACTIONS=0 9 * * *
 CRON_AI_AUTO_TRADE=30 14 * * 1-5
 ```
+
+> - `CRON_FUND_SYNC_SELF_ESTIMATE`: 盘中自算估值任务（按重仓股行情加权），任务内部会用交易时段判断收敛到 9:30-15:00，依赖 Python 服务的 `/stocks/realtime` 接口（底层腾讯行情，进程内 60s 缓存）。
+> - `CRON_FUND_SYNC_STOCK_HOLDINGS`: 每日收盘后同步基金重仓股持仓明细（季报口径，来源 `/fund/realtime/{code}` 的 holdings 字段）；新基金添加时也会即时同步，任务失败不影响添加。
 
 ### 安装与运行
 
