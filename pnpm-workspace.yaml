@@ -29,7 +29,7 @@ catalogs:
     drizzle-kit: ^0.31.10
     drizzle-orm: ^0.45.2
     iconv-lite: ^0.7.3
-    openai: ^7.18.0
+    openai: ^7.20.0
     pg: ^8.23.0
     secure-exec: ^0.3.3
   build:
@@ -45,7 +45,7 @@ catalogs:
   dev:
     '@antfu/eslint-config': ^9.5.1
     '@nuxt/test-utils': ^4.3.2
-    eslint: ^10.10.0
+    eslint: ^10.11.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^5.0.1
