@@ -55,6 +55,12 @@ export interface Holding {
   todayEstimateAmount: number | null
   percentageChange: number | null
   todayEstimateUpdateTime: string | null
+  /** 自算估值涨跌幅 (%,重仓股行情加权;仅展示对照,不参与汇总计算) */
+  selfPercentageChange: number | null
+  /** 自算估值净值 (4 位小数;仅展示对照) */
+  selfEstimateNav: number | null
+  /** 自算估值更新时间 (ISO 字符串) */
+  selfEstimateUpdateTime: string | null
   signals: Record<string, string>
   bias20: number | null
   // 该基金关联的待确认交易列表

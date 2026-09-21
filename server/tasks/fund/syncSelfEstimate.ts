@@ -1,7 +1,7 @@
 // server/tasks/fund/syncSelfEstimate.ts
 import { format } from 'date-fns'
 import { syncAllFundsSelfEstimates } from '~~/server/utils/selfEstimateService'
-import { isTradingDay, isTradingHours } from '~~/shared/market'
+import { isQuoteRefreshHours, isTradingDay } from '~~/shared/market'
 
 export default defineTask({
   meta: {
@@ -16,9 +16,9 @@ export default defineTask({
       return { result: 'Skipped', reason: check.reason }
     }
 
-    // --- 交易时段检查 (cron 覆盖 9-15 点,非交易时段直接跳过) ---
-    if (!isTradingHours()) {
-      return { result: 'Skipped', reason: '非交易时段' }
+    // --- 行情刷新时段检查 (cron 覆盖 9-16 点;A 股收盘后港股仍在交易,统一放宽到 16:30) ---
+    if (!isQuoteRefreshHours()) {
+      return { result: 'Skipped', reason: '非行情刷新时段' }
     }
 
     const result = await syncAllFundsSelfEstimates()

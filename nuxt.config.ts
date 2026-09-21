@@ -23,8 +23,9 @@ const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
   .filter(Boolean)
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
-// 自算估值: 盘中每 5 分钟 (任务内部再用 isTradingHours 收敛到 9:30-15:00 交易时段)
-const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-15 * * *')
+// 自算估值: 盘中每 5 分钟 (任务内部再用 isQuoteRefreshHours 收敛到 9:30-16:30;
+// A 股 15:00 收盘后港股仍在交易到 16:00,收盘价也在 15:00-16:30 间落地)
+const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-16 * * *')
   .split(',')
   .map(c => c.trim())
   .filter(Boolean)

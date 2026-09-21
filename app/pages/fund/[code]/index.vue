@@ -68,8 +68,8 @@ const { data: realtimeHoldings } = useAsyncData(
   },
 )
 
-// 重仓股面板数据源：优先用详情接口(数据库季报持仓 + 行情快照);
-// 库中无持仓的基金(QDII 等重仓为港股/美股)回退到实时估值接口的原始重仓股,保持面板可用
+// 重仓股面板数据源：优先用详情接口(数据库季报持仓 + 行情快照,A股/港股均落库);
+// 库中无持仓的基金(QDII 等重仓为美股)回退到实时估值接口的原始重仓股,保持面板可用
 const stockHoldingsPanel = computed<FundStockHoldingsSummary | null>(() => {
   if (fundDetail.value?.stockHoldings)
     return fundDetail.value.stockHoldings
@@ -289,7 +289,7 @@ async function handleRunStrategies() {
       <p>没有找到该基金的历史数据。</p>
     </div>
 
-    <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照;库中无持仓时回退实时接口,如 QDII 港股重仓) -->
+    <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照;库中无持仓时回退实时接口,如 QDII 美股重仓) -->
     <FundHoldingsPanel
       v-if="stockHoldingsPanel"
       :stock-holdings="stockHoldingsPanel"

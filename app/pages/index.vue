@@ -290,7 +290,12 @@ async function handleUpdateAttention(code: string, newLevel: number) {
         @export="handleExport"
         @copy-info="handleCopyInfo"
         @add-fund="openAddModal"
-      />
+      >
+        <!-- 定时任务说明（数据更新 / 交易结算时间） -->
+        <template #actions>
+          <ScheduledTasksInfo scope="dashboard" />
+        </template>
+      </DashboardHeader>
 
       <PortfolioSummaryCard :summary="summary" :sse-status="sseStatus" />
 

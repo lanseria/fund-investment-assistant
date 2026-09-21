@@ -26,8 +26,8 @@ interface PowercloudStockHolding {
 
 /** 报告期格式校验(yyyy-mm-dd) */
 const REPORT_DATE_RE = /^\d{4}-\d{2}-\d{2}$/
-/** 股票代码格式校验(6 位数字) */
-const STOCK_CODE_RE = /^\d{6}$/
+/** 股票代码格式校验:A 股 6 位数字;港股 5 位数字(如 00700 腾讯、01810 小米) */
+const STOCK_CODE_RE = /^\d{5,6}$/
 
 /**
  * 解析 powercloud 的占净值比例字符串(如 "17.28%")为数值(17.28)。
@@ -45,7 +45,8 @@ export function parseHoldingPct(raw: unknown): number | null {
 
 /**
  * 从 /fund/realtime 原始响应中提取合法的重仓股列表。
- * 过滤掉代码格式非法或占净值比例无效的条目。
+ * 过滤掉代码格式非法(A 股 6 位/港股 5 位以外的,如美股字母代码)
+ * 或占净值比例无效的条目。
  */
 export function extractStockHoldings(holdings: PowercloudStockHolding[] | null | undefined): FundStockHoldingRow[] {
   if (!Array.isArray(holdings))

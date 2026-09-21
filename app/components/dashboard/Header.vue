@@ -73,6 +73,8 @@ const emit = defineEmits([
       <button class="icon-btn" title="复制持仓信息" @click="emit('copy-info')">
         <div i-carbon-copy />
       </button>
+      <!-- 预留扩展位：页面级图标按钮（如定时任务说明） -->
+      <slot name="actions" />
       <button class="btn flex items-center" @click="emit('add-fund')">
         <div i-carbon-add mr-1 />
         添加基金

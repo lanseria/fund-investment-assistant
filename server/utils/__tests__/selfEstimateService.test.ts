@@ -35,16 +35,17 @@ describe('parseHoldingPct (powercloud 占比字符串解析)', () => {
 })
 
 describe('extractStockHoldings (重仓股列表提取)', () => {
-  it('过滤掉代码非法、名称为空、占比无效的条目', () => {
+  it('过滤掉代码非法、名称为空、占比无效的条目,保留港股 5 位代码', () => {
     const rows = extractStockHoldings([
       { code: '600519', name: '贵州茅台', pct: '17.28%' },
-      { code: '00700', name: '腾讯控股', pct: '9%' }, // 港股 5 位代码,过滤
-      { code: '60051', name: '短代码', pct: '5%' }, // 非 6 位,过滤
+      { code: '00700', name: '腾讯控股', pct: '9%' }, // 港股 5 位代码,保留
+      { code: 'AAPL', name: '苹果', pct: '5%' }, // 美股字母代码,过滤
       { code: '000858', name: '', pct: '8%' }, // 无名称,过滤
       { code: '000858', name: '五粮液', pct: 'abc' }, // 占比非法,过滤
     ] as any)
-    expect(rows).toHaveLength(1)
+    expect(rows).toHaveLength(2)
     expect(rows[0]).toEqual({ stockCode: '600519', stockName: '贵州茅台', pct: 17.28, reportDate: '' })
+    expect(rows[1]).toEqual({ stockCode: '00700', stockName: '腾讯控股', pct: 9, reportDate: '' })
   })
 
   it('非数组输入返回空数组', () => {
@@ -123,6 +124,21 @@ describe('calcSelfEstimate (重仓股加权自算估值)', () => {
     const rows = [holding('600519', 8.5), holding('000858', 6.2)]
     const result = calcSelfEstimate('1', rows, Object.fromEntries([quote('600519', 1), quote('000858', 1)]))
     expect(result!.coverage).toBe(14.7)
+  })
+
+  it('a 股与港股 5 位代码混合加权(如港股通基金)', () => {
+    const rows = [holding('600519', 60), holding('00700', 40)]
+    const quotes = Object.fromEntries([
+      quote('600519', 1), // 60 × 1 = 60
+      quote('00700', 2), // 40 × 2 = 80
+    ])
+    // 加权涨跌幅 = (60 + 80) / 100 = 1.4%
+    // 净值 = 2 × (1 + 1.4/100) = 2.028
+    const result = calcSelfEstimate('2', rows, quotes)
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(1.4, 6)
+    expect(result!.nav).toBe(2.028)
+    expect(result!.coverage).toBe(100)
   })
 })
 

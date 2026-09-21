@@ -179,7 +179,7 @@ export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRe
 
 /** Python 服务 /stocks/realtime 返回的单只股票实时行情 */
 export interface StockRealtimeQuote {
-  code: string // 股票代码(6 位)
+  code: string // 股票代码(A 股 6 位/港股 5 位,如 00700)
   name: string // 股票名称
   price: number | null // 最新价(停牌等无行情为 null)
   changePct: number | null // 当日涨跌幅(%,停牌等无行情为 null)
@@ -191,14 +191,15 @@ export interface StockRealtimeQuote {
 export interface StocksRealtimeResponse {
   count: number
   stocks: StockRealtimeQuote[]
-  missing: string[] // 不支持的市场(北交所/港美股)、非法代码或拉取失败的代码
+  missing: string[] // 不支持的市场(北交所/美股)、非法代码或拉取失败的代码
 }
 
 /**
- * 批量获取 A 股股票实时行情(供重仓股加权自算估值/详情页行情快照)。
+ * 批量获取 A 股/港股股票实时行情(供重仓股加权自算估值/详情页行情快照)。
  *
  * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/stocks/realtime`，
- * 底层腾讯行情 qt.gtimg.cn,进程内 60s TTL 缓存,单次上限 200 只)。
+ * 底层腾讯行情 qt.gtimg.cn,A 股 sh/sz 前缀、港股 hk 前缀,
+ * 进程内 60s TTL 缓存,单次上限 200 只)。
  *
  * 任何错误(接口未部署 404 / 服务不可用 / 超时)都返回 null,
  * 由调用方降级处理(自算跳过本轮/详情页行情字段置 null)。

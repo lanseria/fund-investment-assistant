@@ -206,13 +206,17 @@ async function handleApproveDraft(userId: number, username: string) {
 
 <template>
   <div class="mx-auto p-4 max-w-7xl lg:p-8 sm:p-6">
-    <header class="mb-8">
-      <h1 class="text-2xl font-bold sm:text-3xl">
-        每日操作
-      </h1>
-      <p class="text-gray-500 mt-1 dark:text-gray-400">
-        查看全站用户的每日基金交易动态
-      </p>
+    <header class="mb-8 flex gap-4 items-start justify-between">
+      <div>
+        <h1 class="text-2xl font-bold sm:text-3xl">
+          每日操作
+        </h1>
+        <p class="text-gray-500 mt-1 dark:text-gray-400">
+          查看全站用户的每日基金交易动态
+        </p>
+      </div>
+      <!-- 定时任务说明（交易生成 / 结算时间） -->
+      <ScheduledTasksInfo scope="dailyOps" />
     </header>
 
     <div class="flex flex-col gap-8 items-start md:flex-row">

@@ -108,7 +108,9 @@ export interface SelfEstimateSyncResult {
  * 盘中同步所有基金的自算估值(重仓股行情加权)。
  *
  * 只处理开放式基金(fundType='open')且有重仓持仓数据的基金;
- * 场内/LOF (qdii_lof) 走场内价格,QDII 重仓多为港美股,均不参与。
+ * 场内/LOF (qdii_lof) 走场内价格,不参与。重仓股支持 A 股(6 位代码)
+ * 与港股(5 位代码,如 00700),港股通/恒生科技类基金自 2026-09 起参与自算
+ * (港股交易时段与 A 股重叠);美股等仍不支持,缺行情时按缺失权重剔除。
  * 全市场重仓股代码去重后分批取行情,多基金重叠持仓只请求一次。
  */
 export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResult> {
