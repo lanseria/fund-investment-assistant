@@ -14,6 +14,8 @@ export const fundTypeEnum = fundSchema.enum('fund_type', ['open', 'qdii_lof'])
 export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell', 'convert_out', 'convert_in'])
 // 定义交易状态枚举，新增 draft 状态
 export const transactionStatusEnum = fundSchema.enum('transaction_status', ['draft', 'pending', 'confirmed', 'failed'])
+// 定义定投频率枚举: 每周 / 每两周 / 每月
+export const dcaFrequencyEnum = fundSchema.enum('dca_frequency', ['weekly', 'biweekly', 'monthly'])
 /**
  * 用户表 (users)
  * 存储应用的用户信息
@@ -240,6 +242,53 @@ export const fundTransactions = fundSchema.table('fund_transactions', {
   /** 创建时间 */
   createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
 })
+
+/**
+ * 基金定投计划表 (dca_plans)
+ * 定期定额投资计划：到期由定时任务自动生成 pending 买入单，
+ * 复用 fund:processTransactions 的结算链路按当日净值确认扣款。
+ */
+export const dcaPlans = fundSchema.table('dca_plans', {
+  /** 计划ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 用户ID */
+  userId: bigint('user_id', { mode: 'number' }).notNull().references(() => users.id, { onDelete: 'cascade' }),
+  /** 基金代码 */
+  fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
+  /** 每期定投金额 */
+  amount: numeric('amount', { precision: 18, scale: 4 }).notNull(),
+  /** 定投频率: weekly (每周) / biweekly (每两周) / monthly (每月) */
+  frequency: dcaFrequencyEnum('frequency').notNull(),
+  /**
+   * 扣款日锚点
+   * weekly: 1-5 (周一~周五); monthly: 1-28 (几号); biweekly 不使用 (基于下次扣款日 +14 天推算)
+   */
+  anchorDay: integer('anchor_day'),
+  /** 是否启用 (暂停后跳过执行，不删除历史) */
+  enabled: boolean('enabled').default(true).notNull(),
+  /** 下次计划扣款日 (YYYY-MM-DD，遇非交易日执行时顺延到下一交易日) */
+  nextExecutionDate: date('next_execution_date').notNull(),
+  /** 最近一次成功生成买入单的日期 */
+  lastExecutionDate: date('last_execution_date'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  /** 更新时间 */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+})
+
+/**
+ * 定投计划关联 (dcaPlans 多对一 funds / users)
+ */
+export const dcaPlansRelations = relations(dcaPlans, ({ one }) => ({
+  fund: one(funds, {
+    fields: [dcaPlans.fundCode],
+    references: [funds.code],
+  }),
+  user: one(users, {
+    fields: [dcaPlans.userId],
+    references: [users.id],
+  }),
+}))
 
 /**
  * 每日新闻表 (daily_news)

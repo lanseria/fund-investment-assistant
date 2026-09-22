@@ -21,6 +21,7 @@ const TASK_GROUPS: Record<'dashboard' | 'dailyOps', { intro: string, tasks: Sche
     tasks: [
       { time: '02:00', name: 'fund:syncHistory', desc: '同步全部基金的历史净值，官方 T-1 净值入库并更新昨日净值。' },
       { time: '02:30', name: 'fund:processTransactions', desc: '交易结算：将「待处理」交易按最新确认净值成交（先卖后买），更新持仓与现金；基金转换先确认转出，再按实际到账金额买入。' },
+      { time: '02:45', name: 'fund:runDcaPlans', desc: '定投执行：为到期的定投计划自动生成当日「待处理」买入单（次日 02:30 按当日净值确认扣款）；扣款日遇周末/节假日自动顺延。' },
       { time: '06:00', name: 'fund:runStrategies', desc: '为所有持仓基金运行策略分析，生成 RSI、布林带等买卖信号。' },
       { time: '09:30–16:30 每5分钟', name: 'fund:syncSelfEstimate', desc: '按重仓股实时行情加权自算估值（A股收盘后港股仍在交易，故放宽到 16:30）；黄金基金无重仓持仓，按国内金价 Au99.99 涨跌幅自算。与官方盘中估算并存。' },
       { time: '10:00–16:30 每半小时', name: 'fund:syncEstimate', desc: '同步盘中官方估值。' },
@@ -34,6 +35,7 @@ const TASK_GROUPS: Record<'dashboard' | 'dailyOps', { intro: string, tasks: Sche
     tasks: [
       { time: '02:00', name: 'fund:syncHistory', desc: '同步官方历史净值，为交易结算提供确认净值。' },
       { time: '02:30', name: 'fund:processTransactions', desc: '交易结算：将「待处理」交易按最新确认净值成交（先卖后买），更新持仓与现金；基金转换先确认转出，再按实际到账金额买入。' },
+      { time: '02:45', name: 'fund:runDcaPlans', desc: '定投执行：为到期的定投计划生成当日「待处理」买入单，随 02:30 结算链路按当日净值确认。' },
       { time: '10:00', name: 'fund:cleanDustShares', desc: '清理 AI 用户 ≤0.01 份的灰尘残留份额，归零后转为「仅关注」。' },
       { time: '14:30 工作日', name: 'ai:runAutoTrade', desc: '为开启 AI 代理的用户生成当日交易决策：auto 模式直接转为「待处理」，draft 模式生成「预操作」等待人工确认。' },
     ],

@@ -24,6 +24,9 @@ const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
 // 交易结算: 每天 2:30 (在 2:00 syncHistory 之后,确保 orderDate 对应的确认净值已入库)
 const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '30 2 * * *'
+// 定投执行: 每天 2:45 (在 2:30 结算之后——昨日卖单回款已入账;
+// 生成的买入单 orderDate 为当天,次日 2:30 按当日净值确认)
+const runDcaPlansCron = env.CRON_FUND_RUN_DCA_PLANS ?? '45 2 * * *'
 // 自算估值: 盘中每 5 分钟 (任务内部再用 isQuoteRefreshHours 收敛到 9:30-16:30;
 // A 股 15:00 收盘后港股仍在交易到 16:00,收盘价也在 15:00-16:30 间落地)
 const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-16 * * *')
@@ -72,6 +75,9 @@ if (!disableScheduler && syncStockHoldingsCron) {
 }
 if (!disableScheduler && processTransactionsCron) {
   addTask(processTransactionsCron, 'fund:processTransactions')
+}
+if (!disableScheduler && runDcaPlansCron) {
+  addTask(runDcaPlansCron, 'fund:runDcaPlans')
 }
 if (!disableScheduler && runAiTradeCron) {
   addTask(runAiTradeCron, 'ai:runAutoTrade')

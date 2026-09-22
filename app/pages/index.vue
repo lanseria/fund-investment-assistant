@@ -63,6 +63,9 @@ const tradeType = ref<'buy' | 'sell'>('buy')
 const availableShares = ref(0)
 const tradeTargetTransactions = ref<any[]>([])
 
+// 定投计划模态框
+const isDcaModalOpen = ref(false)
+
 // 辅助函数
 function calculateAvailableShares(holding: Holding) {
   const currentShares = holding.shares || 0
@@ -291,8 +294,16 @@ async function handleUpdateAttention(code: string, newLevel: number) {
         @copy-info="handleCopyInfo"
         @add-fund="openAddModal"
       >
-        <!-- 定时任务说明（数据更新 / 交易结算时间） -->
+        <!-- 定时任务说明（数据更新 / 交易结算时间）与定投计划入口 -->
         <template #actions>
+          <button
+            class="icon-btn"
+            :class="{ 'text-primary': isDcaModalOpen }"
+            title="基金定投计划"
+            @click="isDcaModalOpen = true"
+          >
+            <div i-carbon-repeat />
+          </button>
           <ScheduledTasksInfo scope="dashboard" />
         </template>
       </DashboardHeader>
@@ -377,6 +388,10 @@ async function handleUpdateAttention(code: string, newLevel: number) {
 
     <Modal v-model="isImportModalOpen" title="导入持仓数据">
       <ImportHoldingForm :loading="isImportSubmitting" @submit="handleImportSubmit" @cancel="isImportModalOpen = false" />
+    </Modal>
+
+    <Modal v-model="isDcaModalOpen" title="基金定投计划">
+      <DcaPlanList />
     </Modal>
   </div>
 </template>

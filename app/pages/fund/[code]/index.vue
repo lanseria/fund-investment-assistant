@@ -139,6 +139,9 @@ const {
   handleTradeSubmit,
 } = useTradeModals()
 
+// --- 定投计划模态框 (预填当前基金) ---
+const isDcaModalOpen = ref(false)
+
 // --- 策略图表数据（基础走势 / RSI / 布林带 / 区间涨跌 / dataZoom 区间筛选） ---
 const {
   data,
@@ -215,6 +218,10 @@ async function handleRunStrategies() {
           <button v-if="currentHolding && currentHolding.shares! > 0" class="btn flex items-center" @click="openTradeModal(currentHolding, 'convert')">
             <div i-carbon-arrows-horizontal mr-1 />
             转换
+          </button>
+          <button class="btn flex items-center" @click="isDcaModalOpen = true">
+            <div i-carbon-repeat mr-1 />
+            定投
           </button>
           <button class="btn flex items-center" :disabled="isRunningStrategies" @click="handleRunStrategies">
             <div i-carbon-bot :class="{ 'animate-pulse': isRunningStrategies }" mr-1 />
@@ -329,6 +336,11 @@ async function handleRunStrategies() {
         @submit="handleConvertSubmit"
         @cancel="isConvertModalOpen = false"
       />
+    </Modal>
+
+    <!-- 定投计划模态框 (预填当前基金) -->
+    <Modal v-model="isDcaModalOpen" title="基金定投计划">
+      <DcaPlanList :preset-fund-code="code" :preset-fund-name="fundName" />
     </Modal>
   </div>
 </template>
