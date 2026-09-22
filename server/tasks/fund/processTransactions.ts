@@ -240,7 +240,7 @@ export default defineTask({
 
         // 持仓已确认,刷新估值(原 updateHolding 的副作用;失败只影响估值展示,不影响确认结果)。
         // preserveEstimateUpdateTime:todayEstimateUpdateTime 只表示"当日盘中估值"的更新时间,
-        // 本任务 9 点执行时写入会让 isEstimateFresh 等判断误以为当日估值已更新,故保留原值
+        // 本任务凌晨执行时写入会让 isEstimateFresh 等判断误以为当日估值已更新,故保留原值
         try {
           await syncSingleFundEstimate(tx.fundCode, { preserveEstimateUpdateTime: true })
         }

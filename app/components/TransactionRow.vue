@@ -70,8 +70,8 @@ function getActionLabel(type: string) {
       </span>
     </div>
 
-    <!-- 3. 基金名称、代码 -->
-    <div class="flex flex-grow flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:items-center">
+    <!-- 3. 基金名称、代码 (固定窄宽,truncate 截断;剩余空间让给备注列) -->
+    <div class="flex flex-col gap-1 min-w-0 sm:flex-row sm:gap-2 sm:w-200 sm:items-center">
       <div class="flex gap-2 truncate items-baseline">
         <span class="text-gray-900 font-medium truncate dark:text-gray-100" :title="tx.fundName">
           {{ tx.fundName || '未知基金' }}
@@ -91,8 +91,8 @@ function getActionLabel(type: string) {
       </span>
     </div>
 
-    <!-- 5. 确认详情 / 备注 -->
-    <div class="flex flex-shrink-0 gap-1 min-h-[20px] items-center sm:text-right sm:w-48 sm:justify-end">
+    <!-- 5. 确认详情 / 备注 (弹性占满剩余空间,备注可展示更多文字) -->
+    <div class="flex flex-grow gap-1 min-h-[20px] min-w-0 items-center sm:text-right sm:justify-end">
       <template v-if="tx.status === 'confirmed'">
         <span class="text-xs text-gray-400 sm:hidden">成交:</span>
         <span class="text-gray-900 font-mono font-semibold dark:text-gray-100">

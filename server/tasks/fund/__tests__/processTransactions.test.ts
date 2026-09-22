@@ -233,7 +233,7 @@ describe('processTransactions task', () => {
     expect(txUpdate?.setValues.confirmedShares).toBe('500')
     expect(txUpdate?.setValues.confirmedAmount).toBe('1000')
 
-    // 验证:确认后刷新估值时须保留 todayEstimateUpdateTime(9 点执行不能写当日估值时间)
+    // 验证:确认后刷新估值时须保留 todayEstimateUpdateTime(凌晨执行不能写当日估值时间)
     expect(syncEstimateMock).toHaveBeenCalledWith('001111', { preserveEstimateUpdateTime: true })
   })
 

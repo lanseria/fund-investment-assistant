@@ -84,8 +84,18 @@ function getChangeClass(value: number | undefined) {
       </div>
     </div>
 
-    <!-- 第二行：预估总盈亏 + 预估涨跌幅 -->
-    <div class="mt-2 pt-3 border-t border-gray-100 gap-4 grid grid-cols-2 dark:border-gray-700">
+    <!-- 第二行：昨日收益 + 预估总盈亏 + 预估涨跌幅 -->
+    <div class="mt-2 pt-3 border-t border-gray-100 gap-4 grid grid-cols-2 dark:border-gray-700 md:grid-cols-3">
+      <div class="p-2">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          昨日收益
+          <span class="text-xs text-gray-400 dark:text-gray-500">(已确认净值)</span>
+        </p>
+        <p class="text-lg font-mono font-semibold tabular-nums sm:text-xl" :class="getChangeClass(summary.yesterdayProfit)">
+          {{ summary.yesterdayProfit.toFixed(2) }}
+          <span class="text-xs font-normal">({{ summary.yesterdayProfitRate.toFixed(2) }}%)</span>
+        </p>
+      </div>
       <div class="p-2">
         <p class="text-sm text-gray-500 dark:text-gray-400">
           预估总盈亏

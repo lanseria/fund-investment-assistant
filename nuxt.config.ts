@@ -22,7 +22,8 @@ const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
   .map(c => c.trim())
   .filter(Boolean)
 const runStrategiesCron = env.CRON_FUND_RUN_STRATEGIES ?? '0 6 * * *'
-const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '0 9 * * *'
+// 交易结算: 每天 2:30 (在 2:00 syncHistory 之后,确保 orderDate 对应的确认净值已入库)
+const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '30 2 * * *'
 // 自算估值: 盘中每 5 分钟 (任务内部再用 isQuoteRefreshHours 收敛到 9:30-16:30;
 // A 股 15:00 收盘后港股仍在交易到 16:00,收盘价也在 15:00-16:30 间落地)
 const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-16 * * *')
@@ -33,7 +34,7 @@ const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-16 * *
 const syncStockHoldingsCron = env.CRON_FUND_SYNC_STOCK_HOLDINGS ?? '30 17 * * *'
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
-// 清理 AI 用户灰尘份额: 每天 10:00 (在 9:00 处理交易之后)
+// 清理 AI 用户灰尘份额: 每天 10:00 (在 2:30 处理交易之后)
 const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
 // 注: 板块主力资金快照 (sector:syncCapital) 与 syncEstimate 共用同一组 cron (CRON_FUND_SYNC_ESTIMATE)，
 // 盘中 9:30-16:30 每半小时抓取；原独立的 15:30 收盘任务已合并（盘中表达式已覆盖 15:30）。

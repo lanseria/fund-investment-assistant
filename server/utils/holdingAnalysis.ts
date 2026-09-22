@@ -46,6 +46,47 @@ async function getBatchLast19NavSums(codes: string[]) {
 }
 
 /**
+ * 批量获取指定基金代码最近 2 条已确认净值 (最新 + 前一交易日)
+ * 用于计算昨日收益: 昨日收益 = 份额 × (最新净值 - 前一净值),基准市值 = 份额 × 前一净值
+ */
+async function getBatchLatest2Navs(codes: string[]) {
+  if (codes.length === 0)
+    return new Map<string, { latest: number, prev: number | null }>()
+
+  const db = useDb()
+  const query = sql`
+    WITH RankedNavs AS (
+      SELECT
+        code,
+        nav,
+        ROW_NUMBER() OVER (PARTITION BY code ORDER BY nav_date DESC) as rn
+      FROM ${navHistory}
+      WHERE code IN ${codes}
+    )
+    SELECT code, nav, rn
+    FROM RankedNavs
+    WHERE rn <= 2
+    ORDER BY code, rn
+  `
+
+  const result = await db.execute(query)
+  const map = new Map<string, { latest: number, prev: number | null }>()
+  for (const row of result.rows) {
+    const code = String(row.code)
+    const nav = Number(row.nav)
+    if (Number(row.rn) === 1) {
+      map.set(code, { latest: nav, prev: null })
+    }
+    else {
+      const entry = map.get(code)
+      if (entry)
+        entry.prev = nav
+    }
+  }
+  return map
+}
+
+/**
  * 获取历史和MA
  */
 export async function getHistoryWithMA(code: string, startDate?: string, endDate?: string, maOptions: number[] = []) {
@@ -173,7 +214,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
   if (userHoldings.length === 0) {
     return {
       holdings: [],
-      summary: { totalHoldingAmount: 0, totalEstimateAmount: 0, totalProfitLoss: 0, totalPercentageChange: 0, count: 0, cash: userCash.toNumber(), totalAssets: userCash.toNumber(), staleCount: 0 },
+      summary: { totalHoldingAmount: 0, totalEstimateAmount: 0, totalProfitLoss: 0, totalPercentageChange: 0, count: 0, cash: userCash.toNumber(), totalAssets: userCash.toNumber(), staleCount: 0, yesterdayProfit: 0, yesterdayProfitRate: 0 },
     }
   }
 
@@ -200,6 +241,9 @@ export async function getUserHoldingsAndSummary(userId: number) {
     signalsMap.get(s.fundCode)![s.strategyName] = s.signal
   }
   const historyStatsMap = await getBatchLast19NavSums(holdingCodes)
+
+  // 昨日收益: 需要最新 + 前一交易日的已确认净值
+  const latest2NavsMap = await getBatchLatest2Navs(holdingCodes)
 
   // 批量获取持仓基金的费率信息(仅前端展示用)
   const feesRecords = await db.query.fundFees.findMany({
@@ -244,6 +288,10 @@ export async function getUserHoldingsAndSummary(userId: number) {
   let freshEstimateAmount = new BigNumber(0)
   let staleCount = 0
 
+  // 昨日收益相关（基于已确认净值,昨日收益 = 份额 × (最新净值 - 前一净值)）
+  let yesterdayProfitTotal = new BigNumber(0)
+  let yesterdayBaseAmount = new BigNumber(0)
+
   const formattedHoldings = userHoldings.map((h) => {
     const { fund: fundInfo } = h
     if (!fundInfo)
@@ -284,6 +332,9 @@ export async function getUserHoldingsAndSummary(userId: number) {
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,
       todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime?.toISOString() || null,
+      // 昨日收益(基于已确认净值): 收益 = 份额 × (最新净值 - 前一净值), 收益率 = 净值涨幅; 新基金无前一净值为 null
+      yesterdayChangeRate: null as number | null,
+      yesterdayProfit: null as number | null,
       // 自算估值(重仓股行情加权):仅前端展示对照,不参与今日收益/总资产等任何汇总计算
       selfPercentageChange: fundInfo.selfPercentageChange,
       selfEstimateNav: fundInfo.selfEstimateNav,
@@ -314,6 +365,17 @@ export async function getUserHoldingsAndSummary(userId: number) {
       const estimateAmount = fundInfo.todayEstimateNav && estimateIsFresh
         ? shares.times(new BigNumber(fundInfo.todayEstimateNav))
         : holdingAmount
+
+      // 昨日收益(已确认口径): 用 navHistory 最新两条净值计算,与"估算涨跌"的昨日净值基准相互独立
+      const latest2 = latest2NavsMap.get(fundInfo.code)
+      if (latest2 && latest2.prev !== null && latest2.prev > 0) {
+        const yesterdayChangeRate = new BigNumber(latest2.latest).minus(latest2.prev).dividedBy(latest2.prev).times(100)
+        const yesterdayProfit = shares.times(latest2.latest).minus(shares.times(latest2.prev))
+        holdingData.yesterdayChangeRate = yesterdayChangeRate.toNumber()
+        holdingData.yesterdayProfit = yesterdayProfit.toNumber()
+        yesterdayProfitTotal = yesterdayProfitTotal.plus(yesterdayProfit)
+        yesterdayBaseAmount = yesterdayBaseAmount.plus(shares.times(latest2.prev))
+      }
 
       totalHoldingAmount = totalHoldingAmount.plus(holdingAmount)
       totalEstimateAmount = totalEstimateAmount.plus(estimateAmount)
@@ -394,6 +456,11 @@ export async function getUserHoldingsAndSummary(userId: number) {
 
   const totalAssetsValue = totalEstimateAmount.plus(userCash)
 
+  // 昨日收益率 = 昨日收益合计 / 前一净值基准市值 (无持仓或基准为 0 时为 0)
+  const yesterdayProfitRate = yesterdayBaseAmount.isGreaterThan(0)
+    ? yesterdayProfitTotal.dividedBy(yesterdayBaseAmount).times(100)
+    : new BigNumber(0)
+
   return {
     holdings: formattedHoldings,
     summary: {
@@ -405,6 +472,8 @@ export async function getUserHoldingsAndSummary(userId: number) {
       cash: userCash.toNumber(),
       totalAssets: totalAssetsValue.toNumber(),
       staleCount,
+      yesterdayProfit: yesterdayProfitTotal.toNumber(),
+      yesterdayProfitRate: yesterdayProfitRate.toNumber(),
     },
   }
 }

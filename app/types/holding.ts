@@ -55,6 +55,10 @@ export interface Holding {
   todayEstimateAmount: number | null
   percentageChange: number | null
   todayEstimateUpdateTime: string | null
+  /** 昨日收益率 (%，最新确认净值相对前一交易日净值的涨幅;新基金无前一净值为 null) */
+  yesterdayChangeRate: number | null
+  /** 昨日收益 (元,份额 × (最新确认净值 - 前一净值);仅持仓有值,新基金为 null) */
+  yesterdayProfit: number | null
   /** 自算估值涨跌幅 (%,重仓股行情加权;仅展示对照,不参与汇总计算) */
   selfPercentageChange: number | null
   /** 自算估值净值 (4 位小数;仅展示对照) */
@@ -71,7 +75,7 @@ export interface Holding {
   fees?: FundFees | null
 }
 
-export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'bias20'
+export type SortableKey = 'holdingAmount' | 'percentageChange' | 'holdingProfitRate' | 'yesterdayChangeRate' | 'bias20'
 
 export interface HoldingHistoryPoint {
   date: string
@@ -94,6 +98,10 @@ export interface HoldingSummary {
   totalAssets: number
   /** 估值未更新（非今日）的持仓数 */
   staleCount: number
+  /** 昨日收益合计 (元,已确认净值口径:份额 × (最新净值-前一净值)) */
+  yesterdayProfit: number
+  /** 昨日收益率 (%,昨日收益合计 / 前一净值基准市值) */
+  yesterdayProfitRate: number
 }
 
 /**

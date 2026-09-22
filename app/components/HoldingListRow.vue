@@ -370,7 +370,22 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- 5. 自算估算 (重仓股行情加权,仅展示对照,不参与任何计算) -->
+    <!-- 5. 昨日收益率 / 收益 (已确认净值口径:最新净值相对前一交易日) -->
+    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.yesterdayChangeRate)">
+      <template v-if="holding.yesterdayChangeRate !== null">
+        <div class="font-mono font-semibold tabular-nums" title="最新确认净值相对前一交易日的涨幅">
+          {{ `${holding.yesterdayChangeRate > 0 ? '+' : ''}${holding.yesterdayChangeRate.toFixed(2)}%` }}
+        </div>
+        <div class="text-xs font-mono tabular-nums">
+          {{ holding.yesterdayProfit !== null ? formatCurrency(holding.yesterdayProfit) : '-' }}
+        </div>
+      </template>
+      <template v-else>
+        <span class="text-gray-400">-</span>
+      </template>
+    </td>
+
+    <!-- 6. 自算估算 (重仓股行情加权,仅展示对照,不参与任何计算) -->
     <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.selfPercentageChange)">
       <div class="font-mono font-semibold tabular-nums" title="自算:按季报重仓股行情加权估算,与官方估算对照观察中">
         {{ holding.selfPercentageChange !== null ? `${holding.selfPercentageChange > 0 ? '+' : ''}${holding.selfPercentageChange.toFixed(2)}%` : '-' }}
@@ -386,7 +401,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- 6. 更新时间 -->
+    <!-- 7. 更新时间 -->
     <td class="text-sm text-gray-500 font-mono p-4 text-right tabular-nums">
       <template v-if="holding.todayEstimateUpdateTime">
         <div>
@@ -405,7 +420,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </template>
     </td>
 
-    <!-- 7. 操作 -->
+    <!-- 8. 操作 -->
     <td v-if="showActions" class="p-4 text-right align-middle">
       <div class="flex gap-x-3 items-center justify-end">
         <!-- 左列：交易操作 -->

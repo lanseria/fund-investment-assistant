@@ -45,7 +45,7 @@ const isStrategyModalOpen = ref(false)
 </script>
 
 <template>
-  <div class="mx-auto p-4 max-w-5xl lg:p-8 sm:p-6">
+  <div class="mx-auto p-4 max-w-330 lg:p-8 sm:p-6">
     <header class="mb-8">
       <div class="text-sm text-gray-500 mb-4 inline-flex gap-2 cursor-pointer transition-colors items-center hover:text-primary-hover" @click="$router.back()">
         <div class="i-carbon-arrow-left" />

@@ -116,7 +116,7 @@ function handleLogout() {
         </div>
       </div>
     </header>
-    <div class="mx-auto max-w-330">
+    <div class="mx-auto max-w-370">
       <slot />
     </div>
   </main>
