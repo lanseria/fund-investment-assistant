@@ -84,6 +84,18 @@ const baseMainAction = computed<string | null>(() => {
   return v && MAIN_ACTIONS.includes(v) ? v : null
 })
 
+// 昨日净值相对前一交易日的趋势 (红涨绿跌,持平灰):供净值对括号内的趋势 icon
+const navTrend = computed(() => {
+  const { yesterdayNav, prevNav } = props.holding
+  if (prevNav === null || prevNav === undefined || yesterdayNav === undefined)
+    return null
+  if (yesterdayNav > prevNav)
+    return { icon: 'i-carbon-arrow-up', class: 'text-red-500 dark:text-red-400', label: '上涨' }
+  if (yesterdayNav < prevNav)
+    return { icon: 'i-carbon-arrow-down', class: 'text-green-500 dark:text-green-400', label: '下跌' }
+  return { icon: 'i-carbon-subtract', class: 'text-gray-400', label: '持平' }
+})
+
 // 主力行为 badge 配色：抢筹/建仓 偏多（红橙），洗盘 警示（琥珀），出货 偏空（绿）
 // 注意：洗盘用琥珀色，以与回退的"基础走势"（中性灰）区分开
 function getMainActionClass(action: string) {
@@ -327,8 +339,8 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
         <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">
           {{ holding.shares?.toFixed(4) }} 份
         </div>
-        <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">
-          {{ holding.yesterdayNav }}
+        <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400" title="持仓成本价">
+          {{ holding.costPrice }}
         </div>
       </template>
       <template v-else>
@@ -336,17 +348,29 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </template>
     </td>
 
-    <!-- 3. 持有收益 / 收益率 -->
-    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.holdingProfitAmount)">
+    <!-- 3. 持有收益 / 收益率 (括号内为昨日数据:昨日收益/昨日涨幅,已确认净值口径;第三行为净值对:昨日净值(前一交易日净值)) -->
+    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.holdingProfitAmount)" title="主值为持有收益;括号内为昨日数据(基于已确认净值);第三行 昨日净值 (前一交易日净值)">
       <template v-if="holding.holdingProfitRate !== null">
         <div class="font-mono font-semibold tabular-nums">
-          {{ formatCurrency(holding.holdingProfitAmount) }}
+          {{ formatCurrency(holding.holdingProfitAmount) }}<span
+            v-if="holding.yesterdayProfit !== null"
+            class="text-xs font-normal"
+            :class="getChangeColorClass(holding.yesterdayProfit)"
+          >({{ holding.yesterdayProfit > 0 ? '+' : '' }}{{ formatCurrency(holding.yesterdayProfit) }})</span>
         </div>
         <div class="text-xs font-mono tabular-nums">
-          {{ `${holding.holdingProfitRate > 0 ? '+' : ''}${holding.holdingProfitRate!.toFixed(2)}%` }}
+          {{ `${holding.holdingProfitRate > 0 ? '+' : ''}${holding.holdingProfitRate!.toFixed(2)}%` }}<span
+            v-if="holding.yesterdayChangeRate !== null"
+            :class="getChangeColorClass(holding.yesterdayChangeRate)"
+          >({{ `${holding.yesterdayChangeRate > 0 ? '+' : ''}${holding.yesterdayChangeRate.toFixed(2)}%` }})</span>
         </div>
-        <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">
-          {{ holding.costPrice }}
+        <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400" title="昨日净值 (前一交易日净值)">
+          {{ holding.yesterdayNav }}<span v-if="holding.prevNav !== null"> (<span
+            v-if="navTrend"
+            :class="[navTrend.icon, navTrend.class]"
+            class="align-[-1px] inline-block"
+            :title="navTrend.label"
+          />{{ holding.prevNav }})</span>
         </div>
       </template>
       <template v-else>
@@ -370,22 +394,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- 5. 昨日收益率 / 收益 (已确认净值口径:最新净值相对前一交易日) -->
-    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.yesterdayChangeRate)">
-      <template v-if="holding.yesterdayChangeRate !== null">
-        <div class="font-mono font-semibold tabular-nums" title="最新确认净值相对前一交易日的涨幅">
-          {{ `${holding.yesterdayChangeRate > 0 ? '+' : ''}${holding.yesterdayChangeRate.toFixed(2)}%` }}
-        </div>
-        <div class="text-xs font-mono tabular-nums">
-          {{ holding.yesterdayProfit !== null ? formatCurrency(holding.yesterdayProfit) : '-' }}
-        </div>
-      </template>
-      <template v-else>
-        <span class="text-gray-400">-</span>
-      </template>
-    </td>
-
-    <!-- 6. 自算估算 (重仓股行情加权,仅展示对照,不参与任何计算) -->
+    <!-- 5. 自算估算 (重仓股行情加权,仅展示对照,不参与任何计算) -->
     <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.selfPercentageChange)">
       <div class="font-mono font-semibold tabular-nums" title="自算:按季报重仓股行情加权估算,与官方估算对照观察中">
         {{ holding.selfPercentageChange !== null ? `${holding.selfPercentageChange > 0 ? '+' : ''}${holding.selfPercentageChange.toFixed(2)}%` : '-' }}
@@ -401,7 +410,7 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- 7. 更新时间 -->
+    <!-- 6. 更新时间 -->
     <td class="text-sm text-gray-500 font-mono p-4 text-right tabular-nums">
       <template v-if="holding.todayEstimateUpdateTime">
         <div>

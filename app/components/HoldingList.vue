@@ -118,7 +118,7 @@ function handleHideTooltip() {
               </span>
             </th>
 
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-40 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('holdingProfitRate')">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-48 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title="主值为持有收益/收益率/成本价;括号内为昨日收益/昨日涨幅/前一交易日净值" @click="setSort('holdingProfitRate')">
               持有收益 / 收益率
               <span v-if="sortKey === 'holdingProfitRate'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up /><div v-else i-carbon-arrow-down />
@@ -128,14 +128,6 @@ function handleHideTooltip() {
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-36 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" @click="setSort('percentageChange')">
               估算涨跌 / 收益
               <span v-if="sortKey === 'percentageChange'" class="ml-1 align-middle inline-block">
-                <div v-if="sortOrder === 'asc'" i-carbon-arrow-up />
-                <div v-else i-carbon-arrow-down />
-              </span>
-            </th>
-
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-40 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title="最新确认净值相对前一交易日的涨幅与对应持仓收益" @click="setSort('yesterdayChangeRate')">
-              昨日收益率 / 收益
-              <span v-if="sortKey === 'yesterdayChangeRate'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up />
                 <div v-else i-carbon-arrow-down />
               </span>

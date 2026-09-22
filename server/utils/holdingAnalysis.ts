@@ -335,6 +335,8 @@ export async function getUserHoldingsAndSummary(userId: number) {
       // 昨日收益(基于已确认净值): 收益 = 份额 × (最新净值 - 前一净值), 收益率 = 净值涨幅; 新基金无前一净值为 null
       yesterdayChangeRate: null as number | null,
       yesterdayProfit: null as number | null,
+      /** 前一交易日净值 (昨日收益的计算基准,最新净值的前一条) */
+      prevNav: null as number | null,
       // 自算估值(重仓股行情加权):仅前端展示对照,不参与今日收益/总资产等任何汇总计算
       selfPercentageChange: fundInfo.selfPercentageChange,
       selfEstimateNav: fundInfo.selfEstimateNav,
@@ -373,6 +375,7 @@ export async function getUserHoldingsAndSummary(userId: number) {
         const yesterdayProfit = shares.times(latest2.latest).minus(shares.times(latest2.prev))
         holdingData.yesterdayChangeRate = yesterdayChangeRate.toNumber()
         holdingData.yesterdayProfit = yesterdayProfit.toNumber()
+        holdingData.prevNav = latest2.prev
         yesterdayProfitTotal = yesterdayProfitTotal.plus(yesterdayProfit)
         yesterdayBaseAmount = yesterdayBaseAmount.plus(shares.times(latest2.prev))
       }
