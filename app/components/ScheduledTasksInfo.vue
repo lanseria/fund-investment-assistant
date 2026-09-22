@@ -22,7 +22,7 @@ const TASK_GROUPS: Record<'dashboard' | 'dailyOps', { intro: string, tasks: Sche
       { time: '02:00', name: 'fund:syncHistory', desc: '同步全部基金的历史净值，官方 T-1 净值入库并更新昨日净值。' },
       { time: '02:30', name: 'fund:processTransactions', desc: '交易结算：将「待处理」交易按最新确认净值成交（先卖后买），更新持仓与现金；基金转换先确认转出，再按实际到账金额买入。' },
       { time: '06:00', name: 'fund:runStrategies', desc: '为所有持仓基金运行策略分析，生成 RSI、布林带等买卖信号。' },
-      { time: '09:30–16:30 每5分钟', name: 'fund:syncSelfEstimate', desc: '按重仓股实时行情加权自算估值（A股收盘后港股仍在交易，故放宽到 16:30），与官方盘中估算并存。' },
+      { time: '09:30–16:30 每5分钟', name: 'fund:syncSelfEstimate', desc: '按重仓股实时行情加权自算估值（A股收盘后港股仍在交易，故放宽到 16:30）；黄金基金无重仓持仓，按国内金价 Au99.99 涨跌幅自算。与官方盘中估算并存。' },
       { time: '10:00–16:30 每半小时', name: 'fund:syncEstimate', desc: '同步盘中官方估值。' },
       { time: '14:30 工作日', name: 'ai:runAutoTrade', desc: '为开启 AI 代理的用户生成当日交易决策：auto 模式直接转为「待处理」，draft 模式生成「预操作」等待人工确认。' },
       { time: '17:30', name: 'fund:syncStockHoldings', desc: '同步重仓股持仓明细（季报口径，供自算估值），完成后触发一次自算估值。' },

@@ -133,7 +133,7 @@ function handleHideTooltip() {
               </span>
             </th>
 
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300" title="按季报重仓股行情加权自算,与官方估算对照观察中,暂不参与任何计算">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300" title="重仓股行情加权自算;黄金基金按国内金价 Au99.99 估算。与官方估算对照观察中,暂不参与任何计算">
               自算估算
             </th>
 

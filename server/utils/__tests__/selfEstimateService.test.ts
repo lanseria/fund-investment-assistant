@@ -1,7 +1,8 @@
 import type { StockRealtimeQuote } from '../dataFetcher'
 import type { FundStockHoldingRow } from '../stockHoldingService'
 import { describe, expect, it } from 'vitest'
-import { calcSelfEstimate } from '../selfEstimateService'
+import { isGoldPriceFund } from '../../../shared/fund'
+import { calcGoldEstimate, calcSelfEstimate, GOLD_PRICE_CODE } from '../selfEstimateService'
 import { enrichStocksWithQuotes, extractStockHoldings, parseHoldingPct } from '../stockHoldingService'
 
 function holding(stockCode: string, pct: number): FundStockHoldingRow {
@@ -139,6 +140,44 @@ describe('calcSelfEstimate (重仓股加权自算估值)', () => {
     expect(result!.changePct).toBeCloseTo(1.4, 6)
     expect(result!.nav).toBe(2.028)
     expect(result!.coverage).toBe(100)
+  })
+})
+
+describe('isGoldPriceFund (黄金类基金识别)', () => {
+  it('黄金/上海金 ETF 联接类基金命中', () => {
+    expect(isGoldPriceFund('前海开源黄金ETF联接C')).toBe(true) // 021740
+    expect(isGoldPriceFund('华安黄金易ETF联接A')).toBe(true)
+    expect(isGoldPriceFund('天弘上海金ETF联接C')).toBe(true)
+  })
+
+  it('普通股票/混合/债券基金不命中', () => {
+    expect(isGoldPriceFund('中欧医疗健康混合A')).toBe(false)
+    expect(isGoldPriceFund('易方达蓝筹精选混合')).toBe(false)
+    expect(isGoldPriceFund('招商中证白酒指数A')).toBe(false)
+  })
+})
+
+describe('calcGoldEstimate (金价自算估值)', () => {
+  it('按金价涨跌幅套用昨净,coverage 固定 100', () => {
+    // 2.1527 × (1 + (-0.6705)/100) = 2.1527 × 0.993295 = 2.138278... → 2.1383
+    const result = calcGoldEstimate('2.1527', { changePct: -0.6705 })
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(-0.6705, 6)
+    expect(result!.nav).toBe(2.1383)
+    expect(result!.coverage).toBe(100)
+  })
+
+  it('金价无涨跌幅(未开盘)返回 null', () => {
+    expect(calcGoldEstimate('2.1527', { changePct: null })).toBeNull()
+  })
+
+  it('昨净非法返回 null', () => {
+    expect(calcGoldEstimate('0', { changePct: 1 })).toBeNull()
+    expect(calcGoldEstimate('-1', { changePct: 1 })).toBeNull()
+  })
+
+  it('与 GOLD_PRICE_CODE (AU9999) 对应', () => {
+    expect(GOLD_PRICE_CODE).toBe('AU9999')
   })
 })
 

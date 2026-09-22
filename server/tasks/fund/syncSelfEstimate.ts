@@ -6,7 +6,7 @@ import { isQuoteRefreshHours, isTradingDay } from '~~/shared/market'
 export default defineTask({
   meta: {
     name: 'fund:syncSelfEstimate',
-    description: '盘中按重仓股行情加权自算基金估值 (写 funds 表 self_estimate_* 字段,与官方估算并存)',
+    description: '盘中自算基金估值 (重仓股行情加权 + 黄金基金按金价 Au9999,写 funds 表 self_estimate_* 字段,与官方估算并存)',
   },
   async run() {
     // --- 交易日检查 ---
@@ -23,7 +23,7 @@ export default defineTask({
 
     const result = await syncAllFundsSelfEstimates()
     return {
-      result: `Success (total: ${result.total}, success: ${result.success}, failed: ${result.failed}, skipped: ${result.skipped}, stocks: ${result.stockCount})`,
+      result: `Success (total: ${result.total}, success: ${result.success}, failed: ${result.failed}, skipped: ${result.skipped}, stocks: ${result.stockCount}, gold: ${result.goldCount})`,
     }
   },
 })

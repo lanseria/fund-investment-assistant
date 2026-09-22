@@ -166,7 +166,7 @@ CRON_FUND_PROCESS_TRANSACTIONS=30 2 * * *
 CRON_AI_AUTO_TRADE=30 14 * * 1-5
 ```
 
-> - `CRON_FUND_SYNC_SELF_ESTIMATE`: 盘中自算估值任务（按重仓股行情加权），任务内部会用交易时段判断收敛到 9:30-15:00，依赖 Python 服务的 `/stocks/realtime` 接口（底层腾讯行情，进程内 60s 缓存）。
+> - `CRON_FUND_SYNC_SELF_ESTIMATE`: 盘中自算估值任务（重仓股行情加权 + 黄金基金按国内金价 Au99.99），任务内部会用交易时段判断收敛到 9:30-15:00，依赖 Python 服务的 `/stocks/realtime`（腾讯行情）与 `/gold/realtime`（新浪贵金属行情）接口，均有进程内 60s 缓存。
 > - `CRON_FUND_SYNC_STOCK_HOLDINGS`: 每日收盘后同步基金重仓股持仓明细（季报口径，来源 `/fund/realtime/{code}` 的 holdings 字段）；新基金添加时也会即时同步，任务失败不影响添加。
 
 ### 安装与运行

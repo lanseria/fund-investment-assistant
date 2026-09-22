@@ -1,13 +1,14 @@
 // server/utils/selfEstimateService.ts
 
-import type { StockRealtimeQuote } from '~~/server/utils/dataFetcher'
+import type { GoldRealtimeQuote, StockRealtimeQuote } from '~~/server/utils/dataFetcher'
 import type { FundStockHoldingRow } from '~~/server/utils/stockHoldingService'
 import BigNumber from 'bignumber.js'
 import { eq } from 'drizzle-orm'
 import { funds } from '~~/server/database/schemas'
-import { fetchStocksRealtime } from '~~/server/utils/dataFetcher'
+import { fetchGoldRealtime, fetchStocksRealtime } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { getAllFundStockHoldings } from '~~/server/utils/stockHoldingService'
+import { isGoldPriceFund } from '~~/shared/fund'
 
 /** 单只基金的自算估值结果 */
 export interface SelfEstimateResult {
@@ -71,6 +72,38 @@ const QUOTE_CHUNK_SIZE = 60
 /** 批间延时(ms),避免请求过密 */
 const QUOTE_CHUNK_DELAY = 200
 
+/** 金价自算用的贵金属代码(SGE Au99.99 现货,黄金 ETF 及其联接基金的主流跟踪标的) */
+export const GOLD_PRICE_CODE = 'AU9999'
+
+/**
+ * 纯函数:按国内金价(SGE Au99.99)涨跌幅估算黄金类基金净值。
+ *
+ * 黄金 ETF 联接基金 ≥90% 投资目标 ETF、ETF 几乎满仓黄金现货,
+ * 金价当日涨跌幅近似基金净值涨跌幅(运作费率摩擦约 0.5%/年,盘中
+ * 估算可忽略)。coverage 固定 100(金价覆盖全部净值)。
+ *
+ * @returns 昨净非法或金价无涨跌幅(未开盘/接口无数据)时返回 null(本轮跳过,不动旧值)
+ */
+export function calcGoldEstimate(
+  yesterdayNav: string | number,
+  goldQuote: Pick<GoldRealtimeQuote, 'changePct'>,
+): SelfEstimateResult | null {
+  const navBase = new BigNumber(yesterdayNav)
+  if (!navBase.isGreaterThan(0))
+    return null
+  if (goldQuote.changePct == null)
+    return null
+
+  const changePct = new BigNumber(goldQuote.changePct)
+  const nav = navBase.times(new BigNumber(1).plus(changePct.dividedBy(100)))
+
+  return {
+    changePct: Number(changePct.toFixed(4)),
+    nav: Number(nav.toFixed(4)),
+    coverage: 100,
+  }
+}
+
 /**
  * 分批拉取全部股票行情并汇总为 Map。
  * 任一批失败(接口不可用/服务宕机)返回 null,调用方整体跳过本轮。
@@ -92,7 +125,7 @@ async function fetchStockQuotesMap(codes: string[]): Promise<Map<string, StockRe
 
 /** 自算估值任务的同步结果统计 */
 export interface SelfEstimateSyncResult {
-  /** 有重仓持仓、参与自算的基金数 */
+  /** 有重仓持仓、参与重仓股自算的基金数 */
   total: number
   /** 成功写入自算估值的基金数 */
   success: number
@@ -102,62 +135,108 @@ export interface SelfEstimateSyncResult {
   skipped: number
   /** 本次去重后的股票总数 */
   stockCount: number
+  /** 参与金价自算的黄金类基金数 */
+  goldCount: number
 }
 
 /**
- * 盘中同步所有基金的自算估值(重仓股行情加权)。
+ * 盘中同步所有基金的自算估值。
  *
- * 只处理开放式基金(fundType='open')且有重仓持仓数据的基金;
- * 场内/LOF (qdii_lof) 走场内价格,不参与。重仓股支持 A 股(6 位代码)
- * 与港股(5 位代码,如 00700),港股通/恒生科技类基金自 2026-09 起参与自算
- * (港股交易时段与 A 股重叠);美股等仍不支持,缺行情时按缺失权重剔除。
- * 全市场重仓股代码去重后分批取行情,多基金重叠持仓只请求一次。
+ * 分两类标的:
+ * - 重仓股加权(fundType='open' 且有季报重仓持仓):A 股(6 位代码)与港股
+ *   (5 位代码,如 00700)按占比加权,港股通/恒生科技类基金自 2026-09 起参与
+ *   自算;美股等仍不支持,缺行情时按缺失权重剔除。场内/LOF (qdii_lof) 走场内
+ *   价格,不参与。
+ * - 金价自算(fundType='open' 且无重仓持仓、名称含「黄金/上海金」):黄金 ETF
+ *   联接等被动跟踪国内金价的基金自 2026-09 起参与自算,按 SGE Au99.99 涨跌幅
+ *   套用昨净;SGE 日市(9:00-15:30)与 A 股重叠,现有 cron 窗口无需调整。
+ *
+ * 全市场重仓股代码去重后分批取行情,多基金重叠持仓只请求一次;金价全市场共用
+ * 一个 Au9999 报价。
  */
 export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResult> {
   const db = useDb()
   const allFunds = await db.query.funds.findMany()
   const holdingsByFund = await getAllFundStockHoldings()
 
-  const targets = allFunds.filter(
+  const stockTargets = allFunds.filter(
     f => f.fundType === 'open' && (holdingsByFund[f.code]?.length ?? 0) > 0,
   )
-
-  if (targets.length === 0)
-    return { total: 0, success: 0, failed: 0, skipped: 0, stockCount: 0 }
-
-  // 全市场股票代码去重
-  const allStockCodes = [...new Set(
-    targets.flatMap(f => holdingsByFund[f.code]!.map(h => h.stockCode)),
-  )]
-
-  const quotes = await fetchStockQuotesMap(allStockCodes)
-  if (quotes === null) {
-    console.warn('[SelfEstimate] 股票行情不可用,本轮自算估值整体跳过。')
-    return { total: targets.length, success: 0, failed: 0, skipped: targets.length, stockCount: allStockCodes.length }
-  }
+  const goldTargets = allFunds.filter(
+    f => f.fundType === 'open' && (holdingsByFund[f.code]?.length ?? 0) === 0 && isGoldPriceFund(f.name),
+  )
+  const total = stockTargets.length + goldTargets.length
+  if (total === 0)
+    return { total: 0, success: 0, failed: 0, skipped: 0, stockCount: 0, goldCount: 0 }
 
   let success = 0
   let failed = 0
-  const quoteByCode = Object.fromEntries(quotes)
-  for (const fund of targets) {
-    const result = calcSelfEstimate(fund.yesterdayNav, holdingsByFund[fund.code]!, quoteByCode)
-    if (result === null) {
-      failed++
-      continue
+  let skipped = 0
+
+  // --- 重仓股加权自算(A 股/港股) ---
+  const allStockCodes = [...new Set(
+    stockTargets.flatMap(f => holdingsByFund[f.code]!.map(h => h.stockCode)),
+  )]
+
+  const quotes = stockTargets.length > 0 ? await fetchStockQuotesMap(allStockCodes) : null
+  if (quotes === null) {
+    // stockTargets 为空时本就不走重仓股分支,无需告警
+    if (stockTargets.length > 0) {
+      console.warn('[SelfEstimate] 股票行情不可用,本轮重仓股自算整体跳过。')
+      skipped += stockTargets.length
     }
-    try {
-      await db.update(funds).set({
-        selfEstimateNav: result.nav,
-        selfPercentageChange: result.changePct,
-        selfEstimateUpdateTime: new Date(),
-      }).where(eq(funds.code, fund.code))
-      success++
-    }
-    catch (e) {
-      console.error(`[SelfEstimate] 基金 ${fund.code} 自算估值写库失败:`, e)
-      failed++
+  }
+  else {
+    const quoteByCode = Object.fromEntries(quotes)
+    for (const fund of stockTargets) {
+      const result = calcSelfEstimate(fund.yesterdayNav, holdingsByFund[fund.code]!, quoteByCode)
+      if (result === null) {
+        failed++
+        continue
+      }
+      try {
+        await db.update(funds).set({
+          selfEstimateNav: result.nav,
+          selfPercentageChange: result.changePct,
+          selfEstimateUpdateTime: new Date(),
+        }).where(eq(funds.code, fund.code))
+        success++
+      }
+      catch (e) {
+        console.error(`[SelfEstimate] 基金 ${fund.code} 自算估值写库失败:`, e)
+        failed++
+      }
     }
   }
 
-  return { total: targets.length, success, failed, skipped: 0, stockCount: allStockCodes.length }
+  // --- 金价自算(黄金 ETF 联接等) ---
+  const goldQuotes = goldTargets.length > 0 ? await fetchGoldRealtime([GOLD_PRICE_CODE]) : null
+  const goldQuote = goldQuotes?.find(q => q.code === GOLD_PRICE_CODE) ?? null
+  if (goldTargets.length > 0 && goldQuote === null) {
+    console.warn('[SelfEstimate] 金价行情不可用,本轮黄金基金自算整体跳过。')
+    skipped += goldTargets.length
+  }
+  else {
+    for (const fund of goldTargets) {
+      const result = calcGoldEstimate(fund.yesterdayNav, goldQuote!)
+      if (result === null) {
+        failed++
+        continue
+      }
+      try {
+        await db.update(funds).set({
+          selfEstimateNav: result.nav,
+          selfPercentageChange: result.changePct,
+          selfEstimateUpdateTime: new Date(),
+        }).where(eq(funds.code, fund.code))
+        success++
+      }
+      catch (e) {
+        console.error(`[SelfEstimate] 基金 ${fund.code} 金价自算写库失败:`, e)
+        failed++
+      }
+    }
+  }
+
+  return { total, success, failed, skipped, stockCount: allStockCodes.length, goldCount: goldTargets.length }
 }

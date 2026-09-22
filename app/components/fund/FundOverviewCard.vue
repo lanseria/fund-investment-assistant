@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import { format } from 'date-fns'
+import { isGoldPriceFund } from '~~/shared/fund'
 import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
@@ -16,14 +17,17 @@ const props = defineProps<{
 
 const dictStore = useDictStore()
 
-/** 自算估算卡的副文案:展示自算净值与重仓覆盖率 */
+/** 自算估算卡的副文案:展示自算净值与重仓覆盖率(黄金基金标注金价来源) */
 const selfEstimateHint = computed(() => {
   const d = props.detail
+  const isGold = !!d?.name && isGoldPriceFund(d.name)
   if (d?.selfPercentageChange == null)
-    return d?.stockHoldings ? '重仓加权 · 待盘中更新' : '无重仓持仓数据'
+    return d?.stockHoldings ? '重仓加权 · 待盘中更新' : (isGold ? '金价 Au99.99 · 待盘中更新' : '无重仓持仓数据')
   const nav = d.selfEstimateNav != null ? Number(d.selfEstimateNav).toFixed(4) : '-'
-  const coverage = d.stockHoldings?.coverage ?? '-'
-  return `净值 ${nav} · 覆盖率 ${coverage}%`
+  // 黄金基金无重仓持仓,自算按国内金价
+  if (!d.stockHoldings)
+    return `净值 ${nav} · ${isGold ? '金价 Au99.99' : '无重仓持仓'}`
+  return `净值 ${nav} · 覆盖率 ${d.stockHoldings.coverage}%`
 })
 </script>
 

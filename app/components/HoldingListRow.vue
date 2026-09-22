@@ -394,9 +394,9 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </td>
 
-    <!-- 5. 自算估算 (重仓股行情加权,仅展示对照,不参与任何计算) -->
+    <!-- 5. 自算估算 (重仓股行情加权;黄金基金按金价,仅展示对照,不参与任何计算) -->
     <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.selfPercentageChange)">
-      <div class="font-mono font-semibold tabular-nums" title="自算:按季报重仓股行情加权估算,与官方估算对照观察中">
+      <div class="font-mono font-semibold tabular-nums" title="自算:重仓股行情加权估算(黄金基金按金价 Au99.99),与官方估算对照观察中">
         {{ holding.selfPercentageChange !== null ? `${holding.selfPercentageChange > 0 ? '+' : ''}${holding.selfPercentageChange.toFixed(2)}%` : '-' }}
       </div>
       <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">

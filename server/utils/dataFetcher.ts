@@ -230,13 +230,67 @@ export async function fetchStocksRealtime(codes: string[], opts?: { timeoutMs?: 
   }
 }
 
+/** Python 服务 /gold/realtime 返回的单只贵金属行情(SGE 沪金99 等) */
+export interface GoldRealtimeQuote {
+  code: string // 贵金属代码(如 AU9999 沪金99 / AUTD 黄金延期)
+  name: string // 合约名称(如 "沪金99")
+  price: number | null // 最新价(元/克,未开盘/无行情为 null)
+  prevClose: number | null // 昨收(元/克)
+  changePct: number | null // 当日涨跌幅(%,按昨收计算,无昨收为 null)
+  date: string // 行情日期(yyyy-mm-dd,北京时间)
+  time: string // 行情时间(HH:mm:ss,北京时间)
+}
+
+/** Python 服务 /gold/realtime 的完整响应结构 */
+export interface GoldRealtimeResponse {
+  count: number
+  quotes: GoldRealtimeQuote[]
+  missing: string[] // 不支持的贵金属代码或拉取失败的代码
+}
+
+/**
+ * 批量获取上海黄金交易所贵金属实时行情(供黄金类基金自算估值)。
+ *
+ * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/gold/realtime`，
+ * 底层新浪财经贵金属行情 gds_ 接口,涨跌幅按昨收计算,SGE 夜市归属
+ * 次一交易日,涨跌幅天然包含隔夜跳空,与黄金基金净值口径一致;
+ * 进程内 60s TTL 缓存)。
+ *
+ * 任何错误(接口未部署 404 / 服务不可用 / 超时)都返回 null,
+ * 由调用方降级处理(黄金基金自算跳过本轮)。
+ */
+export async function fetchGoldRealtime(codes: string[], opts?: { timeoutMs?: number }): Promise<GoldRealtimeQuote[] | null> {
+  if (codes.length === 0)
+    return []
+
+  const config = useRuntimeConfig()
+  const url = `${config.strategyApiUrl}/gold/realtime`
+
+  try {
+    const data = await $fetch<GoldRealtimeResponse>(url, {
+      params: { codes: codes.join(',') },
+      timeout: opts?.timeoutMs ?? 15_000,
+    })
+    if (data.missing.length > 0)
+      console.warn(`[GoldRealtime] ${data.missing.length} 个贵金属合约无行情:`, data.missing.join(','))
+    return data.quotes
+  }
+  catch (error: any) {
+    const status = error?.response?.status || error?.statusCode
+    if (status === 404)
+      console.warn('[GoldRealtime] /gold/realtime 接口不存在(Python 服务未部署新版本),黄金基金自算估值跳过。')
+    else
+      console.error(`[GoldRealtime] 批量获取贵金属行情失败:`, error?.message || error)
+    return null
+  }
+}
+
 /**
  * 获取基金的历史净值数据
  * @param fundCode 基金代码
  * @param startDate 开始日期 'YYYY-MM-DD'
  * @param endDate 结束日期 'YYYY-MM-DD'
- */
-export async function fetchFundHistory(fundCode: string, startDate?: string, endDate?: string): Promise<HistoryRecord[]> {
+ */export async function fetchFundHistory(fundCode: string, startDate?: string, endDate?: string): Promise<HistoryRecord[]> {
   const url = 'http://api.fund.eastmoney.com/f10/lsjz'
   const allData: HistoryRecord[] = []
   let pageIndex = 1
