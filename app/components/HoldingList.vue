@@ -118,7 +118,7 @@ function handleHideTooltip() {
               </span>
             </th>
 
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-48 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title="主值为持有收益/收益率/成本价;括号内为昨日收益/昨日涨幅/前一交易日净值" @click="setSort('holdingProfitRate')">
+            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-48 cursor-pointer select-none dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700" title="悬浮单元格查看全部明细:昨日收益/涨幅、昨日/前一交易日净值" @click="setSort('holdingProfitRate')">
               持有收益 / 收益率
               <span v-if="sortKey === 'holdingProfitRate'" class="ml-1 align-middle inline-block">
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up /><div v-else i-carbon-arrow-down />

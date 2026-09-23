@@ -2,7 +2,7 @@
 import type { Holding } from '~/types/holding'
 import { format, isSameDay } from 'date-fns'
 import { SECTOR_DICT_TYPE } from '~/constants'
-import { formatCurrency, getChangeColorClass } from '~/utils/format'
+import { formatChange, formatCurrency, getChangeColorClass } from '~/utils/format'
 
 const props = defineProps<{
   holding: Holding
@@ -131,6 +131,35 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
     fundCode: props.holding.code,
     strategyKey,
   })
+}
+
+// --- 持有收益悬浮明细 (Teleport 至 body + fixed 定位:表格外壳 overflow-x-auto 会裁切向上弹出的绝对定位浮层) ---
+const profitDetailVisible = ref(false)
+const profitDetailStyle = ref({ top: '0px', left: '0px' })
+
+function showProfitDetail(event: MouseEvent) {
+  const target = event.currentTarget as HTMLElement
+  if (!target)
+    return
+  const rect = target.getBoundingClientRect()
+
+  // 垂直:默认弹在下方,下方空间不足且上方充足时翻转到上方 (明细浮层高约 260px)
+  const GAP = 8
+  const TOOLTIP_HEIGHT = 260
+  let top = rect.bottom + GAP
+  if (window.innerHeight - rect.bottom < TOOLTIP_HEIGHT && rect.top > TOOLTIP_HEIGHT)
+    top = rect.top - TOOLTIP_HEIGHT - GAP
+
+  // 水平:右缘对齐单元格右缘,超出视口时向左收拢
+  const TOOLTIP_WIDTH = 240
+  const left = Math.min(Math.max(rect.right - TOOLTIP_WIDTH, GAP), window.innerWidth - TOOLTIP_WIDTH - GAP)
+
+  profitDetailStyle.value = { top: `${top}px`, left: `${left}px` }
+  profitDetailVisible.value = true
+}
+
+function hideProfitDetail() {
+  profitDetailVisible.value = false
 }
 </script>
 
@@ -348,29 +377,24 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </template>
     </td>
 
-    <!-- 3. 持有收益 / 收益率 (括号内为昨日数据:昨日收益/昨日涨幅,已确认净值口径;第三行为净值对:昨日净值(前一交易日净值)) -->
-    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.holdingProfitAmount)" title="主值为持有收益;括号内为昨日数据(基于已确认净值);第三行 昨日净值 (前一交易日净值)">
+    <!-- 3. 持有收益 / 收益率 (默认仅展示核心三项,悬浮查看全部明细与口径说明;明细浮层 Teleport 至 body,见模板末尾) -->
+    <td class="font-mono p-4 text-right">
       <template v-if="holding.holdingProfitRate !== null">
-        <div class="font-mono font-semibold tabular-nums">
-          {{ formatCurrency(holding.holdingProfitAmount) }}<span
-            v-if="holding.yesterdayProfit !== null"
-            class="text-xs font-normal"
-            :class="getChangeColorClass(holding.yesterdayProfit)"
-          >({{ holding.yesterdayProfit > 0 ? '+' : '' }}{{ formatCurrency(holding.yesterdayProfit) }})</span>
-        </div>
-        <div class="text-xs font-mono tabular-nums">
-          {{ `${holding.holdingProfitRate > 0 ? '+' : ''}${holding.holdingProfitRate!.toFixed(2)}%` }}<span
-            v-if="holding.yesterdayChangeRate !== null"
-            :class="getChangeColorClass(holding.yesterdayChangeRate)"
-          >({{ `${holding.yesterdayChangeRate > 0 ? '+' : ''}${holding.yesterdayChangeRate.toFixed(2)}%` }})</span>
-        </div>
-        <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400" title="昨日净值 (前一交易日净值)">
-          {{ holding.yesterdayNav }}<span v-if="holding.prevNav !== null"> (<span
-            v-if="navTrend"
-            :class="[navTrend.icon, navTrend.class]"
-            class="align-[-1px] inline-block"
-            :title="navTrend.label"
-          />{{ holding.prevNav }})</span>
+        <div
+          class="text-right inline-block cursor-help"
+          @mouseenter="showProfitDetail"
+          @mouseleave="hideProfitDetail"
+        >
+          <!-- 默认展示:持有收益 / 收益率 / 昨日净值 -->
+          <div class="font-semibold tabular-nums" :class="getChangeColorClass(holding.holdingProfitAmount)">
+            {{ formatCurrency(holding.holdingProfitAmount) }}
+          </div>
+          <div class="text-xs tabular-nums" :class="getChangeColorClass(holding.holdingProfitRate)">
+            {{ formatChange(holding.holdingProfitRate) }}
+          </div>
+          <div class="text-xs text-gray-500 tabular-nums dark:text-gray-400">
+            {{ holding.yesterdayNav }}
+          </div>
         </div>
       </template>
       <template v-else>
@@ -549,4 +573,82 @@ function handleMouseEnter(event: MouseEvent, strategyKey: string) {
       </div>
     </Modal>
   </Teleport>
+
+  <!-- 持有收益明细 Tooltip (Teleport 至 body + fixed 定位,避免被 overflow-x-auto 表格外壳裁切;常暗色底保证红涨绿跌可读) -->
+  <Teleport to="body">
+    <Transition name="profit-detail-fade">
+      <div
+        v-if="profitDetailVisible"
+        class="text-xs text-gray-100 p-3 rounded-lg bg-gray-900/95 pointer-events-none whitespace-nowrap shadow-xl fixed z-50 backdrop-blur-sm"
+        :style="profitDetailStyle"
+      >
+        <!-- 持有收益 -->
+        <div class="flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">持有收益</span>
+          <span class="font-semibold tabular-nums" :class="getChangeColorClass(holding.holdingProfitAmount)">
+            {{ formatCurrency(holding.holdingProfitAmount) }}
+          </span>
+        </div>
+        <div class="mt-1 flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">持有收益率</span>
+          <span class="font-semibold tabular-nums" :class="getChangeColorClass(holding.holdingProfitRate)">
+            {{ formatChange(holding.holdingProfitRate) }}
+          </span>
+        </div>
+
+        <!-- 昨日数据 -->
+        <div class="text-[10px] text-gray-500 mt-2 pt-2 border-t border-white/10">
+          昨日数据 (基于已确认净值)
+        </div>
+        <div v-if="holding.yesterdayProfit !== null" class="mt-1 flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">昨日收益</span>
+          <span class="tabular-nums" :class="getChangeColorClass(holding.yesterdayProfit)">
+            {{ holding.yesterdayProfit > 0 ? '+' : '' }}{{ formatCurrency(holding.yesterdayProfit) }}
+          </span>
+        </div>
+        <div v-if="holding.yesterdayChangeRate !== null" class="mt-1 flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">昨日涨幅</span>
+          <span class="tabular-nums" :class="getChangeColorClass(holding.yesterdayChangeRate)">
+            {{ formatChange(holding.yesterdayChangeRate) }}
+          </span>
+        </div>
+
+        <!-- 净值 -->
+        <div class="text-[10px] text-gray-500 mt-2 pt-2 border-t border-white/10">
+          净值
+        </div>
+        <div class="mt-1 flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">昨日净值</span>
+          <span class="tabular-nums">{{ holding.yesterdayNav }}</span>
+        </div>
+        <div v-if="holding.prevNav !== null" class="mt-1 flex gap-x-8 items-baseline justify-between">
+          <span class="text-gray-400">前一交易日净值</span>
+          <span class="flex gap-1 items-baseline tabular-nums">
+            {{ holding.prevNav }}
+            <span v-if="navTrend" class="text-[10px] inline-flex gap-0.5 items-center" :class="navTrend.class">
+              <div :class="navTrend.icon" />
+              {{ navTrend.label }}
+            </span>
+          </span>
+        </div>
+
+        <!-- 口径说明 -->
+        <div class="text-[10px] text-gray-500 leading-relaxed mt-2 pt-2 border-t border-white/10">
+          昨日收益 = 份额 × (最新确认净值 - 前一交易日净值)
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
+
+<style scoped>
+.profit-detail-fade-enter-active,
+.profit-detail-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+
+.profit-detail-fade-enter-from,
+.profit-detail-fade-leave-to {
+  opacity: 0;
+}
+</style>
