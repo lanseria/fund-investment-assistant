@@ -49,7 +49,7 @@ async function getBatchLast19NavSums(codes: string[]) {
  * 批量获取指定基金代码最近 2 条已确认净值 (最新 + 前一交易日)
  * 用于计算昨日收益: 昨日收益 = 份额 × (最新净值 - 前一净值),基准市值 = 份额 × 前一净值
  */
-async function getBatchLatest2Navs(codes: string[]) {
+export async function getBatchLatest2Navs(codes: string[]) {
   if (codes.length === 0)
     return new Map<string, { latest: number, prev: number | null }>()
 
@@ -131,7 +131,7 @@ export async function getHistoryWithMA(code: string, startDate?: string, endDate
 /**
  * 判断基金的估值更新时间是否为今日
  */
-function isEstimateFresh(updateTime: Date | null): boolean {
+export function isEstimateFresh(updateTime: Date | null): boolean {
   if (!updateTime)
     return false
   return isSameDay(updateTime, new Date())

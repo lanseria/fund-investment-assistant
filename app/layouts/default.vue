@@ -6,6 +6,7 @@ const colorMode = useColorMode()
 // 主导航项（收益分析提升为一级导航——核心价值页）
 const navItems = [
   { to: '/profit-analysis', label: '收益分析', icon: 'i-carbon-chart-line-data' },
+  { to: '/fund-profits', label: '基金收益', icon: 'i-carbon-data-table' },
   { to: '/charts-overview', label: '策略视图', icon: 'i-carbon-analytics' },
   { to: '/realtime', label: '盘中估值', icon: 'i-carbon-dashboard' },
   { to: '/daily-ops', label: '每日操作', icon: 'i-carbon-calendar' },

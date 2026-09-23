@@ -209,3 +209,75 @@ export function simulateProfitHistory(allTxs: SimulateTxRow[], navMap: Record<st
 
   return history
 }
+
+/** 单只基金的已落袋盈亏汇总 (基于已确认交易回测的最终状态) */
+export interface FundProfitSummary {
+  /** 回测口径的当前份额 (仅由交易记录推导,手工导入的持仓不在其中) */
+  simulatedShares: number
+  /** 回测口径的持仓成本价 */
+  simulatedAvgCost: number
+  /** 已落袋盈亏 (历史卖出/转出相对持仓成本产生的盈亏) */
+  realizedProfit: number
+  /** 首次交易日期 (yyyy-MM-dd) */
+  firstTradeDate: string | null
+  /** 最近交易日期 (yyyy-MM-dd) */
+  lastTradeDate: string | null
+}
+
+/**
+ * 按基金维度汇总已确认交易，计算各基金的已落袋盈亏与最终持仓状态。
+ * 与 simulateProfitHistory 的记账规则保持一致，但只关心终态，不做逐日遍历。
+ * @param allTxs 已确认的交易记录（必须按 orderDate 升序排列）
+ * @param fallbackCostPrice 成本价兜底表:卖出份额超过回测持仓份额时
+ *   （如手工导入的持仓没有买入记录），缺口部分按该成本价计成本
+ */
+export function summarizeFundProfit(
+  allTxs: SimulateTxRow[],
+  fallbackCostPrice: Record<string, number> = {},
+): Map<string, FundProfitSummary> {
+  const summaries = new Map<string, FundProfitSummary>()
+
+  for (const tx of allTxs) {
+    if (!summaries.has(tx.fundCode)) {
+      summaries.set(tx.fundCode, {
+        simulatedShares: 0,
+        simulatedAvgCost: 0,
+        realizedProfit: 0,
+        firstTradeDate: tx.orderDate,
+        lastTradeDate: tx.orderDate,
+      })
+    }
+    const summary = summaries.get(tx.fundCode)!
+    summary.lastTradeDate = tx.orderDate
+
+    const confirmedAmt = new BigNumber(tx.confirmedAmount || 0)
+    const confirmedShares = new BigNumber(tx.confirmedShares || 0)
+
+    if (tx.type === 'buy' || tx.type === 'convert_in') {
+      // 与 simulateProfitHistory 一致:新成本 = 旧持仓成本 + 买入金额
+      const oldCost = new BigNumber(summary.simulatedShares).multipliedBy(summary.simulatedAvgCost)
+      const newShares = new BigNumber(summary.simulatedShares).plus(confirmedShares)
+      const newCost = oldCost.plus(confirmedAmt)
+
+      summary.simulatedShares = newShares.toNumber()
+      summary.simulatedAvgCost = newShares.gt(0) ? newCost.dividedBy(newShares).toNumber() : 0
+    }
+    else if (tx.type === 'sell' || tx.type === 'convert_out') {
+      // 回测已跟踪的份额按持仓成本计；缺口（无买入记录）按兜底成本价计
+      const trackedShares = new BigNumber(summary.simulatedShares)
+      const trackedSold = BigNumber.min(trackedShares, confirmedShares)
+      const gapShares = confirmedShares.minus(trackedSold)
+      const fallbackCost = new BigNumber(fallbackCostPrice[tx.fundCode] ?? 0)
+
+      const costOfSold = trackedSold.multipliedBy(summary.simulatedAvgCost).plus(gapShares.multipliedBy(fallbackCost))
+      summary.realizedProfit = new BigNumber(summary.realizedProfit).plus(confirmedAmt).minus(costOfSold).toNumber()
+
+      const remainShares = BigNumber.max(trackedShares.minus(confirmedShares), 0)
+      summary.simulatedShares = remainShares.toNumber()
+      if (remainShares.lte(0))
+        summary.simulatedAvgCost = 0
+    }
+  }
+
+  return summaries
+}
