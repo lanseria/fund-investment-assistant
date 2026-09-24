@@ -27,9 +27,11 @@ export default defineEventHandler(async (event) => {
 
     // 合并后再校验频率/锚点组合 (如周计划改月计划时锚点含义随之变化)
     const frequency = patch.frequency ?? plan.frequency
+    // daily/biweekly 不使用锚点,统一置 null
+    const noAnchor = frequency === 'daily' || frequency === 'biweekly'
     const anchorDay = patch.anchorDay !== undefined
-      ? (frequency === 'biweekly' ? null : patch.anchorDay)
-      : (frequency === 'biweekly' ? null : plan.anchorDay)
+      ? (noAnchor ? null : patch.anchorDay)
+      : (noAnchor ? null : plan.anchorDay)
     const ruleError = validatePlanRules(frequency, anchorDay)
     if (ruleError)
       throw createError({ status: 400, statusText: ruleError })

@@ -14,8 +14,8 @@ export const fundTypeEnum = fundSchema.enum('fund_type', ['open', 'qdii_lof'])
 export const transactionTypeEnum = fundSchema.enum('transaction_type', ['buy', 'sell', 'convert_out', 'convert_in'])
 // 定义交易状态枚举，新增 draft 状态
 export const transactionStatusEnum = fundSchema.enum('transaction_status', ['draft', 'pending', 'confirmed', 'failed'])
-// 定义定投频率枚举: 每周 / 每两周 / 每月
-export const dcaFrequencyEnum = fundSchema.enum('dca_frequency', ['weekly', 'biweekly', 'monthly'])
+// 定义定投频率枚举: 每天 / 每周 / 每两周 / 每月
+export const dcaFrequencyEnum = fundSchema.enum('dca_frequency', ['daily', 'weekly', 'biweekly', 'monthly'])
 /**
  * 用户表 (users)
  * 存储应用的用户信息
@@ -261,7 +261,7 @@ export const dcaPlans = fundSchema.table('dca_plans', {
   frequency: dcaFrequencyEnum('frequency').notNull(),
   /**
    * 扣款日锚点
-   * weekly: 1-5 (周一~周五); monthly: 1-28 (几号); biweekly 不使用 (基于下次扣款日 +14 天推算)
+   * daily 不使用; weekly: 1-5 (周一~周五); monthly: 1-28 (几号); biweekly 不使用 (基于下次扣款日 +14 天推算)
    */
   anchorDay: integer('anchor_day'),
   /** 是否启用 (暂停后跳过执行，不删除历史) */

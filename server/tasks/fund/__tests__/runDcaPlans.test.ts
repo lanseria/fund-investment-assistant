@@ -22,7 +22,7 @@ const { capturedTaskRef, mockDb } = vi.hoisted(() => {
     userId: number
     fundCode: string
     amount: string
-    frequency: 'weekly' | 'biweekly' | 'monthly'
+    frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly'
     anchorDay: number | null
     enabled: boolean
     nextExecutionDate: string
@@ -154,6 +154,17 @@ describe('fund:runDcaPlans (定投执行任务)', () => {
     expect(result.executed).toBe(1)
     expect(mockDb.data.inserted[0].note).toContain('每月25日')
     // 本应 09-25(五),恰逢中秋假期 → 顺延 09-28(一)
+    expect(mockDb.data.planUpdates[0].nextExecutionDate).toBe('2026-09-28')
+  })
+
+  it('daily 计划: 下期为下一交易日,遇节假日顺延', async () => {
+    atLocal(2026, 9, 24) // 周四,次日 09-25 为中秋假期起点
+    resetData([makePlan({ frequency: 'daily', anchorDay: null, nextExecutionDate: '2026-09-24' })])
+    const result = await getTask().run()
+
+    expect(result.executed).toBe(1)
+    expect(mockDb.data.inserted[0].note).toContain('每天')
+    // 09-25(五) 起为中秋假期 → 顺延 09-28(一)
     expect(mockDb.data.planUpdates[0].nextExecutionDate).toBe('2026-09-28')
   })
 

@@ -28,7 +28,9 @@ const formData = reactive({
 
 // 频率切换时把锚点收敛到合法范围 (月 25 日对周计划无意义)
 watch(() => formData.frequency, (freq) => {
-  if (freq === 'weekly')
+  if (freq === 'daily' || freq === 'biweekly')
+    formData.anchorDay = null
+  else if (freq === 'weekly')
     formData.anchorDay = 1
   else if (freq === 'monthly' && (!formData.anchorDay || formData.anchorDay > 28))
     formData.anchorDay = 25
@@ -57,7 +59,7 @@ const isFundCodeLocked = isEditing
 
 // 首期(下次)扣款日实时预览: 与服务端同一套 shared 计算逻辑
 const nextExecutionPreview = computed(() => {
-  if (formData.frequency !== 'biweekly' && !formData.anchorDay)
+  if (formData.frequency !== 'daily' && formData.frequency !== 'biweekly' && !formData.anchorDay)
     return null
   try {
     return computeNextExecutionDate(format(new Date(), 'yyyy-MM-dd'), formData.frequency, formData.anchorDay)
@@ -72,7 +74,7 @@ const canSubmit = computed(() => {
     return false
   if (!isFundCodeLocked.value && !/^\d{6}$/.test(formData.fundCode))
     return false
-  if (formData.frequency !== 'biweekly' && !formData.anchorDay)
+  if (formData.frequency !== 'daily' && formData.frequency !== 'biweekly' && !formData.anchorDay)
     return false
   return true
 })
@@ -84,7 +86,7 @@ function handleSubmit() {
     fundCode: formData.fundCode,
     amount: formData.amount ?? undefined,
     frequency: formData.frequency,
-    anchorDay: formData.frequency === 'biweekly' ? null : formData.anchorDay,
+    anchorDay: formData.frequency === 'daily' || formData.frequency === 'biweekly' ? null : formData.anchorDay,
   })
 }
 </script>
@@ -139,6 +141,9 @@ function handleSubmit() {
       <div>
         <label class="text-sm font-medium mb-1 block">定投频率</label>
         <select v-model="formData.frequency" class="input-base">
+          <option value="daily">
+            每天
+          </option>
           <option value="weekly">
             每周
           </option>
@@ -151,8 +156,8 @@ function handleSubmit() {
         </select>
       </div>
 
-      <!-- 扣款日 -->
-      <div v-if="formData.frequency !== 'biweekly'">
+      <!-- 扣款日 (每天/每两周无锚点) -->
+      <div v-if="formData.frequency !== 'daily' && formData.frequency !== 'biweekly'">
         <label class="text-sm font-medium mb-1 block">
           扣款日 ({{ formData.frequency === 'weekly' ? '星期' : '日期' }})
         </label>
@@ -172,7 +177,11 @@ function handleSubmit() {
           首期扣款日: <span class="font-mono">{{ nextExecutionPreview }}</span>（遇周末/节假日自动顺延）
         </p>
       </div>
-      <p v-else class="text-xs text-gray-500 mt-1">
+      <p v-if="formData.frequency === 'daily'" class="text-xs text-gray-500 mt-1">
+        每个交易日自动扣款一次，周末/节假日自动跳过。
+        <span v-if="nextExecutionPreview">首期扣款日: <span class="font-mono">{{ nextExecutionPreview }}</span></span>
+      </p>
+      <p v-else-if="formData.frequency === 'biweekly'" class="text-xs text-gray-500 mt-1">
         每两周自动扣款一次，遇周末/节假日自动顺延。
         <span v-if="nextExecutionPreview">首期扣款日: <span class="font-mono">{{ nextExecutionPreview }}</span></span>
       </p>

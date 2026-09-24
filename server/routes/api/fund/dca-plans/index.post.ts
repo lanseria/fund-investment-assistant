@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
       fundCode: data.fundCode,
       amount: String(data.amount),
       frequency: data.frequency,
-      anchorDay: data.frequency === 'biweekly' ? null : data.anchorDay ?? null,
+      anchorDay: data.frequency === 'daily' || data.frequency === 'biweekly' ? null : data.anchorDay ?? null,
       enabled: true,
       nextExecutionDate: initialNextExecutionDate(data.frequency, data.anchorDay),
     }).returning()

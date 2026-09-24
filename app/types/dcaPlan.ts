@@ -1,6 +1,6 @@
 // 基金定投计划相关类型 (与 server/database/schemas.ts 的 dca_plans 表对应)
 
-export type DcaFrequency = 'weekly' | 'biweekly' | 'monthly'
+export type DcaFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly'
 
 /** 定投计划 (GET /api/fund/dca-plans 返回项) */
 export interface DcaPlan {
@@ -10,7 +10,7 @@ export interface DcaPlan {
   /** 每期定投金额 (元) */
   amount: number
   frequency: DcaFrequency
-  /** 扣款日锚点: weekly 1-5 (周一~周五), monthly 1-28; biweekly 为 null */
+  /** 扣款日锚点: weekly 1-5 (周一~周五), monthly 1-28; daily/biweekly 为 null */
   anchorDay: number | null
   enabled: boolean
   /** 下次计划扣款日 (YYYY-MM-DD，非交易日顺延) */

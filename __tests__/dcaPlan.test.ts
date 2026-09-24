@@ -33,6 +33,17 @@ describe('computeNextExecutionDate (定投下次扣款日推算)', () => {
     expect(computeNextExecutionDate('2026-09-22', 'biweekly')).toBe('2026-10-08')
   })
 
+  it('daily: 起算日 +1 天,落在非交易日时顺延到下一交易日', () => {
+    // 09-24(四) + 1 = 09-25(五) 为中秋假期起点 → 顺延 09-28(一)
+    expect(computeNextExecutionDate('2026-09-24', 'daily')).toBe('2026-09-28')
+    // 周五执行后 +1 天是周六 → 顺延下周一
+    expect(computeNextExecutionDate('2026-10-09', 'daily')).toBe('2026-10-12')
+    // 周四次日周五为交易日,直接命中
+    expect(computeNextExecutionDate('2026-10-08', 'daily')).toBe('2026-10-09')
+    // anchorDay 对 daily 无意义,传入也被忽略
+    expect(computeNextExecutionDate('2026-10-08', 'daily', 25)).toBe('2026-10-09')
+  })
+
   it('支持 Date 入参,anchorDay 越界时收敛到合法区间', () => {
     expect(computeNextExecutionDate(new Date('2026-09-22T12:00:00'), 'weekly', 3)).toBe('2026-09-23')
     // monthly 锚点 30 越界 → 收敛到 28
@@ -42,12 +53,14 @@ describe('computeNextExecutionDate (定投下次扣款日推算)', () => {
 
 describe('定投频率/锚点展示文案', () => {
   it('frequencyLabel', () => {
+    expect(frequencyLabel('daily')).toBe('每天')
     expect(frequencyLabel('weekly')).toBe('每周')
     expect(frequencyLabel('biweekly')).toBe('每两周')
     expect(frequencyLabel('monthly')).toBe('每月')
   })
 
   it('anchorDayLabel', () => {
+    expect(anchorDayLabel('daily', null)).toBe('')
     expect(anchorDayLabel('weekly', 3)).toBe('每周三')
     expect(anchorDayLabel('monthly', 25)).toBe('每月25日')
     expect(anchorDayLabel('biweekly', null)).toBe('')

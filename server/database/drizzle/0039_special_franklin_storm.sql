@@ -1,0 +1,1 @@
+ALTER TYPE "fund_app"."dca_frequency" ADD VALUE 'daily' BEFORE 'weekly';

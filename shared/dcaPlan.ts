@@ -5,8 +5,8 @@
 import { addDays, addMonths, format, getDay, parseISO, startOfDay } from 'date-fns'
 import { isTradingDay } from './market'
 
-/** 定投频率: 每周 / 每两周 / 每月 (与 dca_frequency 枚举一致) */
-export type DcaFrequency = 'weekly' | 'biweekly' | 'monthly'
+/** 定投频率: 每天 / 每周 / 每两周 / 每月 (与 dca_frequency 枚举一致) */
+export type DcaFrequency = 'daily' | 'weekly' | 'biweekly' | 'monthly'
 
 /** weekday 下标 → 中文名 (与 date-fns getDay 一致: 0=周日) */
 const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'] as const
@@ -18,7 +18,7 @@ const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周�
  *
  * @param fromDate 起算日期 (计划创建日或本期实际执行日),Date 或 'YYYY-MM-DD'
  * @param frequency 定投频率
- * @param anchorDay 扣款日锚点: weekly 1-5 (周一~周五), monthly 1-28; biweekly 忽略
+ * @param anchorDay 扣款日锚点: weekly 1-5 (周一~周五), monthly 1-28; daily/biweekly 忽略
  */
 export function computeNextExecutionDate(
   fromDate: Date | string,
@@ -35,13 +35,13 @@ export function computeNextExecutionDate(
 
 /** 定投频率展示文案 */
 export function frequencyLabel(frequency: DcaFrequency): string {
-  const labels: Record<DcaFrequency, string> = { weekly: '每周', biweekly: '每两周', monthly: '每月' }
+  const labels: Record<DcaFrequency, string> = { daily: '每天', weekly: '每周', biweekly: '每两周', monthly: '每月' }
   return labels[frequency]
 }
 
-/** 扣款日锚点展示文案,如 "每周三" / "每月25日"; biweekly 无锚点返回空串 */
+/** 扣款日锚点展示文案,如 "每周三" / "每月25日"; daily/biweekly 无锚点返回空串 */
 export function anchorDayLabel(frequency: DcaFrequency, anchorDay?: number | null): string {
-  if (frequency === 'biweekly' || !anchorDay)
+  if (frequency === 'daily' || frequency === 'biweekly' || !anchorDay)
     return ''
   if (frequency === 'weekly')
     return WEEKDAY_LABELS[anchorDay] ? `每${WEEKDAY_LABELS[anchorDay]}` : ''
@@ -50,6 +50,9 @@ export function anchorDayLabel(frequency: DcaFrequency, anchorDay?: number | nul
 
 /** 严格晚于 from 的下一个锚点日 (不做交易日校验) */
 function nextScheduledDate(from: Date, frequency: DcaFrequency, anchorDay?: number | null): Date {
+  if (frequency === 'daily')
+    return addDays(from, 1)
+
   if (frequency === 'biweekly')
     return addDays(from, 14)
 
