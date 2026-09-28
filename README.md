@@ -26,7 +26,7 @@
 
 ### 🔄 实时数据与行情
 
-- **实时估值**: 通过定时任务在交易时间段内自动同步所有基金的实时估值
+- **盘中估值**: 通过定时任务在交易时间段内自算所有基金的估值（重仓股行情加权，黄金基金按金价，场内/LOF 按场内价）
 - **实时推送**: 采用 **Server-Sent Events (SSE)** 技术，数据更新后实时推送到前端
 - **手动刷新**: 提供一键刷新所有持仓估值的功能
 
@@ -160,8 +160,8 @@ NUXT_OPEN_ROUTER_API_KEY=your_openrouter_api_key
 
 # 定时任务 Cron (可选，有默认值)
 CRON_FUND_SYNC_HISTORY=0 2 * * *
-CRON_FUND_SYNC_ESTIMATE=*/30 10-16 * * *
-CRON_FUND_SYNC_SELF_ESTIMATE=*/5 9-15 * * *
+CRON_FUND_SYNC_ESTIMATE=*/5 9-16 * * *
+CRON_SECTOR_SYNC_CAPITAL=*/30 9-16 * * *
 CRON_FUND_SYNC_STOCK_HOLDINGS=30 17 * * *
 CRON_FUND_RUN_STRATEGIES=0 6 * * *
 CRON_FUND_PROCESS_TRANSACTIONS=30 2 * * *
@@ -169,7 +169,8 @@ CRON_FUND_RUN_DCA_PLANS=45 2 * * *
 CRON_AI_AUTO_TRADE=30 14 * * 1-5
 ```
 
-> - `CRON_FUND_SYNC_SELF_ESTIMATE`: 盘中自算估值任务（重仓股行情加权 + 黄金基金按国内金价 Au99.99），任务内部会用交易时段判断收敛到 9:30-15:00，依赖 Python 服务的 `/stocks/realtime`（腾讯行情）与 `/gold/realtime`（新浪贵金属行情）接口，均有进程内 60s 缓存。
+> - `CRON_FUND_SYNC_ESTIMATE`: 盘中估值同步任务（自算：重仓股行情加权 + 黄金基金按国内金价 Au99.99 + 场内/LOF 按场内实时价），任务内部会用行情刷新时段判断收敛到 9:30-16:30，依赖 Python 服务的 `/stocks/realtime`（腾讯行情）与 `/gold/realtime`（新浪贵金属行情）接口，均有进程内 60s 缓存。
+> - `CRON_SECTOR_SYNC_CAPITAL`: 板块主力资金快照任务（盘中每半小时抓取落库）。
 > - `CRON_FUND_SYNC_STOCK_HOLDINGS`: 每日收盘后同步基金重仓股持仓明细（季报口径，来源 `/fund/realtime/{code}` 的 holdings 字段）；新基金添加时也会即时同步，任务失败不影响添加。
 
 ### 安装与运行
@@ -273,9 +274,12 @@ pnpm coverage
 ### 定时任务 (Nitro Tasks)
 
 - `fund:syncHistory` - 历史净值同步 (默认: `0 2 * * *`)
-- `fund:syncEstimate` - 实时估值同步 (默认: `* 8-23 * * *`)
+- `fund:syncEstimate` - 盘中估值同步（自算：重仓股加权/金价/场内价） (默认: `*/5 9-16 * * *`)
+- `fund:syncStockHoldings` - 重仓股持仓明细同步 (默认: `30 17 * * *`)
 - `fund:runStrategies` - 策略分析执行 (默认: `0 6 * * *`)
-- `fund:processTransactions` - 交易处理 (默认: `0 9 * * *`)
+- `fund:processTransactions` - 交易处理 (默认: `30 2 * * *`)
+- `fund:runDcaPlans` - 定投执行 (默认: `45 2 * * *`)
+- `sector:syncCapital` - 板块主力资金快照 (默认: `*/30 9-16 * * *`)
 - `ai:runAutoTrade` - AI 自动交易 (默认: `30 14 * * 1-5`)
 
 ### 数据库

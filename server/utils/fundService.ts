@@ -3,10 +3,11 @@
 import BigNumber from 'bignumber.js'
 import { addDays, format, parseISO } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
-import { fundFees, funds, holdings, navHistory } from '~~/server/database/schemas'
-import { fetchFundHistory, fetchFundLofPrice, fetchFundRealtimeEstimate } from '~~/server/utils/dataFetcher'
+import { fundFees, funds, navHistory } from '~~/server/database/schemas'
+import { fetchFundHistory } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
+import { syncSingleFundSelfEstimate } from '~~/server/utils/selfEstimateService'
 import { syncFundStockHoldings } from '~~/server/utils/stockHoldingService'
 
 /** Python 接口 /fund/info/{code} 的返回结构 */
@@ -32,8 +33,7 @@ interface FundInfoResponse {
  *
  * 新基金时通过 Python 接口(NUXT_STRATEGY_API_URL/fund/info/{code})一次性获取
  * 基本信息 + 历史净值 + 费率,不再直连天天基金/东方财富。
- * 实时估值刷新(syncSingleFundEstimate)改走 Python 服务
- * (NUXT_STRATEGY_API_URL/fund/realtime/{code},底层东财盘中估值表,60s 缓存)。
+ * 估值统一由自算估值服务提供(重仓股行情加权/金价/场内价格,见 selfEstimateService)。
  */
 export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lof') {
   const db = useDb()
@@ -48,7 +48,7 @@ export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lo
       throw new Error(`无法获取基金 ${code} 的初始信息。`)
 
     const yesterdayNavBN = new BigNumber(data.yesterdayNav)
-    // 新建时暂无实时估值(盘中由 syncSingleFundEstimate 填充)
+    // 新建时暂无盘中估值(盘中由自算估值任务填充)
     const newFundData = {
       code,
       name: data.name,
@@ -75,14 +75,14 @@ export async function findOrCreateFund(code: string, fundType: 'open' | 'qdii_lo
     // 重新查询,确保返回含最新 yesterdayNav 的完整记录
     fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
 
-    // 新基金立即获取一次实时估值(填充 todayEstimateNav/percentageChange 等),
+    // 新基金立即自算一次估值(填充 todayEstimateNav/percentageChange 等),
     // 避免添加后这三个字段为 null 直到下次定时任务才更新。
     try {
-      await syncSingleFundEstimate(code)
+      await syncSingleFundSelfEstimate(code)
       fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
     }
     catch (e) {
-      console.error(`[AutoSync] 新基金 ${code} 首次实时估值获取失败:`, e)
+      console.error(`[AutoSync] 新基金 ${code} 首次估值获取失败:`, e)
     }
 
     // 新基金立即同步一次重仓股持仓明细(季报口径,供自算估值),
@@ -124,119 +124,6 @@ export async function setFundOperationStrategy(code: string, operationStrategy: 
     throw new FundNotFoundError(code)
 
   return updated
-}
-
-/**
- * 同步单个基金的最新估值
- * @param code 基金代码
- * @param options 可选配置
- * @param options.preserveEstimateUpdateTime 保留 todayEstimateUpdateTime 不写入。
- *   该字段表示"当日盘中估值"的更新时间(供 isEstimateFresh 等新鲜度判断),
- *   交易确认等场景刷新估值时应开启,避免开盘前的刷新被误判为当日估值已更新。
- */
-export async function syncSingleFundEstimate(code: string, options?: { preserveEstimateUpdateTime?: boolean }) {
-  const db = useDb()
-  // 先查询基金类型
-  const fundInfo = await db.query.funds.findFirst({
-    where: eq(funds.code, code),
-  })
-
-  if (!fundInfo) {
-    console.warn(`同步估值失败：未在数据库中找到基金 ${code}。`)
-    return
-  }
-
-  // 根据类型调用不同接口
-  const realtimeData = fundInfo.fundType === 'qdii_lof'
-    ? await fetchFundLofPrice(code)
-    : await fetchFundRealtimeEstimate(code)
-
-  // 检查是否成功获取到实时数据
-  if (realtimeData) {
-    const yesterdayNavBN = new BigNumber(fundInfo.yesterdayNav)
-    const percentageChangeBN = new BigNumber(realtimeData.percentageChange)
-    let estimateNavBN: BigNumber | null = null
-
-    // 如果昨日净值有效，则根据 API 返回的涨跌幅计算估算净值
-    if (yesterdayNavBN.isGreaterThan(0)) {
-      // 估值 = 昨日净值 * (1 + 涨跌幅 / 100)
-      const multiplier = new BigNumber(1).plus(percentageChangeBN.dividedBy(100))
-      estimateNavBN = yesterdayNavBN.times(multiplier)
-    }
-
-    const updates: Partial<typeof funds.$inferInsert> = {
-      percentageChange: percentageChangeBN.toNumber(),
-      todayEstimateNav: estimateNavBN ? estimateNavBN.toNumber() : null,
-    }
-    if (!options?.preserveEstimateUpdateTime)
-      updates.todayEstimateUpdateTime = new Date(realtimeData.updateTime)
-
-    await db.update(funds).set(updates).where(eq(funds.code, code))
-  }
-}
-
-/**
- * 内部辅助：批量同步指定列表的基金
- */
-async function syncFundsList(fundsList: typeof funds.$inferSelect[]) {
-  if (fundsList.length === 0)
-    return { total: 0, success: 0, failed: 0 }
-
-  let successCount = 0
-  let failedCount = 0
-
-  // 辅助延时函数
-  const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
-
-  for (const [index, fund] of fundsList.entries()) {
-    try {
-      await syncSingleFundEstimate(fund.code)
-      successCount++
-    }
-    catch (e) {
-      failedCount++
-      console.error(`同步基金 ${fund.code} 估值失败:`, e)
-    }
-
-    // 如果不是最后一个，则暂停 2000ms ~ 3000ms，大幅降低服务端频率
-    if (index < fundsList.length - 1) {
-      await sleep(2000 + Math.random() * 1000)
-    }
-  }
-
-  return { total: fundsList.length, success: successCount, failed: failedCount }
-}
-
-/**
- * 同步所有基金的最新估值 (全量)
- */
-export async function syncAllFundsEstimates() {
-  const db = useDb()
-  const allFunds = await db.query.funds.findMany()
-  return await syncFundsList(allFunds)
-}
-
-/**
- * 同步指定用户的基金最新估值 (用户级)
- */
-export async function syncUserFundsEstimates(userId: number) {
-  const db = useDb()
-  const userHoldings = await db.query.holdings.findMany({
-    where: eq(holdings.userId, userId),
-    with: {
-      fund: true,
-    },
-  })
-
-  // 提取基金列表并去重
-  const uniqueFundsMap = new Map<string, typeof funds.$inferSelect>()
-  userHoldings.forEach((h) => {
-    if (h.fund)
-      uniqueFundsMap.set(h.fund.code, h.fund)
-  })
-
-  const fundsList = [...uniqueFundsMap.values()]
-  return await syncFundsList(fundsList)
 }
 
 /**

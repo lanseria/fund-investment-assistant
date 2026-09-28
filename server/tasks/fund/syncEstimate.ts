@@ -1,11 +1,12 @@
 // server/tasks/fund/syncEstimate.ts
 import { format } from 'date-fns'
-import { isTradingDay } from '~~/shared/market'
+import { syncAllFundsSelfEstimates } from '~~/server/utils/selfEstimateService'
+import { isQuoteRefreshHours, isTradingDay } from '~~/shared/market'
 
 export default defineTask({
   meta: {
     name: 'fund:syncEstimate',
-    description: '盘中定时同步所有基金的实时估值 (更新公共 funds 表)',
+    description: '盘中同步所有基金估值 (重仓股行情加权 + 黄金基金按金价 Au9999 + 场内/LOF 按场内价,写 funds 表主估值字段)',
   },
   async run() {
     // --- 交易日检查 ---
@@ -15,8 +16,12 @@ export default defineTask({
       return { result: 'Skipped', reason: check.reason }
     }
 
-    // 调用我们封装好的批量处理函数
-    const result = await syncAllFundsEstimates()
+    // --- 行情刷新时段检查 (cron 覆盖 9-16 点;A 股收盘后港股仍在交易,统一放宽到 16:30) ---
+    if (!isQuoteRefreshHours()) {
+      return { result: 'Skipped', reason: '非行情刷新时段' }
+    }
+
+    const result = await syncAllFundsSelfEstimates()
     // 任务完成后，通过 mitt 发出事件通知
     if (result.success > 0) {
       try {
@@ -27,6 +32,8 @@ export default defineTask({
       }
     }
 
-    return { result: `Success (total: ${result.total}, success: ${result.success}, failed: ${result.failed})` }
+    return {
+      result: `Success (total: ${result.total}, success: ${result.success}, failed: ${result.failed}, skipped: ${result.skipped}, stocks: ${result.stockCount}, gold: ${result.goldCount}, lof: ${result.lofCount})`,
+    }
   },
 })

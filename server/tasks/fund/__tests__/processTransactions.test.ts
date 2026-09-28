@@ -25,11 +25,11 @@ const { capturedTaskRef, syncEstimateMock } = vi.hoisted(() => {
   ;(globalThis as any).addHolding = async () => undefined
   // 任务新调用的 fundService 自动导入函数同样注入桩:
   //   - findOrCreateFund:新持仓时在事务外确保基金元数据存在
-  //   - syncSingleFundEstimate:确认后刷新估值(尽力而为,失败不影响确认),
+  //   - syncSingleFundSelfEstimate:确认后刷新估值(尽力而为,失败不影响确认),
   //     用 vi.fn 以便断言调用参数(须保留 todayEstimateUpdateTime)
   ;(globalThis as any).findOrCreateFund = async () => undefined
-  const syncEstimateMock = vi.fn(async () => undefined)
-  ;(globalThis as any).syncSingleFundEstimate = syncEstimateMock
+  const syncEstimateMock = vi.fn(async () => true)
+  ;(globalThis as any).syncSingleFundSelfEstimate = syncEstimateMock
   return { capturedTaskRef: ref, syncEstimateMock }
 })
 

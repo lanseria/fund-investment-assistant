@@ -164,11 +164,10 @@ export function isTradingHours(date?: Date | string): boolean {
 }
 
 /**
- * 检查当前时间是否在行情刷新时段内 (自算估值专用)。
+ * 检查当前时间是否在行情刷新时段内 (盘中估值同步专用)。
  *
  * A 股 15:00 收盘后,港股交易到 16:00(与 A 股重仓共同加权的港股通基金仍需刷新),
  * 且收盘价/官方净值在 15:00-16:30 间陆续落地,故放宽到 16:30 以捕捉收盘后定档。
- * 与官方估算同步 (fund:syncEstimate) 的 10:00-16:30 窗口对齐。
  */
 export function isQuoteRefreshHours(date?: Date | string): boolean {
   const targetTime = toDate(date)

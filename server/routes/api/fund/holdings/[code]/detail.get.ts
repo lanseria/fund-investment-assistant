@@ -79,10 +79,6 @@ export default defineEventHandler(async (event) => {
     todayEstimateNav: fundInfo.todayEstimateNav ? Number(fundInfo.todayEstimateNav) : null,
     percentageChange: fundInfo.percentageChange ? Number(fundInfo.percentageChange) : null,
     todayEstimateUpdateTime: fundInfo.todayEstimateUpdateTime,
-    // 自算估值(重仓股行情加权,与官方估算并存)
-    selfEstimateNav: fundInfo.selfEstimateNav ?? null,
-    selfPercentageChange: fundInfo.selfPercentageChange ?? null,
-    selfEstimateUpdateTime: fundInfo.selfEstimateUpdateTime,
     stockHoldings: stockHoldingsSummary,
     shares: holdingInfo?.shares ? Number(holdingInfo.shares) : null,
     costPrice: holdingInfo?.costPrice ? Number(holdingInfo.costPrice) : null,

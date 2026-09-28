@@ -320,7 +320,7 @@ export const useHoldingStore = defineStore('holding', () => {
     }
   }
 
-  // 注:盘中实时估值统一由服务端 cron 任务 `fund:syncEstimate`(每分钟)刷新
+  // 注:盘中估值统一由服务端 cron 任务 `fund:syncEstimate`(每5分钟)自算刷新
   // 并通过 SSE 推送,客户端不再发起轮询。
 
   return {

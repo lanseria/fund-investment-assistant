@@ -22,6 +22,7 @@ export interface IntradayPoint {
  * 行为变化(2026-07):数据源改为 powercloud 聚合接口后,新增 quoteSource/message 状态标识
  * 与 intraday 分时数据,publishedNav 恢复官方净值填充。
  * 行为变化(2026-08):新增 holdingsDate/holdings 重仓股持仓明细(报告期持仓 + 最新行情快照)。
+ * 当前仅使用 holdings 字段(重仓股同步,供盘中估值自算)。
  */
 export interface StrategyRealtimeResponse {
   code: string
@@ -116,54 +117,11 @@ export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeD
 }
 
 /**
- * 获取开放式基金的盘中实时估值。
+ * 获取开放式基金的盘中实时估值(原始完整响应)。
  *
- * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/fund/realtime/{code}`，
- * 底层调用东方财富盘中估值表，进程内缓存 60s)。
- *
- * 注意:旧的天天基金 JSONP 接口 `fundgz.1234567.com.cn/js/{code}.js` 已废弃失效。
- * 注意:QDII/货币型/部分小众基金不在东财盘中估值列表,接口会返回 404,这里优雅降级为 null。
- */
-export async function fetchFundRealtimeEstimate(fundCode: string): Promise<FundRealtimeData | null> {
-  const config = useRuntimeConfig()
-  const url = `${config.strategyApiUrl}/fund/realtime/${fundCode}`
-
-  try {
-    const data = await $fetch<StrategyRealtimeResponse>(url)
-
-    // 涨跌幅优先取已公布的官方值(收盘后),否则取估算值
-    const growthRate = data.publishedGrowthRate ?? data.estimateGrowthRate
-    // 净值优先取已公布的官方值(收盘后),否则取估算值
-    const nav = data.publishedNav ?? data.estimateNav
-
-    // 估值日期仅到日级,无分钟级时间戳;用服务端当前时刻以保留"X 分钟前更新"语义
-    return {
-      name: data.name,
-      code: data.code,
-      yesterdayNav: data.yesterdayNav ?? '',
-      estimateNav: nav ?? '',
-      percentageChange: growthRate != null ? String(growthRate) : '',
-      updateTime: new Date().toISOString(),
-    }
-  }
-  catch (error: any) {
-    // 404 = 该基金不在盘中估值列表(QDII/货币型等),属于预期情况,降级为 warn
-    const status = error?.response?.status || error?.statusCode
-    if (status === 404)
-      console.warn(`[RealtimeEstimate] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
-    else
-      console.error(`[RealtimeEstimate] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
-    return null
-  }
-}
-
-/**
- * 获取开放式基金的盘中实时估值(原始完整响应,供展示用)。
- *
- * 与 fetchFundRealtimeEstimate 的区别:
- * - 本函数原样返回 powercloud 完整响应,包含 intraday 分时数据、quoteSource/message 状态标识
- * - 不做字段裁剪与降级映射,适合「盘中估值展示页」直接消费
- * - 仅用于展示,不落库;定时同步任务仍用 fetchFundRealtimeEstimate
+ * 本函数原样返回 powercloud 完整响应,包含 intraday 分时数据、quoteSource/message
+ * 状态标识与 holdings 重仓股持仓明细。不落库,当前用于:
+ * - 同步基金季报重仓股持仓明细(stockHoldingService,自算估值的数据来源)
  *
  * 错误会向上抛出(状态码透传),由调用方(API 路由)处理:
  * - 400: 代码格式错误(非 6 位数字)——由 API 路由层先行校验,本函数假定代码已合规

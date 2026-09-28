@@ -281,6 +281,13 @@
       "when": 1790220278114,
       "tag": "0039_special_franklin_storm",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1790583999033,
+      "tag": "0040_past_stature",
+      "breakpoints": true
     }
   ]
 }

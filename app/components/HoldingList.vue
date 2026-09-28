@@ -102,7 +102,6 @@ function handleHideTooltip() {
 <template>
   <div class="card overflow-hidden">
     <div class="overflow-x-auto">
-      <!-- min-w 保证新增自算列后有最低舒展宽度,窄屏横向滚动 -->
       <table class="text-left w-full table-fixed">
         <thead class="border-b bg-gray-50 dark:border-gray-700 dark:bg-gray-700/50">
           <tr>
@@ -131,10 +130,6 @@ function handleHideTooltip() {
                 <div v-if="sortOrder === 'asc'" i-carbon-arrow-up />
                 <div v-else i-carbon-arrow-down />
               </span>
-            </th>
-
-            <th class="text-sm text-gray-600 font-semibold p-4 text-right w-24 dark:text-gray-300" title="重仓股行情加权自算;黄金基金按国内金价 Au99.99 估算。与官方估算对照观察中,暂不参与任何计算">
-              自算估算
             </th>
 
             <th class="text-sm text-gray-600 font-semibold p-4 text-right w-28 dark:text-gray-300">

@@ -9,7 +9,7 @@ const SYNC_DELAY = 1500
 export default defineTask({
   meta: {
     name: 'fund:syncStockHoldings',
-    description: '同步所有基金的重仓股持仓明细到 fund_stock_holdings 表 (季报口径,供自算估值)',
+    description: '同步所有基金的重仓股持仓明细到 fund_stock_holdings 表 (季报口径,供盘中估值自算)',
   },
   async run() {
     const db = useDb()
@@ -38,15 +38,15 @@ export default defineTask({
         await new Promise(resolve => setTimeout(resolve, SYNC_DELAY))
     }
 
-    // 持仓数据更新后触发一次自算估值,让新报告期数据尽快生效
+    // 持仓数据更新后触发一次估值同步,让新报告期数据尽快生效
     if (success > 0) {
       try {
         const { syncAllFundsSelfEstimates } = await import('~~/server/utils/selfEstimateService')
         const r = await syncAllFundsSelfEstimates()
-        console.warn(`[syncStockHoldings] 持仓更新后自算估值: success=${r.success}, failed=${r.failed}, stocks=${r.stockCount}`)
+        console.warn(`[syncStockHoldings] 持仓更新后估值同步: success=${r.success}, failed=${r.failed}, stocks=${r.stockCount}`)
       }
       catch (e) {
-        console.error('[syncStockHoldings] 持仓更新后自算估值失败:', e)
+        console.error('[syncStockHoldings] 持仓更新后估值同步失败:', e)
       }
     }
 

@@ -2,7 +2,8 @@ import { and, eq } from 'drizzle-orm'
 import { funds, holdings } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { HoldingExistsError, HoldingNotFoundError } from '~~/server/utils/errors'
-import { findOrCreateFund, syncSingleFundEstimate } from '~~/server/utils/fundService'
+import { findOrCreateFund } from '~~/server/utils/fundService'
+import { syncSingleFundSelfEstimate } from '~~/server/utils/selfEstimateService'
 
 interface HoldingCreateData {
   code: string
@@ -30,7 +31,6 @@ export async function addHolding(data: HoldingCreateData) {
 
   // 调用 fundService 获取/创建基金信息(新基金时一并写入历史净值与费率,无需再单独同步)
   await findOrCreateFund(data.code, data.fundType)
-
   const newHoldingData = {
     userId: data.userId,
     fundCode: data.code,
@@ -66,7 +66,7 @@ export async function updateHolding(userId: number, code: string, data: { shares
     throw new HoldingNotFoundError(code)
 
   // 更新后刷新一下估值
-  await syncSingleFundEstimate(code)
+  await syncSingleFundSelfEstimate(code)
 
   return updatedHolding
 }
@@ -98,7 +98,7 @@ export async function clearHoldingPosition(userId: number, code: string) {
   if (!clearedHolding)
     throw new HoldingNotFoundError(code)
 
-  await syncSingleFundEstimate(code)
+  await syncSingleFundSelfEstimate(code)
 
   return clearedHolding
 }

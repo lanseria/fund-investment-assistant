@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import type { Holding } from '~/types/holding'
 import { format } from 'date-fns'
-import { isGoldPriceFund } from '~~/shared/fund'
 import { SECTOR_DICT_TYPE } from '~/constants'
 import { formatCurrency } from '~/utils/format'
 
@@ -16,19 +15,6 @@ const props = defineProps<{
 }>()
 
 const dictStore = useDictStore()
-
-/** 自算估算卡的副文案:展示自算净值与重仓覆盖率(黄金基金标注金价来源) */
-const selfEstimateHint = computed(() => {
-  const d = props.detail
-  const isGold = !!d?.name && isGoldPriceFund(d.name)
-  if (d?.selfPercentageChange == null)
-    return d?.stockHoldings ? '重仓加权 · 待盘中更新' : (isGold ? '金价 Au99.99 · 待盘中更新' : '无重仓持仓数据')
-  const nav = d.selfEstimateNav != null ? Number(d.selfEstimateNav).toFixed(4) : '-'
-  // 黄金基金无重仓持仓,自算按国内金价
-  if (!d.stockHoldings)
-    return `净值 ${nav} · ${isGold ? '金价 Au99.99' : '无重仓持仓'}`
-  return `净值 ${nav} · 覆盖率 ${d.stockHoldings.coverage}%`
-})
 </script>
 
 <template>
@@ -50,24 +36,17 @@ const selfEstimateHint = computed(() => {
 
     <!-- 核心行情指标 -->
     <div class="p-5 border-t border-gray-100 dark:border-gray-700/60">
-      <div class="gap-4 grid grid-cols-2 md:grid-cols-5">
+      <div class="gap-4 grid grid-cols-2 md:grid-cols-4">
         <StatCard
           label="最新净值"
           :value="props.detail.todayEstimateNav || props.detail.yesterdayNav || '-'"
           value-class="!text-xl"
         />
         <StatCard
-          label="官方估算"
+          label="今日估算"
           :value="props.detail.percentageChange !== null ? props.detail.percentageChange : null"
           :colored="true"
-          hint="数据源盘中估算"
-          value-class="!text-xl"
-        />
-        <StatCard
-          label="自算估算"
-          :value="props.detail.selfPercentageChange !== null && props.detail.selfPercentageChange !== undefined ? props.detail.selfPercentageChange : null"
-          :colored="true"
-          :hint="selfEstimateHint"
+          hint="重仓股行情加权自算;黄金基金按金价,场内基金按场内价"
           value-class="!text-xl"
         />
         <StatCard

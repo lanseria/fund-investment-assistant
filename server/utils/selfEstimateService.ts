@@ -4,24 +4,24 @@ import type { GoldRealtimeQuote, StockRealtimeQuote } from '~~/server/utils/data
 import type { FundStockHoldingRow } from '~~/server/utils/stockHoldingService'
 import BigNumber from 'bignumber.js'
 import { eq } from 'drizzle-orm'
-import { funds } from '~~/server/database/schemas'
-import { fetchGoldRealtime, fetchStocksRealtime } from '~~/server/utils/dataFetcher'
+import { funds, holdings } from '~~/server/database/schemas'
+import { fetchFundLofPrice, fetchGoldRealtime, fetchStocksRealtime } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { getAllFundStockHoldings } from '~~/server/utils/stockHoldingService'
 import { isGoldPriceFund } from '~~/shared/fund'
 
-/** 单只基金的自算估值结果 */
+/** 单只基金的估值计算结果 */
 export interface SelfEstimateResult {
   /** 加权归一化涨跌幅 (%) */
   changePct: number
-  /** 自算净值 = 昨净 × (1 + 涨跌幅/100),4 位小数 */
+  /** 估算净值 = 昨净 × (1 + 涨跌幅/100),4 位小数 */
   nav: number
   /** 前十大重仓合计占净值比例 (%),即持仓对净值的覆盖率 */
   coverage: number
 }
 
 /**
- * 纯函数:按重仓股占比加权计算基金自算估值。
+ * 纯函数:按重仓股占比加权计算基金盘中估值。
  *
  * 公式:涨跌幅 = Σ(占比ᵢ × 涨跌幅ᵢ) / Σ占比ᵢ,仅统计有行情的股票
  * (缺行情/停牌的剔除权重后归一化,假设未覆盖部分与已覆盖部分同步波动)。
@@ -105,6 +105,25 @@ export function calcGoldEstimate(
 }
 
 /**
+ * 将估算结果写入 funds 表的主估值字段
+ * (percentageChange / todayEstimateNav / todayEstimateUpdateTime)。
+ */
+async function applyEstimate(
+  fundCode: string,
+  result: SelfEstimateResult,
+  options?: { preserveEstimateUpdateTime?: boolean, updateTime?: Date },
+) {
+  const db = useDb()
+  const updates: Partial<typeof funds.$inferInsert> = {
+    percentageChange: result.changePct,
+    todayEstimateNav: result.nav,
+  }
+  if (!options?.preserveEstimateUpdateTime)
+    updates.todayEstimateUpdateTime = options?.updateTime ?? new Date()
+  await db.update(funds).set(updates).where(eq(funds.code, fundCode))
+}
+
+/**
  * 分批拉取全部股票行情并汇总为 Map。
  * 任一批失败(接口不可用/服务宕机)返回 null,调用方整体跳过本轮。
  */
@@ -123,11 +142,11 @@ async function fetchStockQuotesMap(codes: string[]): Promise<Map<string, StockRe
   return map
 }
 
-/** 自算估值任务的同步结果统计 */
+/** 估值同步任务的统计结果 */
 export interface SelfEstimateSyncResult {
   /** 有重仓持仓、参与重仓股自算的基金数 */
   total: number
-  /** 成功写入自算估值的基金数 */
+  /** 成功写入估值的基金数 */
   success: number
   /** 行情可用但计算不成立(如全部重仓无行情)的基金数 */
   failed: number
@@ -137,12 +156,14 @@ export interface SelfEstimateSyncResult {
   stockCount: number
   /** 参与金价自算的黄金类基金数 */
   goldCount: number
+  /** 参与场内价格自算的场内/LOF 基金数 */
+  lofCount: number
 }
 
 /**
- * 盘中同步所有基金的自算估值。
+ * 盘中同步所有基金的估值(写主估值字段,全站唯一估值来源)。
  *
- * 分两类标的:
+ * 分三类标的:
  * - 重仓股加权(fundType='open' 且有季报重仓持仓):A 股(6 位代码)与港股
  *   (5 位代码,如 00700)按占比加权,港股通/恒生科技类基金自 2026-09 起参与
  *   自算;美股等仍不支持,缺行情时按缺失权重剔除。场内/LOF (qdii_lof) 走场内
@@ -150,6 +171,8 @@ export interface SelfEstimateSyncResult {
  * - 金价自算(fundType='open' 且无重仓持仓、名称含「黄金/上海金」):黄金 ETF
  *   联接等被动跟踪国内金价的基金自 2026-09 起参与自算,按 SGE Au99.99 涨跌幅
  *   套用昨净;SGE 日市(9:00-15:30)与 A 股重叠,现有 cron 窗口无需调整。
+ * - 场内价格(fundType='qdii_lof'):按场内实时价涨跌幅套用昨净(原官方同步
+ *   对该类基金即走场内价格,口径不变)。
  *
  * 全市场重仓股代码去重后分批取行情,多基金重叠持仓只请求一次;金价全市场共用
  * 一个 Au9999 报价。
@@ -165,9 +188,10 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
   const goldTargets = allFunds.filter(
     f => f.fundType === 'open' && (holdingsByFund[f.code]?.length ?? 0) === 0 && isGoldPriceFund(f.name),
   )
-  const total = stockTargets.length + goldTargets.length
+  const lofTargets = allFunds.filter(f => f.fundType === 'qdii_lof')
+  const total = stockTargets.length + goldTargets.length + lofTargets.length
   if (total === 0)
-    return { total: 0, success: 0, failed: 0, skipped: 0, stockCount: 0, goldCount: 0 }
+    return { total: 0, success: 0, failed: 0, skipped: 0, stockCount: 0, goldCount: 0, lofCount: 0 }
 
   let success = 0
   let failed = 0
@@ -195,11 +219,7 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
         continue
       }
       try {
-        await db.update(funds).set({
-          selfEstimateNav: result.nav,
-          selfPercentageChange: result.changePct,
-          selfEstimateUpdateTime: new Date(),
-        }).where(eq(funds.code, fund.code))
+        await applyEstimate(fund.code, result)
         success++
       }
       catch (e) {
@@ -224,11 +244,7 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
         continue
       }
       try {
-        await db.update(funds).set({
-          selfEstimateNav: result.nav,
-          selfPercentageChange: result.changePct,
-          selfEstimateUpdateTime: new Date(),
-        }).where(eq(funds.code, fund.code))
+        await applyEstimate(fund.code, result)
         success++
       }
       catch (e) {
@@ -238,5 +254,143 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
     }
   }
 
-  return { total, success, failed, skipped, stockCount: allStockCodes.length, goldCount: goldTargets.length }
+  // --- 场内价格自算(QDII/LOF,腾讯实时价,串行 + 间隔防限流) ---
+  for (const [index, fund] of lofTargets.entries()) {
+    const lof = await fetchFundLofPrice(fund.code)
+    const pct = lof ? Number.parseFloat(lof.percentageChange) : Number.NaN
+    const navBase = new BigNumber(fund.yesterdayNav)
+    if (!lof || !Number.isFinite(pct) || !navBase.isGreaterThan(0)) {
+      failed++
+      continue
+    }
+    const nav = navBase.times(new BigNumber(1).plus(new BigNumber(pct).dividedBy(100)))
+    try {
+      await applyEstimate(fund.code, {
+        changePct: Number(new BigNumber(pct).toFixed(4)),
+        nav: Number(nav.toFixed(4)),
+        coverage: 100,
+      }, { updateTime: new Date(lof.updateTime) })
+      success++
+    }
+    catch (e) {
+      console.error(`[SelfEstimate] 基金 ${fund.code} 场内价格自算写库失败:`, e)
+      failed++
+    }
+    if (index < lofTargets.length - 1)
+      await new Promise(resolve => setTimeout(resolve, QUOTE_CHUNK_DELAY))
+  }
+
+  return { total, success, failed, skipped, stockCount: allStockCodes.length, goldCount: goldTargets.length, lofCount: lofTargets.length }
+}
+
+/**
+ * 同步单只基金的估值(自算,写主估值字段)。
+ *
+ * 按基金类型选择口径:
+ * - qdii_lof: 场内实时价涨跌幅(腾讯行情)
+ * - open + 有重仓持仓: 重仓股行情加权
+ * - open + 无重仓 + 黄金类: 金价 Au9999 涨跌幅
+ * - 其余(无重仓非黄金的场外基金,如 QDII 场外/纯债): 无法自算,返回 false
+ *
+ * @param code 基金代码
+ * @param options 可选配置
+ * @param options.preserveEstimateUpdateTime 保留 todayEstimateUpdateTime 不写入。
+ *   该字段表示"当日盘中估值"的更新时间(供 isEstimateFresh 等新鲜度判断),
+ *   交易确认等场景刷新估值时应开启,避免开盘前的刷新被误判为当日估值已更新。
+ * @returns 是否成功写入估值(基金不存在/口径缺失/行情不可用均为 false)
+ */
+export async function syncSingleFundSelfEstimate(
+  code: string,
+  options?: { preserveEstimateUpdateTime?: boolean },
+): Promise<boolean> {
+  const db = useDb()
+  const fund = await db.query.funds.findFirst({ where: eq(funds.code, code) })
+  if (!fund) {
+    console.warn(`同步估值失败：未在数据库中找到基金 ${code}。`)
+    return false
+  }
+
+  // 场内/LOF:场内实时价涨跌幅
+  if (fund.fundType === 'qdii_lof') {
+    const lof = await fetchFundLofPrice(code)
+    const pct = lof ? Number.parseFloat(lof.percentageChange) : Number.NaN
+    const navBase = new BigNumber(fund.yesterdayNav)
+    if (!lof || !Number.isFinite(pct) || !navBase.isGreaterThan(0))
+      return false
+    const nav = navBase.times(new BigNumber(1).plus(new BigNumber(pct).dividedBy(100)))
+    await applyEstimate(code, {
+      changePct: Number(new BigNumber(pct).toFixed(4)),
+      nav: Number(nav.toFixed(4)),
+      coverage: 100,
+    }, { preserveEstimateUpdateTime: options?.preserveEstimateUpdateTime, updateTime: new Date(lof.updateTime) })
+    return true
+  }
+
+  const stockHoldings = (await getAllFundStockHoldings())[code] ?? []
+
+  // 无重仓的黄金类基金:金价自算
+  if (stockHoldings.length === 0) {
+    if (!isGoldPriceFund(fund.name))
+      return false
+    const quotes = await fetchGoldRealtime([GOLD_PRICE_CODE])
+    const goldQuote = quotes?.find(q => q.code === GOLD_PRICE_CODE)
+    if (!goldQuote)
+      return false
+    const result = calcGoldEstimate(fund.yesterdayNav, goldQuote)
+    if (!result)
+      return false
+    await applyEstimate(code, result, options)
+    return true
+  }
+
+  // 重仓股行情加权
+  const quotes = await fetchStocksRealtime(stockHoldings.map(h => h.stockCode))
+  if (quotes === null)
+    return false
+  const result = calcSelfEstimate(
+    fund.yesterdayNav,
+    stockHoldings,
+    Object.fromEntries(quotes.map(q => [q.code, q])),
+  )
+  if (!result)
+    return false
+  await applyEstimate(code, result, options)
+  return true
+}
+
+/**
+ * 同步指定用户的基金估值 (用户级,供手动刷新)。
+ */
+export async function syncUserFundsSelfEstimates(userId: number): Promise<{ total: number, success: number, failed: number }> {
+  const db = useDb()
+  const userHoldings = await db.query.holdings.findMany({
+    where: eq(holdings.userId, userId),
+    with: {
+      fund: true,
+    },
+  })
+
+  // 提取基金列表并去重
+  const uniqueFundsMap = new Map<string, typeof funds.$inferSelect>()
+  userHoldings.forEach((h) => {
+    if (h.fund)
+      uniqueFundsMap.set(h.fund.code, h.fund)
+  })
+
+  let success = 0
+  let failed = 0
+  for (const fund of uniqueFundsMap.values()) {
+    try {
+      const ok = await syncSingleFundSelfEstimate(fund.code)
+      if (ok)
+        success++
+      else
+        failed++
+    }
+    catch (e) {
+      failed++
+      console.error(`同步基金 ${fund.code} 估值失败:`, e)
+    }
+  }
+  return { total: uniqueFundsMap.size, success, failed }
 }

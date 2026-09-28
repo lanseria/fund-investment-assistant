@@ -242,7 +242,7 @@ export default defineTask({
         // preserveEstimateUpdateTime:todayEstimateUpdateTime 只表示"当日盘中估值"的更新时间,
         // 本任务凌晨执行时写入会让 isEstimateFresh 等判断误以为当日估值已更新,故保留原值
         try {
-          await syncSingleFundEstimate(tx.fundCode, { preserveEstimateUpdateTime: true })
+          await syncSingleFundSelfEstimate(tx.fundCode, { preserveEstimateUpdateTime: true })
         }
         catch (e) {
           console.warn(`[TxID ${tx.id}] 刷新 ${tx.fundCode} 估值失败(不影响交易确认):`, e)

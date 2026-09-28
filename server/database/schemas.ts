@@ -58,7 +58,7 @@ export const funds = fundSchema.table('funds', {
   fundType: fundTypeEnum('fund_type').notNull().default('open'),
   /** 昨日单位净值 */
   yesterdayNav: numeric('yesterday_nav', { precision: 10, scale: 4 }).notNull(),
-  /** 今日估算净值 */
+  /** 今日估算净值 (盘中由自算估值任务写入: 重仓股行情加权/金价/场内价格) */
   todayEstimateNav: real('today_estimate_nav'),
   /** 今日估算涨跌幅 (%) */
   percentageChange: real('percentage_change'),
@@ -66,12 +66,6 @@ export const funds = fundSchema.table('funds', {
   todayEstimateUpdateTime: timestamp('today_estimate_update_time', { withTimezone: true }),
   /** 全局操作策略 (自由文本，所有用户共享，作为每次 AI 分析的参考) */
   operationStrategy: text('operation_strategy'),
-  /** 自算估算净值 (按重仓股行情加权计算，与官方估算 todayEstimateNav 并存) */
-  selfEstimateNav: real('self_estimate_nav'),
-  /** 自算估算涨跌幅 (%) */
-  selfPercentageChange: real('self_percentage_change'),
-  /** 自算估值更新时间 */
-  selfEstimateUpdateTime: timestamp('self_estimate_update_time', { withTimezone: true }),
 })
 
 /**

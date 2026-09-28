@@ -418,23 +418,7 @@ function hideProfitDetail() {
       </div>
     </td>
 
-    <!-- 5. 自算估算 (重仓股行情加权;黄金基金按金价,仅展示对照,不参与任何计算) -->
-    <td class="font-mono p-4 text-right" :class="getChangeColorClass(holding.selfPercentageChange)">
-      <div class="font-mono font-semibold tabular-nums" title="自算:重仓股行情加权估算(黄金基金按金价 Au99.99),与官方估算对照观察中">
-        {{ holding.selfPercentageChange !== null ? `${holding.selfPercentageChange > 0 ? '+' : ''}${holding.selfPercentageChange.toFixed(2)}%` : '-' }}
-      </div>
-      <div class="text-xs text-gray-500 font-mono tabular-nums dark:text-gray-400">
-        {{ holding.selfEstimateNav !== null ? holding.selfEstimateNav : '-' }}
-      </div>
-      <div v-if="holding.selfEstimateUpdateTime" class="text-10px font-mono opacity-60 tabular-nums">
-        {{ format(holding.selfEstimateUpdateTime, 'HH:mm') }}
-      </div>
-      <div v-else class="text-xs text-gray-400 font-mono tabular-nums">
-        -
-      </div>
-    </td>
-
-    <!-- 6. 更新时间 -->
+    <!-- 5. 更新时间 -->
     <td class="text-sm text-gray-500 font-mono p-4 text-right tabular-nums">
       <template v-if="holding.todayEstimateUpdateTime">
         <div>

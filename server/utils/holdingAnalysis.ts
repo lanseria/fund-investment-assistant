@@ -337,10 +337,6 @@ export async function getUserHoldingsAndSummary(userId: number) {
       yesterdayProfit: null as number | null,
       /** 前一交易日净值 (昨日收益的计算基准,最新净值的前一条) */
       prevNav: null as number | null,
-      // 自算估值(重仓股行情加权):仅前端展示对照,不参与今日收益/总资产等任何汇总计算
-      selfPercentageChange: fundInfo.selfPercentageChange,
-      selfEstimateNav: fundInfo.selfEstimateNav,
-      selfEstimateUpdateTime: fundInfo.selfEstimateUpdateTime?.toISOString() || null,
       // base 标签位优先展示板块主力行为；未绑定/无数据时回退到基础走势信号
       signals: sectorActionMap.has(fundInfo.code)
         ? { ...(signalsMap.get(fundInfo.code) || {}), base: sectorActionMap.get(fundInfo.code)! }

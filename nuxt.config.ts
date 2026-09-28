@@ -15,9 +15,10 @@ const disableScheduler
 
 // 从环境变量读取 Cron 表达式
 const syncHistoryCron = env.CRON_FUND_SYNC_HISTORY ?? '0 2 * * *'
-// 同步盘中估值: 10:00 - 16:30 每半小时 (10:00-16:30 每半小时)
+// 盘中估值同步(自算): 盘中每 5 分钟 (任务内部再用 isQuoteRefreshHours 收敛到 9:30-16:30;
+// A 股 15:00 收盘后港股仍在交易到 16:00,收盘价也在 15:00-16:30 间落地)
 // 支持逗号分隔多个 cron，便于 env 覆盖时灵活配置
-const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/30 10-16 * * *')
+const syncEstimateCrons = (env.CRON_FUND_SYNC_ESTIMATE ?? '*/5 9-16 * * *')
   .split(',')
   .map(c => c.trim())
   .filter(Boolean)
@@ -27,19 +28,18 @@ const processTransactionsCron = env.CRON_FUND_PROCESS_TRANSACTIONS ?? '30 2 * * 
 // 定投执行: 每天 2:45 (在 2:30 结算之后——昨日卖单回款已入账;
 // 生成的买入单 orderDate 为当天,次日 2:30 按当日净值确认)
 const runDcaPlansCron = env.CRON_FUND_RUN_DCA_PLANS ?? '45 2 * * *'
-// 自算估值: 盘中每 5 分钟 (任务内部再用 isQuoteRefreshHours 收敛到 9:30-16:30;
-// A 股 15:00 收盘后港股仍在交易到 16:00,收盘价也在 15:00-16:30 间落地)
-const syncSelfEstimateCrons = (env.CRON_FUND_SYNC_SELF_ESTIMATE ?? '*/5 9-16 * * *')
+// 重仓股持仓明细同步: 每天 17:30 收盘后 (季报口径,变化低频;新基金添加时会即时同步)
+const syncStockHoldingsCron = env.CRON_FUND_SYNC_STOCK_HOLDINGS ?? '30 17 * * *'
+// 板块主力资金快照: 盘中 9:30-16:30 每半小时 (原与估值任务共用 cron,估值转自算后独立)
+const syncSectorCapitalCrons = (env.CRON_SECTOR_SYNC_CAPITAL ?? '*/30 9-16 * * *')
   .split(',')
   .map(c => c.trim())
   .filter(Boolean)
-// 重仓股持仓明细同步: 每天 17:30 收盘后 (季报口径,变化低频;新基金添加时会即时同步)
-const syncStockHoldingsCron = env.CRON_FUND_SYNC_STOCK_HOLDINGS ?? '30 17 * * *'
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
 // 清理 AI 用户灰尘份额: 每天 10:00 (在 2:30 处理交易之后)
 const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
-// 注: 板块主力资金快照 (sector:syncCapital) 与 syncEstimate 共用同一组 cron (CRON_FUND_SYNC_ESTIMATE)，
+// 注: 板块主力资金快照 (sector:syncCapital) 使用独立的 CRON_SECTOR_SYNC_CAPITAL，
 // 盘中 9:30-16:30 每半小时抓取；原独立的 15:30 收盘任务已合并（盘中表达式已覆盖 15:30）。
 
 // 只有当调度器未禁用，且环境变量中设置了有效的 Cron 表达式时，才添加任务
@@ -57,17 +57,16 @@ if (!disableScheduler && syncHistoryCron) {
 }
 if (!disableScheduler && syncEstimateCrons.length) {
   for (const cron of syncEstimateCrons) {
-    // 盘中估值与板块主力资金快照共用同一组 cron
+    // 盘中估值同步(自算,写主估值字段)
     addTask(cron, 'fund:syncEstimate')
-    addTask(cron, 'sector:syncCapital')
   }
 }
 if (!disableScheduler && runStrategiesCron) {
   addTask(runStrategiesCron, 'fund:runStrategies')
 }
-if (!disableScheduler && syncSelfEstimateCrons.length) {
-  for (const cron of syncSelfEstimateCrons) {
-    addTask(cron, 'fund:syncSelfEstimate')
+if (!disableScheduler && syncSectorCapitalCrons.length) {
+  for (const cron of syncSectorCapitalCrons) {
+    addTask(cron, 'sector:syncCapital')
   }
 }
 if (!disableScheduler && syncStockHoldingsCron) {

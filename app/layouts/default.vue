@@ -8,7 +8,6 @@ const navItems = [
   { to: '/profit-analysis', label: '收益分析', icon: 'i-carbon-chart-line-data' },
   { to: '/fund-profits', label: '基金收益', icon: 'i-carbon-data-table' },
   { to: '/charts-overview', label: '策略视图', icon: 'i-carbon-analytics' },
-  { to: '/realtime', label: '盘中估值', icon: 'i-carbon-dashboard' },
   { to: '/daily-ops', label: '每日操作', icon: 'i-carbon-calendar' },
   { to: '/leaderboard', label: '排行榜', icon: 'i-carbon-trophy' },
   { to: '/sector-capital', label: '板块资金', icon: 'i-carbon-money' },
