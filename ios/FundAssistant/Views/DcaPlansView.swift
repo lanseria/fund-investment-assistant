@@ -117,7 +117,7 @@ struct DcaPlanRow: View {
                 }
             }
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 0)
         .opacity(plan.enabled ? 1 : 0.5)
     }
 

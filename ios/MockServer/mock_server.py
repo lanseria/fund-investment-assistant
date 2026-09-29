@@ -9,7 +9,7 @@ import json
 import math
 import random
 import threading
-from datetime import date, datetime, timedelta
+from datetime import date, datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 
@@ -27,6 +27,11 @@ def dstr(d: date) -> str:
 
 def now_str() -> str:
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+
+def iso_utc_now() -> str:
+    """估值时间：与真实后端 toISOString() 一致，返回 UTC ISO 字符串"""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")
 
 
 def gen_history(days: int, base: float, drift: float = 0.0003, vol: float = 0.012):
@@ -95,7 +100,7 @@ HOLDINGS = [
         "shares": 12800.0, "costPrice": 1.6210, "yesterdayNav": 1.8532,
         "holdingAmount": 23720.96, "holdingProfitAmount": 2968.96, "holdingProfitRate": 14.32,
         "todayEstimateNav": 1.8861, "todayEstimateAmount": 24142.08, "percentageChange": 1.78,
-        "todayEstimateUpdateTime": now_str(),
+        "todayEstimateUpdateTime": iso_utc_now(),
         "yesterdayChangeRate": 0.65, "yesterdayProfit": 152.83, "prevNav": 1.8412,
         "signals": {"base": "建仓", "rsi": "超卖反弹", "bollinger_bands": "中轨上方"},
         "bias20": 3.21,
@@ -115,7 +120,7 @@ HOLDINGS = [
         "shares": 6420.55, "costPrice": 2.4180, "yesterdayNav": 2.6612,
         "holdingAmount": 17085.30, "holdingProfitAmount": 1558.62, "holdingProfitRate": 10.05,
         "todayEstimateNav": 2.6375, "todayEstimateAmount": 16933.99, "percentageChange": -0.89,
-        "todayEstimateUpdateTime": now_str(),
+        "todayEstimateUpdateTime": iso_utc_now(),
         "yesterdayChangeRate": -0.42, "yesterdayProfit": -71.86, "prevNav": 2.6724,
         "signals": {"base": "洗盘", "rsi": "中性", "bollinger_bands": "中轨附近"},
         "bias20": -1.05,
@@ -343,7 +348,7 @@ class MockHandler(BaseHTTPRequestHandler):
         if path == "/api/fund/utils/refresh-estimates":
             with LOCK:
                 for h in HOLDINGS:
-                    h["todayEstimateUpdateTime"] = now_str()
+                    h["todayEstimateUpdateTime"] = iso_utc_now()
             return self._send(200, {"statusText": None, "record": None, "message": "刷新完成",
                                     "count": None, "success": 2, "failed": 0, "total": 2, "skipped": 1})
         if path.endswith("/run-strategies"):

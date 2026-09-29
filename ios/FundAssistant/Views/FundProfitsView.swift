@@ -74,7 +74,7 @@ struct FundProfitsView: View {
     }
 
     private func summarySection(_ s: FundProfitSummary) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("累计收益（元）")
                     .font(.caption)
@@ -87,7 +87,7 @@ struct FundProfitsView: View {
 
             AmountText(
                 value: s.totalProfit, signed: true,
-                font: .system(size: 30, weight: .bold, design: .rounded),
+                font: .system(size: 28, weight: .bold, design: .rounded),
                 color: .white, showSignColor: true,
                 darkBackground: true
             )
@@ -115,7 +115,7 @@ struct FundProfitsView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
-        .padding(18)
+        .padding(14)
         .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 18))
     }
 
@@ -173,7 +173,7 @@ struct ProfitRowView: View {
             .font(.caption2)
             .foregroundStyle(.tertiary)
         }
-        .padding(.vertical, 2)
+        .padding(.vertical, 0)
     }
 
     private func item(_ title: String, _ value: String, color: Color, sub: String?) -> some View {

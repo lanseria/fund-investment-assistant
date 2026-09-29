@@ -147,9 +147,9 @@ struct FundDetailView: View {
 
     private func detailList(_ detail: FundDetail) -> some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 14) {
+            VStack(alignment: .leading, spacing: 10) {
                 overviewSection(detail)
-                    .cardStyle(padding: 14)
+                    .cardStyle(padding: 12)
                 actionsCard
                 if let perf = performance {
                     sectionCard("区间涨跌") {
@@ -203,22 +203,22 @@ struct FundDetailView: View {
                     }
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.top, 6)
-            .padding(.bottom, 24)
+            .padding(.horizontal, 10)
+            .padding(.top, 4)
+            .padding(.bottom, 16)
         }
         .defaultScrollAnchor(LaunchArgs.scrollAnchor)
     }
 
     /// 小节标题 + 卡片
     private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
                 .padding(.leading, 4)
             content()
-                .cardStyle(padding: 14)
+                .cardStyle(padding: 12)
         }
     }
 
@@ -264,7 +264,7 @@ struct FundDetailView: View {
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
-                    Text(DateFormat.shortTime(detail.todayEstimateUpdateTime))
+                    Text(DateFormat.localShortTime(detail.todayEstimateUpdateTime))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
@@ -366,7 +366,7 @@ struct FundDetailView: View {
     // MARK: - 区间涨跌
 
     private func performanceSection(_ perf: PerformanceData) -> some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             ForEach(perf.entries, id: \.0) { label, value in
                 HStack(spacing: 10) {
                     Text(label)
@@ -533,7 +533,7 @@ struct FundDetailView: View {
                     )
             }
         }
-        .frame(height: 240)
+        .frame(height: 216)
         .clipped()
         .animation(.easeOut(duration: 0.15), value: scrubIndex)
     }

@@ -3,13 +3,13 @@ import SwiftUI
 // MARK: - 主题（金融风格：深蓝主色 + 涨红跌绿）
 
 enum Theme {
-    /// 品牌深蓝（导航/渐变深端）
-    static let brandDeep = Color(red: 0.06, green: 0.16, blue: 0.34)
-    /// 品牌蓝（渐变浅端）
-    static let brandMid = Color(red: 0.10, green: 0.29, blue: 0.58)
-    /// 亮蓝点缀
-    static let brandSoft = Color(red: 0.20, green: 0.47, blue: 0.85)
-    /// 金色点缀（星级/徽标）
+    /// 品牌暖色·玫瑰（渐变深端，与存钱罐 logo 呼应）
+    static let brandDeep = Color(red: 0.72, green: 0.35, blue: 0.52)
+    /// 品牌暖色·薰衣草紫（渐变浅端）
+    static let brandMid = Color(red: 0.56, green: 0.38, blue: 0.84)
+    /// 亮玫瑰点缀（图表主线等）
+    static let brandSoft = Color(red: 0.93, green: 0.42, blue: 0.58)
+    /// 金色点缀（星级/徽标/金币）
     static let gold = Color(red: 0.90, green: 0.72, blue: 0.32)
 
     /// 资产总览卡渐变

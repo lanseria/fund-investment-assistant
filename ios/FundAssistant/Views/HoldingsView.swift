@@ -49,7 +49,7 @@ struct HoldingsView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("我的持仓")
-            .navigationBarTitleDisplayMode(.large)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
             .refreshable { await loadAll() }
             .task {
@@ -216,7 +216,7 @@ struct HeroSummaryCard: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text("总资产（元）")
                     .font(.caption)
@@ -236,7 +236,7 @@ struct HeroSummaryCard: View {
 
             AmountText(
                 value: store.summary?.totalAssets,
-                font: .system(size: 34, weight: .bold, design: .rounded),
+                font: .system(size: 30, weight: .bold, design: .rounded),
                 color: .white
             )
 
@@ -262,8 +262,8 @@ struct HeroSummaryCard: View {
                 .foregroundStyle(.white.opacity(0.6))
             }
         }
-        .padding(18)
-        .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 18))
+        .padding(14)
+        .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 16))
     }
 
     private func heroMetric(_ title: String, value: Double?, signed: Bool, sub: String?) -> some View {
@@ -296,37 +296,61 @@ struct HoldingRowView: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 6) {
             topRow
+            navInfoRow
             metricsRow
             footerRows
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 
-    // 标题行 + 右侧大字涨跌幅
+    /// 净值 / 估值 / 成本 / 份额 一行小字
+    private var navInfoRow: some View {
+        Text(navInfoText)
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+            .monospacedDigit()
+            .lineLimit(1)
+    }
+
+    private var navInfoText: String {
+        var parts: [String] = []
+        if holding.yesterdayNav > 0 {
+            parts.append("净值 " + holding.yesterdayNav.formatted(.number.precision(.fractionLength(4))))
+        }
+        if let est = holding.todayEstimateNav {
+            parts.append("估 " + est.formatted(.number.precision(.fractionLength(4))))
+        }
+        if let cost = holding.costPrice {
+            parts.append("成本 " + cost.formatted(.number.precision(.fractionLength(4))))
+        }
+        if let shares = holding.shares {
+            parts.append("份额 " + shares.formatted(.number.precision(.fractionLength(2))))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    // 首行：名称独占（不被标签挤压），右侧大字涨跌幅固定尺寸
     private var topRow: some View {
         HStack(alignment: .top) {
-            VStack(alignment: .leading, spacing: 5) {
-                HStack(spacing: 6) {
-                    Text(holding.name)
-                        .font(.system(size: 16, weight: .semibold))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .layoutPriority(1)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(holding.name)
+                    .font(.system(size: 16, weight: .semibold))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                HStack(spacing: 5) {
+                    Text(holding.code)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
                     if let sectorLabel = dictStore.label(DictStore.sectorType, holding.sector) {
                         TagView(text: sectorLabel, color: .indigo)
                     }
                     if holding.attentionLevel >= 2 {
                         Image(systemName: holding.attentionLevel == 3 ? "star.fill" : "star.leadinghalf.filled")
-                            .font(.caption)
+                            .font(.caption2)
                             .foregroundStyle(Theme.gold)
                     }
-                }
-                HStack(spacing: 6) {
-                    Text(holding.code)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                     if holding.isWatchOnly {
                         TagView(text: "关注", color: .gray)
                     }
@@ -337,16 +361,17 @@ struct HoldingRowView: View {
                     }
                 }
             }
-            Spacer()
+            Spacer(minLength: 10)
             VStack(alignment: .trailing, spacing: 2) {
                 ChangeLabel(value: holding.percentageChange)
                     .font(.system(size: 21, weight: .bold))
                 if let updateTime = holding.todayEstimateUpdateTime {
-                    Text(DateFormat.shortTime(updateTime))
+                    Text(DateFormat.localShortTime(updateTime))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                 }
             }
+            .fixedSize(horizontal: true, vertical: false)
         }
     }
 
@@ -358,6 +383,8 @@ struct HoldingRowView: View {
                     value: holding.todayEstimateAmount ?? holding.holdingAmount,
                     font: .caption.weight(.semibold)
                 )
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
             metric("持有收益") {
                 AmountText(
@@ -365,6 +392,8 @@ struct HoldingRowView: View {
                     font: .caption.weight(.semibold),
                     showSignColor: true
                 )
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 if let rate = holding.holdingProfitRate {
                     Text(settings.hideAssets ? "✱✱%" : rate.signedPctText)
                         .font(.caption2)
@@ -378,6 +407,8 @@ struct HoldingRowView: View {
                     font: .caption.weight(.semibold),
                     showSignColor: true
                 )
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
                 if let rate = holding.yesterdayChangeRate {
                     Text(settings.hideAssets ? "✱✱%" : rate.signedPctText)
                         .font(.caption2)

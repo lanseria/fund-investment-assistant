@@ -13,7 +13,7 @@ struct MarketStrip: View {
                     .padding(.vertical, 18)
             } else if !indices.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
+                    HStack(spacing: 6) {
                         ForEach(indices) { index in
                             MarketIndexCard(index: index)
                         }
@@ -56,9 +56,9 @@ struct MarketIndexCard: View {
                 .foregroundStyle(changeColor(index.changeRate))
                 .monospacedDigit()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .frame(width: 106, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .padding(.horizontal, 11)
+        .padding(.vertical, 7)
+        .frame(width: 102, alignment: .leading)
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 11))
     }
 }

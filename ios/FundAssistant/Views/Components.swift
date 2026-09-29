@@ -134,6 +134,25 @@ struct TagView: View {
 enum DateFormat {
     static let dayOnly = "yyyy-MM-dd"
 
+    private static let isoFormattersWithFraction: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return f
+    }()
+
+    private static let isoFormatterPlain: ISO8601DateFormatter = {
+        let f = ISO8601DateFormatter()
+        f.formatOptions = [.withInternetDateTime]
+        return f
+    }()
+
+    private static let localShortFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MM-dd HH:mm"
+        f.timeZone = .current
+        return f
+    }()
+
     static func todayString() -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = dayOnly
@@ -144,6 +163,16 @@ enum DateFormat {
         let formatter = DateFormatter()
         formatter.dateFormat = dayOnly
         return formatter.string(from: date)
+    }
+
+    /// 服务端 toISOString()（UTC）→ 本机时区 "MM-dd HH:mm"；解析失败回退原始截断
+    static func localShortTime(_ raw: String?) -> String {
+        guard let raw else { return "--" }
+        let date = isoFormattersWithFraction.date(from: raw) ?? isoFormatterPlain.date(from: raw)
+        if let date {
+            return localShortFormatter.string(from: date)
+        }
+        return shortTime(raw)
     }
 
     /// "2026-09-28 15:00:00" → "09-28 15:00"
