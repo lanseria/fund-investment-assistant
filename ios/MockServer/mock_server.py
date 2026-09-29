@@ -90,7 +90,7 @@ def fees_for(code: str):
 
 HOLDINGS = [
     {
-        "code": "161725", "name": "招商中证白酒指数(LOF)A", "sector": "消费", "attentionLevel": 3,
+        "code": "161725", "name": "招商中证白酒指数(LOF)A", "sector": "consumer", "attentionLevel": 3,
         "operationStrategy": "白酒板块波段操作，回撤超 8% 补仓",
         "shares": 12800.0, "costPrice": 1.6210, "yesterdayNav": 1.8532,
         "holdingAmount": 23720.96, "holdingProfitAmount": 2968.96, "holdingProfitRate": 14.32,
@@ -110,7 +110,7 @@ HOLDINGS = [
         "fees": fees_for("161725"),
     },
     {
-        "code": "005827", "name": "易方达蓝筹精选混合", "sector": "蓝筹", "attentionLevel": 2,
+        "code": "005827", "name": "易方达蓝筹精选混合", "sector": "bluechip", "attentionLevel": 2,
         "operationStrategy": "长期定投，跌 5% 加仓一档",
         "shares": 6420.55, "costPrice": 2.4180, "yesterdayNav": 2.6612,
         "holdingAmount": 17085.30, "holdingProfitAmount": 1558.62, "holdingProfitRate": 10.05,
@@ -126,7 +126,7 @@ HOLDINGS = [
         "fees": fees_for("005827"),
     },
     {
-        "code": "270042", "name": "广发纳斯达克100ETF联接(QDII)A", "sector": "美股", "attentionLevel": 1,
+        "code": "270042", "name": "广发纳斯达克100ETF联接(QDII)A", "sector": "us_stock", "attentionLevel": 1,
         "operationStrategy": None,
         "shares": None, "costPrice": None, "yesterdayNav": 0.9412,
         "holdingAmount": None, "holdingProfitAmount": None, "holdingProfitRate": None,
@@ -188,6 +188,15 @@ DCA_PLANS = [
 USER = {"id": 1, "username": "demo", "role": "admin", "aiMode": "off",
         "aiSystemPrompt": "", "availableCash": 5230.00}
 
+DICTS = {
+    "sectors": [
+        {"id": 1, "dictType": "sectors", "label": "消费", "value": "consumer", "sortOrder": 1, "createdAt": "2025-11-07T13:28:21.275Z"},
+        {"id": 2, "dictType": "sectors", "label": "蓝筹", "value": "bluechip", "sortOrder": 2, "createdAt": "2025-11-07T13:28:21.275Z"},
+        {"id": 3, "dictType": "sectors", "label": "美股", "value": "us_stock", "sortOrder": 3, "createdAt": "2025-11-07T13:28:21.275Z"},
+        {"id": 4, "dictType": "sectors", "label": "医药", "value": "pharma", "sortOrder": 4, "createdAt": "2025-11-07T13:28:21.275Z"},
+    ],
+}
+
 NEXT_TX_ID = [200]
 
 
@@ -221,11 +230,11 @@ def detail_for(code: str):
 def transactions_for(code: str):
     return [
         {"id": 88, "type": "buy", "status": "confirmed", "orderDate": dstr(TODAY - timedelta(days=3)),
-         "confirmedAmount": 3000.0, "confirmedShares": 1623.28, "confirmedNav": 1.8481, "note": "手动买入"},
+         "confirmedAmount": "3000.0000", "confirmedShares": "1623.2800", "confirmedNav": "1.8481", "note": "手动买入"},
         {"id": 80, "type": "sell", "status": "confirmed", "orderDate": dstr(TODAY - timedelta(days=15)),
-         "confirmedAmount": 1500.0, "confirmedShares": 800.0, "confirmedNav": 1.8750, "note": "止盈卖出"},
+         "confirmedAmount": "1500.0000", "confirmedShares": "800.0000", "confirmedNav": "1.8750", "note": "止盈卖出"},
         {"id": 76, "type": "buy", "status": "confirmed", "orderDate": dstr(TODAY - timedelta(days=7)),
-         "confirmedAmount": 1000.0, "confirmedShares": 375.80, "confirmedNav": 2.6610, "note": "定投"},
+         "confirmedAmount": "1000.0000", "confirmedShares": "375.8000", "confirmedNav": "2.6610", "note": "定投"},
     ]
 
 
@@ -262,6 +271,8 @@ class MockHandler(BaseHTTPRequestHandler):
 
         if path == "/api/auth/me":
             return self._send(200, USER)
+        if path == "/api/dicts/all":
+            return self._send(200, DICTS)
         if path.startswith("/api/fund/holdings/") and path.endswith("/detail"):
             return self._send(200, detail_for(path.split("/")[4]))
         if path.startswith("/api/fund/holdings/") and path.endswith("/history"):

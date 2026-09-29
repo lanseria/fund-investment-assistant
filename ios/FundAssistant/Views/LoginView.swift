@@ -122,7 +122,7 @@ struct ServerSettingsForm: View {
             } header: {
                 Text("服务器地址")
             } footer: {
-                Text("基金助手后端（Nuxt 服务）地址。模拟器内可填 http://localhost:8888，真机请填写电脑的局域网 IP。")
+                Text("默认连接外网部署的后端 http://62.234.29.20:9999；本地调试可改为 http://localhost:8888，真机连本机请填电脑的局域网 IP。填写 http://…/api/ 也可以，会自动按源地址处理。")
             }
         }
         .navigationTitle("服务器设置")

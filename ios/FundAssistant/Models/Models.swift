@@ -11,6 +11,31 @@ struct User: Codable, Sendable {
     var availableCash: Double?
 
     var isAdmin: Bool { role == "admin" }
+
+    enum CodingKeys: String, CodingKey {
+        case id, username, role, aiMode, aiSystemPrompt, availableCash
+    }
+
+    /// 服务端 users.availableCash 为 numeric 列，auth 接口按字符串返回（如 "5230.0000"）
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        username = try c.decode(String.self, forKey: .username)
+        role = try c.decodeIfPresent(String.self, forKey: .role)
+        aiMode = try c.decodeIfPresent(String.self, forKey: .aiMode)
+        aiSystemPrompt = try c.decodeIfPresent(String.self, forKey: .aiSystemPrompt)
+        availableCash = try c.decodeLenientDoubleIfPresent(forKey: .availableCash)
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// 宽松解码 Double?：兼容数字与数字字符串（drizzle numeric 列），缺键或 null 均为 nil
+    func decodeLenientDoubleIfPresent(forKey key: Key) throws -> Double? {
+        guard contains(key), try decodeNil(forKey: key) == false else { return nil }
+        if let d = try? decode(Double.self, forKey: key) { return d }
+        if let s = try? decode(String.self, forKey: key) { return Double(s) }
+        return nil
+    }
 }
 
 struct LoginResponse: Codable, Sendable {
@@ -177,6 +202,35 @@ struct HistoryTransaction: Codable, Sendable, Identifiable {
     var confirmedShares: Double?
     var confirmedNav: Double?
     var note: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, type, status, orderDate, note
+        case confirmedAmount, confirmedShares, confirmedNav
+    }
+
+    /// history 接口的 transactions 为原始 drizzle 行，numeric 列按字符串返回
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        type = try c.decode(TransactionType.self, forKey: .type)
+        status = try c.decodeIfPresent(TransactionStatus.self, forKey: .status)
+        orderDate = try c.decodeIfPresent(String.self, forKey: .orderDate)
+        confirmedAmount = try c.decodeLenientDoubleIfPresent(forKey: .confirmedAmount)
+        confirmedShares = try c.decodeLenientDoubleIfPresent(forKey: .confirmedShares)
+        confirmedNav = try c.decodeLenientDoubleIfPresent(forKey: .confirmedNav)
+        note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
+}
+
+// MARK: - 字典
+
+/// GET /api/dicts/all 的字典项
+struct DictItem: Codable, Sendable, Identifiable {
+    var id: Int
+    var dictType: String
+    var label: String
+    var value: String
+    var sortOrder: Int?
 }
 
 /// GET /api/fund/holdings/{code}/performance → { "1m": 2.3, "3m": null, ... }

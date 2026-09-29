@@ -3,6 +3,7 @@ import SwiftUI
 struct MainTabView: View {
     @State private var holdingsStore = HoldingsStore()
     @State private var dcaStore = DcaPlanStore()
+    @State private var dictStore = DictStore()
     @State private var selection = LaunchArgs.initialTab
 
     var body: some View {
@@ -22,5 +23,7 @@ struct MainTabView: View {
         }
         .environment(holdingsStore)
         .environment(dcaStore)
+        .environment(dictStore)
+        .task { await dictStore.load() }
     }
 }

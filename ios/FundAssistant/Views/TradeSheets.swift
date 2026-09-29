@@ -3,9 +3,10 @@ import SwiftUI
 // MARK: - 修改板块
 
 struct SectorEditSheet: View {
-    let detail: FundDetail?
+    let currentSector: String?
     let onSave: (String?) -> Void
 
+    @Environment(DictStore.self) private var dictStore
     @Environment(\.dismiss) private var dismiss
     @State private var text = ""
 
@@ -14,6 +15,14 @@ struct SectorEditSheet: View {
             Form {
                 Section {
                     TextField("板块名称（如：消费、医药、美股）", text: $text)
+                    if !dictStore.items(DictStore.sectorType).isEmpty {
+                        Picker("从字典选择", selection: $text) {
+                            Text("自定义（手动输入）").tag("")
+                            ForEach(dictStore.items(DictStore.sectorType)) { item in
+                                Text(item.label).tag(item.value)
+                            }
+                        }
+                    }
                 } header: {
                     Text("基金板块")
                 } footer: {
@@ -32,7 +41,7 @@ struct SectorEditSheet: View {
                     }
                 }
             }
-            .onAppear { text = detail?.sector ?? "" }
+            .onAppear { text = currentSector ?? "" }
         }
         .presentationDetents([.medium])
     }

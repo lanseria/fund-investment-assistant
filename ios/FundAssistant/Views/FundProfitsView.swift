@@ -107,6 +107,7 @@ struct FundProfitsView: View {
 
 struct ProfitRowView: View {
     let row: FundProfitRow
+    @Environment(DictStore.self) private var dictStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -118,8 +119,8 @@ struct ProfitRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 TagView(text: row.isHeld ? "持有中" : "已清仓", color: row.isHeld ? .blue : .gray)
-                if let sector = row.sector, !sector.isEmpty {
-                    TagView(text: sector, color: .indigo)
+                if let sectorLabel = dictStore.label(DictStore.sectorType, row.sector) {
+                    TagView(text: sectorLabel, color: .indigo)
                 }
                 Spacer()
             }

@@ -4,7 +4,7 @@
 
 - **工程**：`FundAssistant.xcodeproj`（folder-synchronized，新增 Swift 文件自动纳入编译）
 - **技术栈**：SwiftUI + Swift Charts + `@Observable`，最低 **iOS 26.0**
-- **后端**：复用网页版同一 Nuxt 后端（默认 `http://localhost:8888`）
+- **后端**：默认连接外网部署的 `http://62.234.29.20:9999`；本地调试可改为 `http://localhost:8888`（App 内会自动容错去掉误填的 `/api` 后缀）
 
 ## 功能对照
 

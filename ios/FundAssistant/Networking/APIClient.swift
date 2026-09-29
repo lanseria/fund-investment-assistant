@@ -6,6 +6,7 @@ import Foundation
 final class AppSettings: ObservableObject {
     static let shared = AppSettings()
     nonisolated static let baseURLKey = "serverBaseURL"
+    nonisolated static let defaultBaseURL = "http://62.234.29.20:9999"
 
     @Published var baseURLString: String {
         didSet { UserDefaults.standard.set(baseURLString, forKey: Self.baseURLKey) }
@@ -13,11 +14,16 @@ final class AppSettings: ObservableObject {
 
     private init() {
         baseURLString = UserDefaults.standard.string(forKey: Self.baseURLKey)
-            ?? "http://localhost:8888"
+            ?? Self.defaultBaseURL
     }
 
-    var baseURL: URL? {
-        URL(string: baseURLString.trimmingCharacters(in: .whitespacesAndNewlines))
+    /// 规范化服务器地址：去除空白与尾部斜杠；容错去掉误填的 /api 后缀
+    /// （App 内部请求路径自带 /api 前缀，base 只需源地址）
+    nonisolated static func normalizedBaseURL(_ raw: String) -> String {
+        var s = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        while s.hasSuffix("/") { s.removeLast() }
+        if s.hasSuffix("/api") { s = String(s.dropLast(4)) }
+        return s
     }
 }
 
@@ -53,8 +59,8 @@ final class APIClient: Sendable {
 
     private var baseURL: URL? {
         let raw = UserDefaults.standard.string(forKey: AppSettings.baseURLKey)
-            ?? "http://localhost:8888"
-        return URL(string: raw.trimmingCharacters(in: .whitespacesAndNewlines))
+            ?? AppSettings.defaultBaseURL
+        return URL(string: AppSettings.normalizedBaseURL(raw))
     }
 
     enum Method: String {
@@ -71,8 +77,32 @@ final class APIClient: Sendable {
         let data = try await rawRequest(path, method: method, body: body, refreshOn401: refreshOn401)
         do {
             return try decoder.decode(T.self, from: data)
+        } catch let error as DecodingError {
+            throw APIError(statusCode: nil, statusMessage: "数据解析失败：\(Self.describe(error))", message: nil)
         } catch {
             throw APIError(statusCode: nil, statusMessage: "数据解析失败：\(error.localizedDescription)", message: nil)
+        }
+    }
+
+    /// 把 DecodingError 翻译成带字段路径的可读信息
+    private static func describe(_ error: DecodingError) -> String {
+        func path(_ context: DecodingError.Context) -> String {
+            context.codingPath.map(\.stringValue).joined(separator: ".")
+        }
+        switch error {
+        case .keyNotFound(let key, let ctx):
+            let p = path(ctx)
+            return "缺少字段 \(p.isEmpty ? key.stringValue : p + "." + key.stringValue)"
+        case .typeMismatch(let type, let ctx):
+            let p = path(ctx)
+            let name = "\(type)".split(separator: ".").last.map(String.init) ?? "\(type)"
+            return "字段类型不符 \(p.isEmpty ? "(根)" : p)（期望 \(name)）"
+        case .valueNotFound(_, let ctx):
+            return "字段值为空 \(path(ctx))"
+        case .dataCorrupted(let ctx):
+            return "数据损坏 \(path(ctx))"
+        @unknown default:
+            return error.localizedDescription
         }
     }
 

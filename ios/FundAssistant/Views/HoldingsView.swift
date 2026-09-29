@@ -240,6 +240,7 @@ struct SummaryCard: View {
 
 struct HoldingRowView: View {
     let holding: Holding
+    @Environment(DictStore.self) private var dictStore
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -264,8 +265,8 @@ struct HoldingRowView: View {
             Text(holding.code)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            if let sector = holding.sector, !sector.isEmpty {
-                TagView(text: sector, color: .indigo)
+            if let sectorLabel = dictStore.label(DictStore.sectorType, holding.sector) {
+                TagView(text: sectorLabel, color: .indigo)
             }
             if holding.attentionLevel >= 2 {
                 Image(systemName: holding.attentionLevel == 3 ? "star.fill" : "star.leadinghalf.filled")

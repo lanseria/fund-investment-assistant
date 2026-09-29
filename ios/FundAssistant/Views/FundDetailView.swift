@@ -5,6 +5,7 @@ struct FundDetailView: View {
     let fundCode: String
 
     @Environment(HoldingsStore.self) private var store
+    @Environment(DictStore.self) private var dictStore
     @Environment(\.dismiss) private var dismiss
 
     @State private var detail: FundDetail?
@@ -76,7 +77,7 @@ struct FundDetailView: View {
             }
         }
         .sheet(isPresented: $showSectorEditor) {
-            SectorEditSheet(detail: detail) { newSector in
+            SectorEditSheet(currentSector: detail?.sector) { newSector in
                 perform { try await store.updateSector(fundCode, sector: newSector) }
             }
         }
@@ -207,7 +208,7 @@ struct FundDetailView: View {
                         showSectorEditor = true
                     } label: {
                         HStack(spacing: 4) {
-                            Text(detail.sector ?? "未设置板块")
+                            Text(dictStore.label(DictStore.sectorType, detail.sector) ?? "未设置板块")
                             Image(systemName: "pencil")
                                 .font(.caption2)
                         }
