@@ -37,7 +37,6 @@ extension KeyedDecodingContainer {
         return nil
     }
 }
-
 struct LoginResponse: Codable, Sendable {
     var user: User
     var token: String?
@@ -219,6 +218,35 @@ struct HistoryTransaction: Codable, Sendable, Identifiable {
         confirmedShares = try c.decodeLenientDoubleIfPresent(forKey: .confirmedShares)
         confirmedNav = try c.decodeLenientDoubleIfPresent(forKey: .confirmedNav)
         note = try c.decodeIfPresent(String.self, forKey: .note)
+    }
+}
+
+// MARK: - 大盘指数
+
+/// GET /api/market/ 的单个指数（忽略 chartData 等未用字段）
+struct MarketIndex: Codable, Sendable, Identifiable {
+    var id: String { code }
+    var code: String
+    var name: String
+    var value: Double
+    var changeAmount: Double
+    var changeRate: Double
+    var time: String?
+    var delayed: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case code, name, value, changeAmount, changeRate, time, delayed
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        code = try c.decode(String.self, forKey: .code)
+        name = try c.decode(String.self, forKey: .name)
+        value = try c.decodeLenientDoubleIfPresent(forKey: .value) ?? 0
+        changeAmount = try c.decodeLenientDoubleIfPresent(forKey: .changeAmount) ?? 0
+        changeRate = try c.decodeLenientDoubleIfPresent(forKey: .changeRate) ?? 0
+        time = try c.decodeIfPresent(String.self, forKey: .time)
+        delayed = try c.decodeIfPresent(Bool.self, forKey: .delayed) ?? false
     }
 }
 

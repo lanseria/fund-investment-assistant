@@ -18,6 +18,7 @@ struct FundDetailView: View {
 
     @State private var chartRange: ChartRange = .sixMonths
     @State private var visibleSeries: Set<String> = ["净值", "MA20"]
+    @State private var scrubIndex: Int?
 
     @State private var tradeType: TradeType?
     @State private var showConvert = false
@@ -27,11 +28,12 @@ struct FundDetailView: View {
     @State private var confirmClear: Holding?
 
     enum ChartRange: String, CaseIterable, Identifiable {
-        case threeMonths = "3月", sixMonths = "6月", oneYear = "1年", twoYears = "2年", all = "全部"
+        case oneMonth = "1月", threeMonths = "3月", sixMonths = "6月", oneYear = "1年", twoYears = "2年", all = "全部"
         var id: String { rawValue }
 
         var days: Int? {
             switch self {
+            case .oneMonth: 31
             case .threeMonths: 92
             case .sixMonths: 183
             case .oneYear: 365
@@ -141,61 +143,89 @@ struct FundDetailView: View {
         }
     }
 
-    // MARK: - 详情列表
+    // MARK: - 详情（卡片式滚动布局）
 
     private func detailList(_ detail: FundDetail) -> some View {
-        List {
-            Section {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 14) {
                 overviewSection(detail)
-                    .listRowInsets(EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12))
-            }
-            Section("操作") {
-                actionButtons
-            }
-            if let perf = performance {
-                Section("区间涨跌") {
-                    performanceSection(perf)
+                    .cardStyle(padding: 14)
+                actionsCard
+                if let perf = performance {
+                    sectionCard("区间涨跌") {
+                        performanceSection(perf)
+                    }
                 }
-            }
-            if !history.isEmpty {
-                Section("净值走势") {
-                    chartSection
+                if !history.isEmpty {
+                    sectionCard("净值走势") {
+                        chartSection
+                    }
                 }
-            }
-            if let stocks = detail.stockHoldings, !stocks.stocks.isEmpty {
-                Section {
-                    stockHoldingsSection(stocks)
-                } header: {
-                    Text("重仓股（\(stocks.reportDate) 报告期，覆盖 \(String(format: "%.1f", stocks.coverage))%）")
+                if let stocks = detail.stockHoldings, !stocks.stocks.isEmpty {
+                    sectionCard("重仓股 · \(stocks.reportDate) 报告期 · 覆盖 \(String(format: "%.1f", stocks.coverage))%") {
+                        stockHoldingsSection(stocks)
+                    }
                 }
-            }
-            if let fees = detail.fees {
-                Section("费率") {
-                    feesSection(fees)
+                if let fees = detail.fees {
+                    sectionCard("费率") {
+                        feesSection(fees)
+                    }
                 }
-            }
-            if let pending = currentHolding?.pendingTransactions, !pending.isEmpty {
-                Section("待确认交易") {
-                    ForEach(pending) { tx in
-                        PendingTransactionRow(tx: tx) { approve in
-                            if approve {
-                                perform { try await store.approveTransaction(tx.id) }
-                            } else {
-                                perform { try await store.deleteTransaction(tx.id) }
+                if let pending = currentHolding?.pendingTransactions, !pending.isEmpty {
+                    sectionCard("待确认交易") {
+                        VStack(spacing: 0) {
+                            ForEach(Array(pending.enumerated()), id: \.element.id) { index, tx in
+                                PendingTransactionRow(tx: tx) { approve in
+                                    if approve {
+                                        perform { try await store.approveTransaction(tx.id) }
+                                    } else {
+                                        perform { try await store.deleteTransaction(tx.id) }
+                                    }
+                                }
+                                if index < pending.count - 1 {
+                                    Divider()
+                                }
+                            }
+                        }
+                    }
+                }
+                if !historyTransactions.isEmpty {
+                    sectionCard("最近交易") {
+                        VStack(spacing: 0) {
+                            ForEach(Array(historyTransactions.prefix(10).enumerated()), id: \.element.id) { index, tx in
+                                HistoryTransactionRow(tx: tx)
+                                    .padding(.vertical, 8)
+                                if index < min(historyTransactions.count, 10) - 1 {
+                                    Divider()
+                                }
                             }
                         }
                     }
                 }
             }
-            if !historyTransactions.isEmpty {
-                Section("最近交易") {
-                    ForEach(historyTransactions.prefix(10)) { tx in
-                        HistoryTransactionRow(tx: tx)
-                    }
-                }
-            }
+            .padding(.horizontal, 12)
+            .padding(.top, 6)
+            .padding(.bottom, 24)
         }
-        .listStyle(.insetGrouped)
+        .defaultScrollAnchor(LaunchArgs.scrollAnchor)
+    }
+
+    /// 小节标题 + 卡片
+    private func sectionCard<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .padding(.leading, 4)
+            content()
+                .cardStyle(padding: 14)
+        }
+    }
+
+    private var actionsCard: some View {
+        sectionCard("操作") {
+            actionButtons
+        }
     }
 
     // MARK: - 概览
@@ -336,36 +366,35 @@ struct FundDetailView: View {
     // MARK: - 区间涨跌
 
     private func performanceSection(_ perf: PerformanceData) -> some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             ForEach(perf.entries, id: \.0) { label, value in
-                HStack {
+                HStack(spacing: 10) {
                     Text(label)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .frame(width: 60, alignment: .leading)
+                        .frame(width: 56, alignment: .leading)
                     GeometryReader { geo in
-                        if let value {
-                            let ratio = min(abs(value) / 60.0, 1.0)
-                            HStack {
-                                Rectangle()
+                        ZStack(alignment: .leading) {
+                            Capsule()
+                                .fill(Color(.tertiarySystemFill))
+                            if let value {
+                                let ratio = min(abs(value) / 60.0, 1.0)
+                                Capsule()
                                     .fill(changeColor(value))
-                                    .frame(width: max(geo.size.width * ratio, 2))
-                                    .clipShape(Capsule())
-                                Text(value.signedPctText)
-                                    .font(.caption.weight(.semibold))
-                                    .foregroundStyle(changeColor(value))
-                                    .monospacedDigit()
-                                Spacer(minLength: 0)
+                                    .frame(width: max(geo.size.width * ratio, 6))
                             }
-                        } else {
-                            Text("--").font(.caption).foregroundStyle(.tertiary)
                         }
                     }
-                    .frame(height: 20)
+                    .frame(height: 8)
+                    Text(value?.signedPctText ?? "--")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(changeColor(value))
+                        .monospacedDigit()
+                        .frame(width: 70, alignment: .trailing)
                 }
             }
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 2)
     }
 
     // MARK: - 走势图
@@ -377,11 +406,43 @@ struct FundDetailView: View {
             }
             .pickerStyle(.segmented)
 
+            scrubHeader
             chart
-
             seriesPicker
         }
         .padding(.vertical, 6)
+    }
+
+    /// 手势扫动时的信息条（日期 / 净值 / 较区间起点涨跌）
+    @ViewBuilder
+    private var scrubHeader: some View {
+        if let point = scrubbedPoint, let baseline = filteredHistory.first?.nav, baseline > 0 {
+            HStack(spacing: 10) {
+                Text(point.date)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                Text("净值 \(point.nav.formatted(.number.precision(.fractionLength(4))))")
+                    .font(.caption.weight(.semibold))
+                    .monospacedDigit()
+                Text((((point.nav - baseline) / baseline) * 100).signedPctText)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(changeColor(point.nav - baseline))
+                    .monospacedDigit()
+                Spacer()
+                Text("松开返回")
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(Color(.tertiarySystemFill), in: RoundedRectangle(cornerRadius: 8))
+            .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+        }
+    }
+
+    private var scrubbedPoint: HoldingHistoryPoint? {
+        guard let scrubIndex, filteredHistory.indices.contains(scrubIndex) else { return nil }
+        return filteredHistory[scrubIndex]
     }
 
     private var filteredHistory: [HoldingHistoryPoint] {
@@ -396,13 +457,26 @@ struct FundDetailView: View {
     private var chart: some View {
         let data = filteredHistory
         let series: [(String, (HoldingHistoryPoint) -> Double?, Color)] = [
-            ("净值", { $0.nav }, .primary),
+            ("净值", { $0.nav }, Theme.brandSoft),
             ("MA5", { $0.ma5 }, .orange),
             ("MA10", { $0.ma10 }, .purple),
             ("MA20", { $0.ma20 }, .blue),
             ("MA120", { $0.ma120 }, .teal),
         ]
         return Chart {
+            if visibleSeries.contains("净值") {
+                ForEach(data) { point in
+                    AreaMark(
+                        x: .value("日期", point.date),
+                        y: .value("净值", point.nav)
+                    )
+                    .interpolationMethod(.catmullRom)
+                }
+                .foregroundStyle(.linearGradient(
+                    colors: [Theme.brandSoft.opacity(0.28), Theme.brandSoft.opacity(0.02)],
+                    startPoint: .top, endPoint: .bottom
+                ))
+            }
             ForEach(series, id: \.0) { entry in
                 if visibleSeries.contains(entry.0) {
                     ForEach(data) { point in
@@ -414,15 +488,21 @@ struct FundDetailView: View {
                             .foregroundStyle(entry.2)
                             .lineStyle(entry.0 == "净值" ? StrokeStyle(lineWidth: 2) : StrokeStyle(lineWidth: 1))
                             .interpolationMethod(.catmullRom)
-                            .symbol(.circle)
                         }
                     }
                 }
             }
+            if let index = scrubIndex, data.indices.contains(index) {
+                RuleMark(x: .value("选中", data[index].date))
+                    .foregroundStyle(Color.secondary.opacity(0.6))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            }
         }
+        .chartYScale(domain: chartYDomain)
         .chartForegroundStyleScale(domain: series.map(\.0), range: series.map(\.2))
+        .chartLegend(.hidden)
         .chartYAxis {
-            AxisMarks(position: .trailing) { value in
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 5)) { value in
                 AxisGridLine()
                 AxisValueLabel {
                     if let v = value.as(Double.self) {
@@ -439,7 +519,48 @@ struct FundDetailView: View {
                     .font(.caption2)
             }
         }
+        .chartOverlay { proxy in
+            GeometryReader { geo in
+                Rectangle()
+                    .fill(.clear)
+                    .contentShape(Rectangle())
+                    .gesture(
+                        DragGesture(minimumDistance: 0)
+                            .onChanged { value in
+                                scrubIndex = nearestIndex(atX: value.location.x, in: geo, proxy: proxy, count: data.count)
+                            }
+                            .onEnded { _ in scrubIndex = nil }
+                    )
+            }
+        }
         .frame(height: 240)
+        .clipped()
+        .animation(.easeOut(duration: 0.15), value: scrubIndex)
+    }
+
+    /// Y 轴范围：只覆盖可见系列的数据（净值 ~1.8-2.0 不应从 0 画起）
+    private var chartYDomain: ClosedRange<Double> {
+        let data = filteredHistory
+        var values: [Double] = []
+        if visibleSeries.contains("净值") { values += data.map(\.nav) }
+        if visibleSeries.contains("MA5") { values += data.compactMap(\.ma5) }
+        if visibleSeries.contains("MA10") { values += data.compactMap(\.ma10) }
+        if visibleSeries.contains("MA20") { values += data.compactMap(\.ma20) }
+        if visibleSeries.contains("MA120") { values += data.compactMap(\.ma120) }
+        guard let lo = values.min(), let hi = values.max(), hi > lo else { return 0...1 }
+        let pad = (hi - lo) * 0.1
+        return (lo - pad)...(hi + pad)
+    }
+
+    /// 由手势横坐标反推最近的数据点下标（分类轴等距分布）
+    private func nearestIndex(atX x: CGFloat, in geo: GeometryProxy, proxy: ChartProxy, count: Int) -> Int? {
+        guard count > 0, let plotFrame = proxy.plotFrame else { return nil }
+        let plotWidth = geo[plotFrame].width
+        guard plotWidth > 0 else { return nil }
+        let ratio = min(max(x / plotWidth, 0), 1)
+        // 分类轴两端各留半格，居中对齐
+        let position = ratio * CGFloat(count - 1)
+        return Int((position).rounded())
     }
 
     private var seriesPicker: some View {

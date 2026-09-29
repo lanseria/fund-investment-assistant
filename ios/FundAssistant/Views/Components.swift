@@ -33,6 +33,12 @@ func changeColor(_ value: Double?) -> Color {
     return value > 0 ? .red : .green
 }
 
+/// 深色背景（渐变卡）上的涨跌亮色变体
+func changeColorOnDark(_ value: Double?) -> Color {
+    guard let value, value != 0 else { return .white.opacity(0.65) }
+    return value > 0 ? Color(red: 1.0, green: 0.48, blue: 0.48) : Color(red: 0.38, green: 0.85, blue: 0.60)
+}
+
 func moneyColor(_ value: Double?) -> Color {
     changeColor(value)
 }

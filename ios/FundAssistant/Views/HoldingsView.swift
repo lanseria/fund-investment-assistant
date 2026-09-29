@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HoldingsView: View {
     @Environment(HoldingsStore.self) private var store
+    @Environment(MarketStore.self) private var marketStore
 
     @State private var showAddSheet = false
     @State private var isRefreshingEstimates = false
@@ -34,7 +35,7 @@ struct HoldingsView: View {
                     } description: {
                         Text(error)
                     } actions: {
-                        Button("重试") { Task { await store.load() } }
+                        Button("重试") { Task { await loadAll() } }
                     }
                 } else if store.holdings.isEmpty {
                     ContentUnavailableView {
@@ -50,9 +51,10 @@ struct HoldingsView: View {
             .navigationTitle("我的持仓")
             .navigationBarTitleDisplayMode(.large)
             .toolbar { toolbarContent }
-            .refreshable { await store.load() }
+            .refreshable { await loadAll() }
             .task {
                 if store.holdings.isEmpty { await store.load() }
+                await marketStore.load()
                 if let code = LaunchArgs.fundCode, path.isEmpty { path = [code] }
             }
             .sheet(isPresented: $showAddSheet) {
@@ -91,6 +93,11 @@ struct HoldingsView: View {
         }
     }
 
+    private func loadAll() async {
+        await store.load()
+        await marketStore.load()
+    }
+
     private func perform(_ operation: @escaping () async throws -> Void) {
         Task {
             do {
@@ -107,8 +114,11 @@ struct HoldingsView: View {
     private var holdingList: some View {
         List {
             Section {
-                SummaryCard()
-                    .listRowInsets(EdgeInsets(top: 8, leading: 8, bottom: 8, trailing: 8))
+                HeroSummaryCard()
+                    .listRowInsets(EdgeInsets(top: 6, leading: 10, bottom: 0, trailing: 10))
+                    .listRowBackground(Color.clear)
+                MarketStrip(indices: marketStore.indices, isLoading: marketStore.isLoading && marketStore.indices.isEmpty)
+                    .listRowInsets(EdgeInsets(top: 8, leading: 10, bottom: 4, trailing: 10))
                     .listRowBackground(Color.clear)
             }
             Section {
@@ -130,7 +140,7 @@ struct HoldingsView: View {
                 }
             } header: {
                 HStack {
-                    Text("持仓列表（\(store.holdings.count)）")
+                    Text("我的基金（\(store.holdings.count)）")
                     Spacer()
                     if store.summary?.staleCount ?? 0 > 0 {
                         TagView(text: "\(store.summary!.staleCount) 只估值未更新", color: .orange)
@@ -199,101 +209,138 @@ struct HoldingsView: View {
     }
 }
 
-// MARK: - 资产汇总卡
+// MARK: - 资产总览卡（深蓝渐变）
 
-struct SummaryCard: View {
+struct HeroSummaryCard: View {
     @Environment(HoldingsStore.self) private var store
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("总资产（元）")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                Button {
+                    withAnimation(.easeInOut(duration: 0.15)) { settings.hideAssets.toggle() }
+                } label: {
+                    Image(systemName: settings.hideAssets ? "eye.slash" : "eye")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.75))
+                        .padding(6)
+                        .background(.white.opacity(0.12), in: Circle())
+                }
+                .accessibilityLabel(settings.hideAssets ? "显示资产" : "隐藏资产")
+            }
+
+            AmountText(
+                value: store.summary?.totalAssets,
+                font: .system(size: 34, weight: .bold, design: .rounded),
+                color: .white
+            )
+
+            HStack(spacing: 0) {
+                heroMetric("今日预估盈亏", value: store.summary?.totalProfitLoss, signed: true,
+                           sub: store.summary.map { $0.totalPercentageChange.signedPctText })
+                heroMetric("昨日收益", value: store.summary?.yesterdayProfit, signed: true,
+                           sub: store.summary.map { $0.yesterdayProfitRate.signedPctText })
+                heroMetric("可用现金", value: store.summary?.cash, signed: false, sub: nil)
+            }
+
             if let s = store.summary {
-                HStack(spacing: 8) {
-                    StatCard(title: "总资产", value: s.totalAssets.moneyText, subText: "现金 \(s.cash.moneyText)")
-                    StatCard(
-                        title: "今日预估盈亏",
-                        value: s.totalProfitLoss.signedMoneyText,
-                        color: changeColor(s.totalProfitLoss),
-                        subText: "预估涨跌 " + s.totalPercentageChange.signedPctText
-                    )
+                HStack(spacing: 12) {
+                    Label {
+                        Text("市值（估值）\(settings.hideAssets ? "✱✱✱✱" : s.totalEstimateAmount.moneyText)")
+                    } icon: {
+                        Image(systemName: "chart.pie")
+                    }
+                    Spacer()
+                    Text("共 \(s.count) 只基金")
                 }
-                HStack(spacing: 8) {
-                    StatCard(
-                        title: "持仓市值（估值）",
-                        value: s.totalEstimateAmount.moneyText,
-                        subText: "按净值 " + s.totalHoldingAmount.moneyText
-                    )
-                    StatCard(
-                        title: "昨日收益",
-                        value: s.yesterdayProfit.signedMoneyText,
-                        color: changeColor(s.yesterdayProfit),
-                        subText: "收益率 " + s.yesterdayProfitRate.signedPctText
-                    )
-                }
-            } else {
-                ProgressView().frame(maxWidth: .infinity)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.6))
             }
         }
+        .padding(18)
+        .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 18))
+    }
+
+    private func heroMetric(_ title: String, value: Double?, signed: Bool, sub: String?) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(title)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.65))
+            AmountText(
+                value: value, signed: signed,
+                font: .headline.monospacedDigit(),
+                color: .white, showSignColor: signed,
+                darkBackground: true
+            )
+            if let sub {
+                Text(settings.hideAssets ? "✱✱%" : sub)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .monospacedDigit()
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-// MARK: - 持仓行
+// MARK: - 持仓行（天天基金风格：右侧大字涨跌幅）
 
 struct HoldingRowView: View {
     let holding: Holding
     @Environment(DictStore.self) private var dictStore
+    @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            header
-            mainRow
-            statRow
-            if !signalTags.isEmpty {
-                signalRow
-            }
-            if holding.pendingCount > 0 {
-                pendingRow
-            }
+        VStack(alignment: .leading, spacing: 10) {
+            topRow
+            metricsRow
+            footerRows
         }
-        .padding(.vertical, 4)
+        .padding(.vertical, 6)
     }
 
-    private var header: some View {
-        HStack(spacing: 6) {
-            Text(holding.name)
-                .font(.headline)
-                .lineLimit(1)
-            Text(holding.code)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            if let sectorLabel = dictStore.label(DictStore.sectorType, holding.sector) {
-                TagView(text: sectorLabel, color: .indigo)
+    // 标题行 + 右侧大字涨跌幅
+    private var topRow: some View {
+        HStack(alignment: .top) {
+            VStack(alignment: .leading, spacing: 5) {
+                HStack(spacing: 6) {
+                    Text(holding.name)
+                        .font(.system(size: 16, weight: .semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .layoutPriority(1)
+                    if let sectorLabel = dictStore.label(DictStore.sectorType, holding.sector) {
+                        TagView(text: sectorLabel, color: .indigo)
+                    }
+                    if holding.attentionLevel >= 2 {
+                        Image(systemName: holding.attentionLevel == 3 ? "star.fill" : "star.leadinghalf.filled")
+                            .font(.caption)
+                            .foregroundStyle(Theme.gold)
+                    }
+                }
+                HStack(spacing: 6) {
+                    Text(holding.code)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    if holding.isWatchOnly {
+                        TagView(text: "关注", color: .gray)
+                    }
+                    if holding.pendingCount > 0 {
+                        Label("\(holding.pendingCount) 笔待确认", systemImage: "clock")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
             }
-            if holding.attentionLevel >= 2 {
-                Image(systemName: holding.attentionLevel == 3 ? "star.fill" : "star.leadinghalf.filled")
-                    .font(.caption)
-                    .foregroundStyle(.yellow)
-            }
-            if holding.isWatchOnly {
-                TagView(text: "关注", color: .gray)
-            }
-            Spacer()
-        }
-    }
-
-    private var mainRow: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("今日估值")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-            ChangeLabel(value: holding.percentageChange)
-                .font(.title3.bold())
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                if let amount = holding.todayEstimateAmount ?? holding.holdingAmount {
-                    Text(amount.moneyText)
-                        .font(.headline)
-                        .monospacedDigit()
-                }
+                ChangeLabel(value: holding.percentageChange)
+                    .font(.system(size: 21, weight: .bold))
                 if let updateTime = holding.todayEstimateUpdateTime {
                     Text(DateFormat.shortTime(updateTime))
                         .font(.caption2)
@@ -303,36 +350,75 @@ struct HoldingRowView: View {
         }
     }
 
-    private var statRow: some View {
+    // 三列指标：持有金额 / 持有收益 / 昨日收益
+    private var metricsRow: some View {
         HStack(spacing: 0) {
-            statItem("持有收益", value: holding.holdingProfitAmount?.signedMoneyText ?? "--",
-                     color: changeColor(holding.holdingProfitAmount),
-                     sub: holding.holdingProfitRate?.signedPctText ?? "")
-            statItem("昨日收益", value: holding.yesterdayProfit?.signedMoneyText ?? "--",
-                     color: changeColor(holding.yesterdayProfit),
-                     sub: holding.yesterdayChangeRate?.signedPctText ?? "")
-            statItem("BIAS20", value: holding.bias20?.pctText ?? "--",
-                     color: changeColor(holding.bias20), sub: "")
+            metric("持有金额") {
+                AmountText(
+                    value: holding.todayEstimateAmount ?? holding.holdingAmount,
+                    font: .caption.weight(.semibold)
+                )
+            }
+            metric("持有收益") {
+                AmountText(
+                    value: holding.holdingProfitAmount, signed: true,
+                    font: .caption.weight(.semibold),
+                    showSignColor: true
+                )
+                if let rate = holding.holdingProfitRate {
+                    Text(settings.hideAssets ? "✱✱%" : rate.signedPctText)
+                        .font(.caption2)
+                        .foregroundStyle(changeColor(rate))
+                        .monospacedDigit()
+                }
+            }
+            metric("昨日收益") {
+                AmountText(
+                    value: holding.yesterdayProfit, signed: true,
+                    font: .caption.weight(.semibold),
+                    showSignColor: true
+                )
+                if let rate = holding.yesterdayChangeRate {
+                    Text(settings.hideAssets ? "✱✱%" : rate.signedPctText)
+                        .font(.caption2)
+                        .foregroundStyle(changeColor(rate))
+                        .monospacedDigit()
+                }
+            }
+            metric("BIAS20") {
+                Text(holding.bias20?.pctText ?? "--")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(changeColor(holding.bias20))
+                    .monospacedDigit()
+            }
         }
     }
 
-    private func statItem(_ title: String, value: String, color: Color, sub: String) -> some View {
+    private func metric(_ title: String, @ViewBuilder value: () -> some View) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-            Text(value)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(color)
-                .monospacedDigit()
-            if !sub.isEmpty {
-                Text(sub)
-                    .font(.caption2)
-                    .foregroundStyle(color.opacity(0.8))
-                    .monospacedDigit()
-            }
+            value()
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    @ViewBuilder
+    private var footerRows: some View {
+        let tags = signalTags
+        if !tags.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 6) {
+                    ForEach(tags, id: \.0) { strategy, signal in
+                        TagView(
+                            text: strategy == "base" ? signal : "\(strategyLabel(strategy))·\(signal)",
+                            color: signalColor(signal)
+                        )
+                    }
+                }
+            }
+        }
     }
 
     private var signalTags: [(String, String)] {
@@ -342,19 +428,6 @@ struct HoldingRowView: View {
             .map { ($0.key, $0.value) }
     }
 
-    private var signalRow: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 6) {
-                ForEach(signalTags, id: \.0) { strategy, signal in
-                    TagView(
-                        text: strategy == "base" ? signal : "\(strategyLabel(strategy))·\(signal)",
-                        color: signalColor(signal)
-                    )
-                }
-            }
-        }
-    }
-
     private func strategyLabel(_ key: String) -> String {
         switch key {
         case "rsi": "RSI"
@@ -362,15 +435,5 @@ struct HoldingRowView: View {
         case "base": ""
         default: key
         }
-    }
-
-    private var pendingRow: some View {
-        HStack(spacing: 4) {
-            Image(systemName: "clock.badge.exclamationmark")
-                .font(.caption2)
-            Text("\(holding.pendingCount) 笔待确认交易")
-                .font(.caption)
-        }
-        .foregroundStyle(.orange)
     }
 }

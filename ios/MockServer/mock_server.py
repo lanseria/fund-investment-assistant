@@ -197,6 +197,16 @@ DICTS = {
     ],
 }
 
+MARKET = {
+    "sh000001": {"code": "sh000001", "name": "上证指数", "value": 3145.77, "changeAmount": 12.35, "changeRate": 0.39, "time": "15:00:02", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "sz399001": {"code": "sz399001", "name": "深证成指", "value": 9876.54, "changeAmount": -45.21, "changeRate": -0.46, "time": "15:00:02", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "sz399006": {"code": "sz399006", "name": "创业板指", "value": 2035.18, "changeAmount": 8.63, "changeRate": 0.43, "time": "15:00:02", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "sh000300": {"code": "sh000300", "name": "沪深300", "value": 3688.90, "changeAmount": 5.72, "changeRate": 0.16, "time": "15:00:02", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "hkHSI": {"code": "hkHSI", "name": "恒生指数", "value": 20132.45, "changeAmount": 156.30, "changeRate": 0.78, "time": "16:08:00", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "usIXIC": {"code": "usIXIC", "name": "纳斯达克", "value": 16735.02, "changeAmount": -102.55, "changeRate": -0.61, "time": "04:00:00", "datetime": None, "as_of": dstr(TODAY), "delayed": False, "chartData": []},
+    "usDJI": {"code": "usDJI", "name": "道琼斯", "value": 42314.66, "changeAmount": -58.20, "changeRate": -0.14, "time": "04:00:00", "datetime": None, "as_of": dstr(TODAY), "delayed": True, "chartData": []},
+}
+
 NEXT_TX_ID = [200]
 
 
@@ -273,6 +283,8 @@ class MockHandler(BaseHTTPRequestHandler):
             return self._send(200, USER)
         if path == "/api/dicts/all":
             return self._send(200, DICTS)
+        if path == "/api/market/":
+            return self._send(200, MARKET)
         if path.startswith("/api/fund/holdings/") and path.endswith("/detail"):
             return self._send(200, detail_for(path.split("/")[4]))
         if path.startswith("/api/fund/holdings/") and path.endswith("/history"):

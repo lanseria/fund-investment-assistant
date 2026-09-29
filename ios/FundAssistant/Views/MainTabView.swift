@@ -4,6 +4,7 @@ struct MainTabView: View {
     @State private var holdingsStore = HoldingsStore()
     @State private var dcaStore = DcaPlanStore()
     @State private var dictStore = DictStore()
+    @State private var marketStore = MarketStore()
     @State private var selection = LaunchArgs.initialTab
 
     var body: some View {
@@ -21,9 +22,11 @@ struct MainTabView: View {
                 .tabItem { Label("设置", systemImage: "gearshape") }
                 .tag(3)
         }
+        .tint(Theme.brandMid)
         .environment(holdingsStore)
         .environment(dcaStore)
         .environment(dictStore)
+        .environment(marketStore)
         .task { await dictStore.load() }
     }
 }

@@ -74,21 +74,49 @@ struct FundProfitsView: View {
     }
 
     private func summarySection(_ s: FundProfitSummary) -> some View {
-        VStack(spacing: 12) {
-            HStack(spacing: 8) {
-                StatCard(
-                    title: "累计收益",
-                    value: s.totalProfit.signedMoneyText,
-                    color: changeColor(s.totalProfit),
-                    subText: "共 \(s.fundCount) 只基金"
-                )
-                StatCard(
-                    title: "持有市值",
-                    value: s.totalHoldingAmount.moneyText,
-                    subText: "持有中 \(s.heldCount) 只 · 已清仓 \(s.soldCount) 只"
-                )
+        VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("累计收益（元）")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+                Spacer()
+                Text("共 \(s.fundCount) 只基金")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.65))
+            }
+
+            AmountText(
+                value: s.totalProfit, signed: true,
+                font: .system(size: 30, weight: .bold, design: .rounded),
+                color: .white, showSignColor: true,
+                darkBackground: true
+            )
+
+            HStack(spacing: 0) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("持有市值（元）")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.65))
+                    AmountText(
+                        value: s.totalHoldingAmount,
+                        font: .headline.monospacedDigit(),
+                        color: .white
+                    )
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("持仓分布")
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.65))
+                    Text("持有中 \(s.heldCount) 只 · 已清仓 \(s.soldCount) 只")
+                        .font(.headline.monospacedDigit())
+                        .foregroundStyle(.white)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
+        .padding(18)
+        .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 18))
     }
 
     private func load() async {

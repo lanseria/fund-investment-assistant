@@ -7,6 +7,7 @@ struct FundAssistantApp: App {
     var body: some Scene {
         WindowGroup {
             RootView()
+                .tint(Theme.brandMid)
                 .environment(auth)
                 .task { await auth.bootstrap() }
         }

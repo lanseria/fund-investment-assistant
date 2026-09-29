@@ -14,6 +14,16 @@ enum LaunchArgs {
 
     /// -FAFund 161725 → 启动后直接打开该基金详情
     static var fundCode: String? { value("-FAFund") }
+
+    /// -FAScrollAnchor top|center|bottom → 详情页初始滚动锚点（截图辅助）
+    static var scrollAnchor: UnitPoint? {
+        switch value("-FAScrollAnchor") {
+        case "top": .top
+        case "center": .center
+        case "bottom": .bottom
+        default: nil
+        }
+    }
 }
 
 // MARK: - 交易类型（用于 sheet(item:)）
