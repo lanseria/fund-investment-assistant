@@ -11,9 +11,13 @@ final class AuthStore {
 
     var isLoggedIn: Bool { user != nil }
 
-    /// 启动时恢复会话：先 /me，失败则尝试 refresh 后重试。
+    /// 启动时恢复会话：-FALogin 自动登录，否则先 /me，失败则尝试 refresh 后重试。
     func bootstrap() async {
         defer { isCheckingSession = false }
+        if let args = LaunchArgs.autoLogin {
+            try? await login(username: args.username, password: args.password)
+            if isLoggedIn { return }
+        }
         if let me: User = try? await api.request("/api/auth/me") {
             user = me
             return

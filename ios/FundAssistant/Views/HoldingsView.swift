@@ -216,7 +216,7 @@ struct HeroSummaryCard: View {
     @ObservedObject private var settings = AppSettings.shared
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("总资产（元）")
                     .font(.caption)
@@ -242,9 +242,9 @@ struct HeroSummaryCard: View {
 
             HStack(spacing: 0) {
                 heroMetric("今日预估盈亏", value: store.summary?.totalProfitLoss, signed: true,
-                           sub: store.summary.map { $0.totalPercentageChange.signedPctText })
+                           sub: store.summary?.totalPercentageChange)
                 heroMetric("昨日收益", value: store.summary?.yesterdayProfit, signed: true,
-                           sub: store.summary.map { $0.yesterdayProfitRate.signedPctText })
+                           sub: store.summary?.yesterdayProfitRate)
                 heroMetric("可用现金", value: store.summary?.cash, signed: false, sub: nil)
             }
 
@@ -262,11 +262,11 @@ struct HeroSummaryCard: View {
                 .foregroundStyle(.white.opacity(0.6))
             }
         }
-        .padding(14)
+        .padding(12)
         .background(Theme.heroGradient, in: RoundedRectangle(cornerRadius: 16))
     }
 
-    private func heroMetric(_ title: String, value: Double?, signed: Bool, sub: String?) -> some View {
+    private func heroMetric(_ title: String, value: Double?, signed: Bool, sub: Double?) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.caption2)
@@ -278,9 +278,9 @@ struct HeroSummaryCard: View {
                 darkBackground: true
             )
             if let sub {
-                Text(settings.hideAssets ? "✱✱%" : sub)
+                Text(settings.hideAssets ? "✱✱%" : sub.signedPctText)
                     .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.55))
+                    .foregroundStyle(changeColorOnDark(sub).opacity(0.75))
                     .monospacedDigit()
             }
         }

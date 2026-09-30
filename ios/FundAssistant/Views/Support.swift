@@ -24,6 +24,12 @@ enum LaunchArgs {
         default: nil
         }
     }
+
+    /// -FALogin user:pass → 启动时自动登录（UI 测试辅助，配合 Mock 服务器）
+    static var autoLogin: (username: String, password: String)? {
+        guard let raw = value("-FALogin"), let idx = raw.firstIndex(of: ":") else { return nil }
+        return (String(raw[..<idx]), String(raw[raw.index(after: idx)...]))
+    }
 }
 
 // MARK: - 交易类型（用于 sheet(item:)）

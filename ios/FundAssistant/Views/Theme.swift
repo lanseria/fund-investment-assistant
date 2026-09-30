@@ -12,9 +12,13 @@ enum Theme {
     /// 金色点缀（星级/徽标/金币）
     static let gold = Color(red: 0.90, green: 0.72, blue: 0.32)
 
+    /// 资产总览卡·固定紫（深空紫 → 靛紫，涨跌色只用于数字）
+    static let heroIndigo = Color(red: 0.13, green: 0.11, blue: 0.30)
+    static let heroViolet = Color(red: 0.31, green: 0.26, blue: 0.55)
+
     /// 资产总览卡渐变
     static let heroGradient = LinearGradient(
-        colors: [brandDeep, brandMid],
+        colors: [heroIndigo, heroViolet],
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 }
