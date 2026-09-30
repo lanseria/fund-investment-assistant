@@ -135,6 +135,49 @@ export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRe
   return await $fetch<StrategyRealtimeResponse>(url)
 }
 
+/**
+ * 获取开放式基金的盘中实时估值(官方估算兜底)。
+ *
+ * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/fund/realtime/{code}`，
+ * 底层调用东方财富盘中估值表，进程内缓存 60s)。
+ * 供自算估值不成立/无法自算的基金(无重仓非黄金的场外基金等)兜底,
+ * 保证每只基金都有盘中估值展示。
+ *
+ * @returns 获取失败(不在盘中估值列表/服务不可用)时返回 null
+ */
+export async function fetchFundOfficialEstimateFallback(fundCode: string): Promise<FundRealtimeData | null> {
+  const config = useRuntimeConfig()
+  const url = `${config.strategyApiUrl}/fund/realtime/${fundCode}`
+
+  try {
+    const data = await $fetch<StrategyRealtimeResponse>(url)
+
+    // 涨跌幅优先取已公布的官方值(收盘后),否则取估算值
+    const growthRate = data.publishedGrowthRate ?? data.estimateGrowthRate
+    // 净值优先取已公布的官方值(收盘后),否则取估算值
+    const nav = data.publishedNav ?? data.estimateNav
+
+    // 估值日期仅到日级,无分钟级时间戳;用服务端当前时刻以保留"X 分钟前更新"语义
+    return {
+      name: data.name,
+      code: data.code,
+      yesterdayNav: data.yesterdayNav ?? '',
+      estimateNav: nav ?? '',
+      percentageChange: growthRate != null ? String(growthRate) : '',
+      updateTime: new Date().toISOString(),
+    }
+  }
+  catch (error: any) {
+    // 404 = 该基金不在盘中估值列表(QDII/货币型等),属于预期情况,降级为 warn
+    const status = error?.response?.status || error?.statusCode
+    if (status === 404)
+      console.warn(`[OfficialEstimateFallback] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
+    else
+      console.error(`[OfficialEstimateFallback] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
+    return null
+  }
+}
+
 /** Python 服务 /stocks/realtime 返回的单只股票实时行情 */
 export interface StockRealtimeQuote {
   code: string // 股票代码(A 股 6 位/港股 5 位,如 00700)

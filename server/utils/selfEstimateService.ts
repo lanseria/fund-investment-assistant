@@ -5,7 +5,7 @@ import type { FundStockHoldingRow } from '~~/server/utils/stockHoldingService'
 import BigNumber from 'bignumber.js'
 import { eq } from 'drizzle-orm'
 import { funds, holdings } from '~~/server/database/schemas'
-import { fetchFundLofPrice, fetchGoldRealtime, fetchStocksRealtime } from '~~/server/utils/dataFetcher'
+import { fetchFundLofPrice, fetchFundOfficialEstimateFallback, fetchGoldRealtime, fetchStocksRealtime } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { getAllFundStockHoldings } from '~~/server/utils/stockHoldingService'
 import { isGoldPriceFund } from '~~/shared/fund'
@@ -124,6 +124,48 @@ async function applyEstimate(
 }
 
 /**
+ * 官方估算兜底:按东财盘中官方估算写主估值字段。
+ *
+ * 供自算不成立/无法自算的基金使用,保证每只基金都有盘中估值展示。
+ *
+ * @returns 是否成功写入(基金不在盘中估值列表/行情不可用为 false)
+ */
+async function applyOfficialEstimateFallback(
+  fundCode: string,
+  yesterdayNav: string | number,
+  options?: { preserveEstimateUpdateTime?: boolean },
+): Promise<boolean> {
+  const official = await fetchFundOfficialEstimateFallback(fundCode)
+  const pct = official ? Number.parseFloat(official.percentageChange) : Number.NaN
+  const officialNav = official ? Number.parseFloat(official.estimateNav) : Number.NaN
+  const navBase = new BigNumber(yesterdayNav)
+  if (!official || (!Number.isFinite(pct) && !Number.isFinite(officialNav)) || !navBase.isGreaterThan(0))
+    return false
+
+  // 优先用官方估算净值;缺失时按官方涨跌幅套昨净
+  let nav: number
+  if (Number.isFinite(officialNav) && officialNav > 0) {
+    nav = officialNav
+  }
+  else if (Number.isFinite(pct)) {
+    nav = Number(navBase.times(new BigNumber(1).plus(new BigNumber(pct).dividedBy(100))).toFixed(4))
+  }
+  else {
+    return false
+  }
+
+  await applyEstimate(fundCode, {
+    changePct: Number.isFinite(pct) ? Number(new BigNumber(pct).toFixed(4)) : 0,
+    nav,
+    coverage: 100,
+  }, {
+    preserveEstimateUpdateTime: options?.preserveEstimateUpdateTime,
+    updateTime: official.updateTime ? new Date(official.updateTime) : undefined,
+  })
+  return true
+}
+
+/**
  * 分批拉取全部股票行情并汇总为 Map。
  * 任一批失败(接口不可用/服务宕机)返回 null,调用方整体跳过本轮。
  */
@@ -163,7 +205,7 @@ export interface SelfEstimateSyncResult {
 /**
  * 盘中同步所有基金的估值(写主估值字段,全站唯一估值来源)。
  *
- * 分三类标的:
+ * 分三类标的自算:
  * - 重仓股加权(fundType='open' 且有季报重仓持仓):A 股(6 位代码)与港股
  *   (5 位代码,如 00700)按占比加权,港股通/恒生科技类基金自 2026-09 起参与
  *   自算;美股等仍不支持,缺行情时按缺失权重剔除。场内/LOF (qdii_lof) 走场内
@@ -173,6 +215,10 @@ export interface SelfEstimateSyncResult {
  *   套用昨净;SGE 日市(9:00-15:30)与 A 股重叠,现有 cron 窗口无需调整。
  * - 场内价格(fundType='qdii_lof'):按场内实时价涨跌幅套用昨净(原官方同步
  *   对该类基金即走场内价格,口径不变)。
+ *
+ * 官方估算兜底:无法自算的基金(不在上述三类的场外基金,如 QDII 场外/纯债/
+ * 货基)与自算不成立的基金(全部重仓停牌/金价无行情/场内价缺失),回退东财
+ * 盘中官方估算,保证每只基金都有盘中估值展示。
  *
  * 全市场重仓股代码去重后分批取行情,多基金重叠持仓只请求一次;金价全市场共用
  * 一个 Au9999 报价。
@@ -196,6 +242,8 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
   let success = 0
   let failed = 0
   let skipped = 0
+  /** 自算不成立/无法自算,需走官方估算兜底的基金 */
+  const fallbackCodes: string[] = []
 
   // --- 重仓股加权自算(A 股/港股) ---
   const allStockCodes = [...new Set(
@@ -215,7 +263,8 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
     for (const fund of stockTargets) {
       const result = calcSelfEstimate(fund.yesterdayNav, holdingsByFund[fund.code]!, quoteByCode)
       if (result === null) {
-        failed++
+        // 自算不成立(如全部重仓停牌),记录后统一走官方估算兜底
+        fallbackCodes.push(fund.code)
         continue
       }
       try {
@@ -240,7 +289,7 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
     for (const fund of goldTargets) {
       const result = calcGoldEstimate(fund.yesterdayNav, goldQuote!)
       if (result === null) {
-        failed++
+        fallbackCodes.push(fund.code)
         continue
       }
       try {
@@ -260,7 +309,7 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
     const pct = lof ? Number.parseFloat(lof.percentageChange) : Number.NaN
     const navBase = new BigNumber(fund.yesterdayNav)
     if (!lof || !Number.isFinite(pct) || !navBase.isGreaterThan(0)) {
-      failed++
+      fallbackCodes.push(fund.code)
       continue
     }
     const nav = navBase.times(new BigNumber(1).plus(new BigNumber(pct).dividedBy(100)))
@@ -280,6 +329,35 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
       await new Promise(resolve => setTimeout(resolve, QUOTE_CHUNK_DELAY))
   }
 
+  // --- 官方估算兜底 ---
+  // 自算不成立/无法自算的基金(无重仓非黄金的场外基金、QDII 场外、纯债/货基、
+  // 全部重仓停牌等),回退东财盘中官方估算,保证每只基金都有盘中估值展示。
+  const unCovered = allFunds.filter(
+    f => !stockTargets.includes(f) && !goldTargets.includes(f) && !lofTargets.includes(f),
+  )
+  const fallbackTargets = [...new Set([...fallbackCodes, ...unCovered.map(f => f.code)])]
+  if (fallbackTargets.length > 0)
+    console.warn(`[SelfEstimate] ${fallbackTargets.length} 只基金自算不可用,走官方估算兜底:`, fallbackTargets.slice(0, 20).join(','))
+  for (const [index, code] of fallbackTargets.entries()) {
+    const fund = allFunds.find(f => f.code === code)
+    if (!fund)
+      continue
+    try {
+      const ok = await applyOfficialEstimateFallback(code, fund.yesterdayNav)
+      if (ok)
+        success++
+      else
+        failed++
+    }
+    catch (e) {
+      console.error(`[SelfEstimate] 基金 ${code} 官方估算兜底失败:`, e)
+      failed++
+    }
+    // 串行间隔防限流(与重仓股同步节奏一致)
+    if (index < fallbackTargets.length - 1)
+      await new Promise(resolve => setTimeout(resolve, QUOTE_CHUNK_DELAY))
+  }
+
   return { total, success, failed, skipped, stockCount: allStockCodes.length, goldCount: goldTargets.length, lofCount: lofTargets.length }
 }
 
@@ -290,14 +368,14 @@ export async function syncAllFundsSelfEstimates(): Promise<SelfEstimateSyncResul
  * - qdii_lof: 场内实时价涨跌幅(腾讯行情)
  * - open + 有重仓持仓: 重仓股行情加权
  * - open + 无重仓 + 黄金类: 金价 Au9999 涨跌幅
- * - 其余(无重仓非黄金的场外基金,如 QDII 场外/纯债): 无法自算,返回 false
+ * - 自算不成立/无法自算的基金: 官方估算兜底(东财盘中估值)
  *
  * @param code 基金代码
  * @param options 可选配置
  * @param options.preserveEstimateUpdateTime 保留 todayEstimateUpdateTime 不写入。
  *   该字段表示"当日盘中估值"的更新时间(供 isEstimateFresh 等新鲜度判断),
  *   交易确认等场景刷新估值时应开启,避免开盘前的刷新被误判为当日估值已更新。
- * @returns 是否成功写入估值(基金不存在/口径缺失/行情不可用均为 false)
+ * @returns 是否成功写入估值(基金不存在/全部估值源不可用为 false)
  */
 export async function syncSingleFundSelfEstimate(
   code: string,
@@ -316,7 +394,8 @@ export async function syncSingleFundSelfEstimate(
     const pct = lof ? Number.parseFloat(lof.percentageChange) : Number.NaN
     const navBase = new BigNumber(fund.yesterdayNav)
     if (!lof || !Number.isFinite(pct) || !navBase.isGreaterThan(0))
-      return false
+      // 场内价不可用时兜底官方估算
+      return applyOfficialEstimateFallback(code, fund.yesterdayNav, options)
     const nav = navBase.times(new BigNumber(1).plus(new BigNumber(pct).dividedBy(100)))
     await applyEstimate(code, {
       changePct: Number(new BigNumber(pct).toFixed(4)),
@@ -328,32 +407,32 @@ export async function syncSingleFundSelfEstimate(
 
   const stockHoldings = (await getAllFundStockHoldings())[code] ?? []
 
-  // 无重仓的黄金类基金:金价自算
+  // 无重仓的黄金类基金:金价自算;非黄金类(纯债/货基/QDII 场外等)走官方估算兜底
   if (stockHoldings.length === 0) {
     if (!isGoldPriceFund(fund.name))
-      return false
+      return applyOfficialEstimateFallback(code, fund.yesterdayNav, options)
     const quotes = await fetchGoldRealtime([GOLD_PRICE_CODE])
     const goldQuote = quotes?.find(q => q.code === GOLD_PRICE_CODE)
     if (!goldQuote)
-      return false
+      return applyOfficialEstimateFallback(code, fund.yesterdayNav, options)
     const result = calcGoldEstimate(fund.yesterdayNav, goldQuote)
     if (!result)
-      return false
+      return applyOfficialEstimateFallback(code, fund.yesterdayNav, options)
     await applyEstimate(code, result, options)
     return true
   }
 
-  // 重仓股行情加权
+  // 重仓股行情加权;自算不成立(如全部重仓停牌/行情不可用)时兜底官方估算
   const quotes = await fetchStocksRealtime(stockHoldings.map(h => h.stockCode))
-  if (quotes === null)
-    return false
-  const result = calcSelfEstimate(
-    fund.yesterdayNav,
-    stockHoldings,
-    Object.fromEntries(quotes.map(q => [q.code, q])),
-  )
+  const result = quotes === null
+    ? null
+    : calcSelfEstimate(
+        fund.yesterdayNav,
+        stockHoldings,
+        Object.fromEntries(quotes.map(q => [q.code, q])),
+      )
   if (!result)
-    return false
+    return applyOfficialEstimateFallback(code, fund.yesterdayNav, options)
   await applyEstimate(code, result, options)
   return true
 }
