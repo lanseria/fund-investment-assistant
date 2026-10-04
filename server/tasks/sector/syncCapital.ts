@@ -1,6 +1,7 @@
 // server/tasks/sector/syncCapital.ts
 /* eslint-disable no-console */
 import { format } from 'date-fns'
+import { getHolidayRanges } from '~~/server/utils/holidayService'
 import { syncSectorCapitalSnapshot } from '~~/server/utils/sectorSnapshot'
 import { isTradingDay } from '~~/shared/market'
 
@@ -14,8 +15,8 @@ export default defineTask({
     description: '抓取所有已绑定板块的当日主力资金快照并落库',
   },
   async run() {
-    // --- 交易日检查 ---
-    const check = isTradingDay()
+    // --- 交易日检查 (节假日数据来自数据库 market_holidays) ---
+    const check = isTradingDay(undefined, await getHolidayRanges())
     if (!check.isTrading) {
       console.log(`[sector:syncCapital] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
       return { result: 'Skipped', reason: check.reason }

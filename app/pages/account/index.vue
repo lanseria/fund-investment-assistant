@@ -21,6 +21,7 @@ const adminLinks = [
   { to: '/account/users', label: '用户管理', icon: 'i-carbon-group-account', desc: '管理所有用户' },
   { to: '/account/funds', label: '基金管理', icon: 'i-carbon-currency', desc: '管理基金库' },
   { to: '/account/dictionaries', label: '字典管理', icon: 'i-carbon-book', desc: '配置字典数据' },
+  { to: '/account/holidays', label: '节假日管理', icon: 'i-carbon-calendar', desc: '导入每年法定节假日' },
 ]
 </script>
 

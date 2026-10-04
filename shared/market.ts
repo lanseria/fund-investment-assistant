@@ -96,18 +96,11 @@ export const marketCodeKind: Record<string, MarketCodeKind> = {
   fuCL: 'futures',
 }
 
-// 节假日配置 (Single Source of Truth)
-// 未来可以从数据库或API动态获取
-export const HOLIDAYS_CONFIG: [string, string][] = [
-  // 2026 年休市日期区间 (包含起止日期)
-  ['2026-01-01', '2026-01-03'], // 元旦
-  ['2026-02-15', '2026-02-23'], // 春节
-  ['2026-04-04', '2026-04-06'], // 清明节
-  ['2026-05-01', '2026-05-05'], // 劳动节
-  ['2026-06-19', '2026-06-21'], // 端午节
-  ['2026-09-25', '2026-09-27'], // 中秋节
-  ['2026-10-01', '2026-10-07'], // 国庆节
-]
+/**
+ * 节假日区间列表: [开始日期, 结束日期] 均为 'YYYY-MM-DD' 且包含当天。
+ *  数据唯一来源为数据库 market_holidays 表 (管理员按年导入,见 /api/holidays/import)。
+ */
+export type HolidayRanges = [string, string][]
 
 /** 把入参归一化为本地 Date；dayjs 字符串/Date/空值都可接受 */
 function toDate(date?: Date | string): Date {
@@ -121,8 +114,12 @@ function toDate(date?: Date | string): Date {
  * 规则:
  * 1. 非周末 (周一至周五)
  * 2. 不在法定节假日区间内
+ *
+ * @param date - 要检查的日期 (默认为当前时间)
+ * @param holidays - 节假日区间列表 (服务端传数据库缓存的 market_holidays,
+ *                   前端传 /api/holidays 拉取的数据;不传则仅按周末判定)
  */
-export function isTradingDay(date?: Date | string): { isTrading: boolean, reason?: string } {
+export function isTradingDay(date?: Date | string, holidays?: HolidayRanges): { isTrading: boolean, reason?: string } {
   const targetDate = startOfDay(toDate(date)) // 归一化到当天 00:00（与 dayjs isBetween 'day' 语义一致）
   const dayOfWeek = getDay(targetDate)
 
@@ -134,7 +131,7 @@ export function isTradingDay(date?: Date | string): { isTrading: boolean, reason
   // 检查节假日（按天比较，包含起止当天）。节假日串 'YYYY-MM-DD' 直接按字典序比较，
   // 与先归一化为本地 00:00 再比较 Date 的效果一致，且不受时区影响。
   const targetStr = format(targetDate, 'yyyy-MM-dd')
-  for (const [start, end] of HOLIDAYS_CONFIG) {
+  for (const [start, end] of holidays ?? []) {
     if (targetStr >= start && targetStr <= end) {
       return { isTrading: false, reason: `节假日休市 (${start} ~ ${end})` }
     }

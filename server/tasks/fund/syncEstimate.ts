@@ -1,5 +1,6 @@
 // server/tasks/fund/syncEstimate.ts
 import { format } from 'date-fns'
+import { getHolidayRanges } from '~~/server/utils/holidayService'
 import { syncAllFundsSelfEstimates } from '~~/server/utils/selfEstimateService'
 import { isQuoteRefreshHours, isTradingDay } from '~~/shared/market'
 
@@ -9,8 +10,8 @@ export default defineTask({
     description: '盘中同步所有基金估值 (重仓股行情加权 + 黄金基金按金价 Au9999 + 场内/LOF 按场内价,写 funds 表主估值字段)',
   },
   async run() {
-    // --- 交易日检查 ---
-    const check = isTradingDay()
+    // --- 交易日检查 (节假日数据来自数据库 market_holidays) ---
+    const check = isTradingDay(undefined, await getHolidayRanges())
     if (!check.isTrading) {
       console.warn(`[syncEstimate] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
       return { result: 'Skipped', reason: check.reason }

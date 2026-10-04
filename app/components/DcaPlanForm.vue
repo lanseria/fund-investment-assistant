@@ -57,12 +57,15 @@ const fundName = computed(() =>
 
 const isFundCodeLocked = isEditing
 
+// 数据库法定节假日 (管理员按年导入);未加载完成时为 undefined,仅按周末判定
+const { ranges: holidayRanges } = useHolidayData()
+
 // 首期(下次)扣款日实时预览: 与服务端同一套 shared 计算逻辑
 const nextExecutionPreview = computed(() => {
   if (formData.frequency !== 'daily' && formData.frequency !== 'biweekly' && !formData.anchorDay)
     return null
   try {
-    return computeNextExecutionDate(format(new Date(), 'yyyy-MM-dd'), formData.frequency, formData.anchorDay)
+    return computeNextExecutionDate(format(new Date(), 'yyyy-MM-dd'), formData.frequency, formData.anchorDay, holidayRanges.value)
   }
   catch {
     return null

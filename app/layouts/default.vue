@@ -52,6 +52,9 @@ function handleLogout() {
           <div v-if="item.icon" :class="item.icon" class="text-base" />
           {{ item.label }}
         </NuxtLink>
+        <!-- 节假日导入提醒 (当年缺失或 12 月缺次年数据时显示) -->
+        <HolidayReminderBadge />
+
         <!-- 下拉菜单区域 -->
         <div ref="userMenuRef" class="relative">
           <button

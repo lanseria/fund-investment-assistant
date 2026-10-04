@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { and, eq, inArray, sql } from 'drizzle-orm'
 import { aiExecutionLogs, fundTransactions, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
+import { getHolidayRanges } from '~~/server/utils/holidayService'
 import { isTradingDay } from '~~/shared/market'
 
 export default defineTask({
@@ -13,8 +14,8 @@ export default defineTask({
   async run() {
     console.log('🤖 [AI AutoTrade] 任务触发...')
 
-    // --- 交易日检查 ---
-    const check = isTradingDay()
+    // --- 交易日检查 (节假日数据来自数据库 market_holidays) ---
+    const check = isTradingDay(undefined, await getHolidayRanges())
     if (!check.isTrading) {
       console.log(`⏸️ [AI AutoTrade] 今日 (${format(new Date(), 'yyyy-MM-dd')}) 跳过: ${check.reason}`)
       return { result: 'Skipped', reason: check.reason }

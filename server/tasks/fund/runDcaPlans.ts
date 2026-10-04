@@ -3,6 +3,7 @@ import { format } from 'date-fns'
 import { and, eq, lte } from 'drizzle-orm'
 import { dcaPlans, fundTransactions } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
+import { getHolidayRanges } from '~~/server/utils/holidayService'
 import { anchorDayLabel, computeNextExecutionDate, frequencyLabel } from '~~/shared/dcaPlan'
 import { isTradingDay } from '~~/shared/market'
 
@@ -26,7 +27,9 @@ export default defineTask({
     const db = useDb()
     const today = format(new Date(), 'yyyy-MM-dd')
 
-    const trading = isTradingDay(today)
+    // --- 交易日检查与下一期顺延推算共用数据库节假日数据 (market_holidays) ---
+    const holidayRanges = await getHolidayRanges()
+    const trading = isTradingDay(today, holidayRanges)
     if (!trading.isTrading) {
       console.log(`[DCA] 今日 (${today}) ${trading.reason}，跳过定投`)
       return { result: `非交易日 (${today})，跳过` }
@@ -60,7 +63,7 @@ export default defineTask({
           // 2. 推进计划到下一期 (与 1 同事务,保证崩溃重跑不重复下单)
           await trx.update(dcaPlans)
             .set({
-              nextExecutionDate: computeNextExecutionDate(today, plan.frequency, plan.anchorDay),
+              nextExecutionDate: computeNextExecutionDate(today, plan.frequency, plan.anchorDay, holidayRanges),
               lastExecutionDate: today,
               updatedAt: new Date(),
             })

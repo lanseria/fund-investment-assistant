@@ -23,14 +23,14 @@ onlyBuiltDependencies:
 
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.21.0
+    '@nuxtjs/mcp-toolkit': ^0.22.0
     '@types/pg': ^8.23.1
     argon2: ^0.45.1
     drizzle-kit: ^0.31.11
     drizzle-orm: ^0.45.3
     iconv-lite: ^0.7.3
-    openai: ^7.22.0
-    pg: ^8.23.0
+    openai: ^7.27.0
+    pg: ^8.23.1
     secure-exec: ^0.3.3
   build:
     '@nuxt/eslint': ^1.17.0
@@ -44,12 +44,12 @@ catalogs:
     unocss: ^66.10.5
   dev:
     '@antfu/eslint-config': ^9.5.1
-    '@nuxt/test-utils': ^4.3.2
-    eslint: ^10.11.0
+    '@nuxt/test-utils': ^4.3.3
+    eslint: ^10.12.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
-    vitest: ^5.0.1
-    vue-tsc: ^3.3.11
+    vitest: ^5.0.3
+    vue-tsc: ^3.3.12
   frontend:
     '@vueuse/components': ^15.0.0
     '@vueuse/core': ^15.0.0
@@ -58,9 +58,9 @@ catalogs:
     nuxt-echarts: ^1.1.0
     pinia: ^4.0.3
     vue: ^3.5.43
-    vue-echarts: ^8.3.0
+    vue-echarts: ^8.3.1
   icons:
-    '@iconify-json/carbon': ^1.2.27
+    '@iconify-json/carbon': ^1.2.28
     '@iconify-json/f7': ^1.2.2
     '@iconify-json/twemoji': ^1.2.5
   utils:

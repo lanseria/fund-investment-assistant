@@ -288,6 +288,13 @@
       "when": 1790583999033,
       "tag": "0040_past_stature",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791086909472,
+      "tag": "0041_numerous_stryfe",
+      "breakpoints": true
     }
   ]
 }

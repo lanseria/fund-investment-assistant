@@ -2,6 +2,7 @@
 // 基金定投计划的纯计算逻辑,前后端共享(Nuxt shared 目录)。
 // 服务端定时任务/CRUD API 用它推算下次扣款日,前端表单用它做下次扣款日预览。
 
+import type { HolidayRanges } from './market'
 import { addDays, addMonths, format, getDay, parseISO, startOfDay } from 'date-fns'
 import { isTradingDay } from './market'
 
@@ -19,16 +20,18 @@ const WEEKDAY_LABELS = ['周日', '周一', '周二', '周三', '周四', '周�
  * @param fromDate 起算日期 (计划创建日或本期实际执行日),Date 或 'YYYY-MM-DD'
  * @param frequency 定投频率
  * @param anchorDay 扣款日锚点: weekly 1-5 (周一~周五), monthly 1-28; daily/biweekly 忽略
+ * @param holidays 节假日区间列表 (来自数据库 market_holidays;不传则仅按周末判定)
  */
 export function computeNextExecutionDate(
   fromDate: Date | string,
   frequency: DcaFrequency,
   anchorDay?: number | null,
+  holidays?: HolidayRanges,
 ): string {
   const from = startOfDay(typeof fromDate === 'string' ? parseISO(fromDate) : fromDate)
   let next = nextScheduledDate(from, frequency, anchorDay)
-  // 非交易日顺延到下一交易日 (周末 + HOLIDAYS_CONFIG 法定节假日)
-  while (!isTradingDay(next).isTrading)
+  // 非交易日顺延到下一交易日 (周末 + 法定节假日)
+  while (!isTradingDay(next, holidays).isTrading)
     next = addDays(next, 1)
   return format(next, 'yyyy-MM-dd')
 }

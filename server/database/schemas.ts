@@ -285,6 +285,31 @@ export const dcaPlansRelations = relations(dcaPlans, ({ one }) => ({
 }))
 
 /**
+ * A 股法定节假日表 (market_holidays)
+ * 存储每年国务院公布的休市安排 (区间制,包含起止当天)，供 isTradingDay 判定。
+ * 数据由管理员通过 /api/holidays/import 导入 (通常每年 11-12 月导入次年安排)。
+ */
+export const marketHolidays = fundSchema.table('market_holidays', {
+  /** ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 年份 (导入时整年替换的粒度) */
+  year: integer('year').notNull(),
+  /** 假期名称 (如 "元旦", "春节") */
+  name: text('name').notNull(),
+  /** 休市开始日期 (YYYY-MM-DD, 含当天) */
+  startDate: date('start_date').notNull(),
+  /** 休市结束日期 (YYYY-MM-DD, 含当天) */
+  endDate: date('end_date').notNull(),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+}, (table) => {
+  return {
+    /** 同一年同一假期唯一,防止重复导入产生脏数据 */
+    unqYearName: unique('unq_year_holiday_name').on(table.year, table.name),
+  }
+})
+
+/**
  * 每日新闻表 (daily_news)
  * 存储 Webhook 推送的每日新闻汇总
  */

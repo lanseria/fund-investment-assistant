@@ -81,6 +81,21 @@ vi.mock('~~/server/utils/db', () => ({
   useDb: () => mockDb.db,
 }))
 
+// 节假日数据源 mock: 用 2026 年真实休市安排 (与数据库 2026 年数据一致),
+// 保证用例中的节假日顺延断言与生产判定一致
+vi.mock('~~/server/utils/holidayService', () => {
+  const HOLIDAYS_2026: [string, string][] = [
+    ['2026-01-01', '2026-01-03'],
+    ['2026-02-15', '2026-02-23'],
+    ['2026-04-04', '2026-04-06'],
+    ['2026-05-01', '2026-05-05'],
+    ['2026-06-19', '2026-06-21'],
+    ['2026-09-25', '2026-09-27'],
+    ['2026-10-01', '2026-10-07'],
+  ]
+  return { getHolidayRanges: async () => HOLIDAYS_2026 }
+})
+
 const getTask = () => capturedTaskRef.current
 
 /** 重置数据池 */

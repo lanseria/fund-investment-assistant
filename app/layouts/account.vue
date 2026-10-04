@@ -11,6 +11,7 @@ const adminMenuItems = computed(() => [
   { to: '/account/users', icon: 'i-carbon-group-account', label: '用户管理' },
   { to: '/account/funds', icon: 'i-carbon-currency', label: '基金管理' },
   { to: '/account/dictionaries', icon: 'i-carbon-book', label: '字典管理' },
+  { to: '/account/holidays', icon: 'i-carbon-calendar', label: '节假日管理' },
 ])
 </script>
 
