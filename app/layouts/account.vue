@@ -18,7 +18,7 @@ const adminMenuItems = computed(() => [
 <template>
   <main class="text-gray-800 font-sans bg-gray-50 min-h-screen dark:text-gray-200 dark:bg-gray-900">
     <!-- 顶栏 -->
-    <header class="p-4 bg-white flex shadow-sm items-center top-0 justify-between sticky z-10 dark:bg-gray-800">
+    <header class="p-4 bg-white flex shadow-sm items-center top-0 justify-between sticky z-sticky dark:bg-gray-800">
       <NuxtLink to="/" class="flex gap-2 items-center">
         <div i-carbon-arrow-left />
         <span class="text-lg font-bold">返回主页</span>

@@ -183,7 +183,7 @@ async function deleteData(id: number) {
           <div v-else class="border rounded-lg flex-grow min-h-0 relative overflow-auto">
             <table class="text-left w-full">
               <!-- 4. thead 加上 sticky 定位，并确保有不透明的背景色 -->
-              <thead class="bg-gray-50 top-0 sticky z-10 dark:bg-gray-800">
+              <thead class="bg-gray-50 top-0 sticky z-sticky dark:bg-gray-800">
                 <tr>
                   <th class="p-3">
                     标签(Label)

@@ -271,7 +271,7 @@ function hideProfitDetail() {
             >
               <!-- 悬浮 Tooltip (纯CSS实现，比 title 更快) -->
               <!-- 左对齐(从圆点左缘向右展开):避免悬浮左侧圆点时 Tooltip 居中向左溢出被表格 overflow-x-auto 裁切 -->
-              <div class="mb-2 opacity-0 pointer-events-none whitespace-pre translate-y-1 transform transition-all bottom-full left-0 absolute z-50 group-hover:opacity-100 group-hover:translate-y-0">
+              <div class="mb-2 opacity-0 pointer-events-none whitespace-pre translate-y-1 transform transition-all bottom-full left-0 absolute z-overlay group-hover:opacity-100 group-hover:translate-y-0">
                 <div class="text-xs text-white p-2 rounded bg-gray-800/90 shadow-lg backdrop-blur-sm dark:text-gray-900 dark:bg-white/90">
                   {{ getTransactionTooltip(tx) }}
                 </div>
@@ -563,7 +563,7 @@ function hideProfitDetail() {
     <Transition name="profit-detail-fade">
       <div
         v-if="profitDetailVisible"
-        class="text-xs text-gray-100 p-3 rounded-lg bg-gray-900/95 pointer-events-none whitespace-nowrap shadow-xl fixed z-50 backdrop-blur-sm"
+        class="text-xs text-gray-100 p-3 rounded-lg bg-gray-900/95 pointer-events-none whitespace-nowrap shadow-xl fixed z-overlay backdrop-blur-sm"
         :style="profitDetailStyle"
       >
         <!-- 持有收益 -->

@@ -167,7 +167,7 @@ function handleHideTooltip() {
       <Transition name="fade">
         <div
           v-if="hoveredFundCode && hoveredStrategyKey"
-          class="pointer-events-none transition-opacity fixed z-50"
+          class="pointer-events-none transition-opacity fixed z-overlay"
           :style="tooltipStyle"
         >
           <BaseStrategyTooltip v-if="hoveredStrategyKey === 'base'" :fund-code="hoveredFundCode" />
@@ -181,7 +181,7 @@ function handleHideTooltip() {
       <Transition name="fade">
         <div
           v-if="sectorEditModal && editingFund"
-          class="bg-black/50 flex items-center inset-0 justify-center fixed z-50"
+          class="bg-black/50 flex items-center inset-0 justify-center fixed z-overlay"
           @click.self="sectorEditModal = false"
         >
           <div class="p-6 rounded-lg bg-white max-w-md w-full shadow-xl dark:bg-gray-800" @click.stop>

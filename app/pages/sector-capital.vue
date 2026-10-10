@@ -230,7 +230,7 @@ watch(sectorCapitalData, (val) => {
       class="card max-h-[70vh] overflow-auto"
     >
       <table class="text-left w-full table-fixed">
-        <thead class="border-b border-gray-200 bg-gray-50/95 top-0 sticky z-10 backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
+        <thead class="border-b border-gray-200 bg-gray-50/95 top-0 sticky z-sticky backdrop-blur dark:border-gray-700 dark:bg-gray-800/95">
           <tr>
             <th class="text-xs text-gray-500 font-semibold px-4 py-3 w-[26%] uppercase">
               板块

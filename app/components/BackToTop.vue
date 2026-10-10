@@ -42,7 +42,7 @@ onUnmounted(() => {
   <Transition name="backtop">
     <button
       v-if="visible"
-      class="text-white rounded-full bg-primary flex h-14 w-14 shadow-lg transition-all duration-300 items-center bottom-6 right-[5.5rem] justify-center fixed z-50 hover:bg-primary-hover hover:scale-105"
+      class="text-white rounded-full bg-primary flex h-14 w-14 shadow-lg transition-all duration-300 items-center bottom-6 right-[5.5rem] justify-center fixed z-overlay hover:bg-primary-hover hover:scale-105"
       :class="{ 'scale-90': scrolling }"
       aria-label="回到顶部"
       title="回到顶部"

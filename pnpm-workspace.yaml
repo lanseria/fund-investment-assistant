@@ -68,3 +68,6 @@ catalogs:
     mitt: ^3.0.1
     paseto-ts: ^2.0.7
     zod: ^4.6.5
+catalog:
+  '@antfu/skills': ^0.1.0
+  skills-npm: ^4.0.0

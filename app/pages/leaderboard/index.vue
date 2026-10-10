@@ -212,7 +212,7 @@ function openStrategyModal(user: LeaderboardUser) {
       </div>
 
       <!-- User Rows -->
-      <div v-for="user in sortedLeaderboardData" :key="user.id" class="border-b last:border-b-0 dark:border-gray-700">
+      <div v-for="user in sortedLeaderboardData" :key="user.id" class="border-b dark:border-gray-700 last:border-b-0">
         <div
           class="px-4 py-3 flex cursor-pointer transition-colors items-center hover:bg-gray-50 dark:hover:bg-gray-700/30"
           @click="router.push(`/leaderboard/${user.id}`)"
@@ -278,13 +278,13 @@ function openStrategyModal(user: LeaderboardUser) {
                   :style="{ width: user.totalAssets > 0 ? `${(user.fundValue / user.totalAssets) * 100}%` : '0%' }"
                 >
                   <!-- 悬浮显示仓位 -->
-                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar:opacity-100 -translate-x-1/2">
+                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-sticky group-hover/bar:opacity-100 -translate-x-1/2">
                     仓位: {{ user.totalAssets > 0 ? ((user.fundValue / user.totalAssets) * 100).toFixed(0) : 0 }}%
                   </div>
                 </div>
                 <!-- 现金部分 (自动填充剩余) -->
                 <div class="group/bar-cash bg-emerald-400 flex-grow relative">
-                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-10 group-hover/bar-cash:opacity-100 -translate-x-1/2">
+                  <div class="text-[10px] text-white mb-1 px-1.5 py-0.5 rounded bg-gray-800 opacity-0 pointer-events-none whitespace-nowrap transition-opacity bottom-full left-1/2 absolute z-sticky group-hover/bar-cash:opacity-100 -translate-x-1/2">
                     现金: {{ user.totalAssets > 0 ? ((user.cash / user.totalAssets) * 100).toFixed(0) : 0 }}%
                   </div>
                 </div>

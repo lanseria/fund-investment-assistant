@@ -124,7 +124,7 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
   <div>
     <!-- 悬浮按钮 -->
     <button
-      class="text-white rounded-full bg-primary flex h-14 w-14 shadow-lg transition-all duration-300 items-center bottom-6 right-6 justify-center fixed z-50 hover:bg-primary-hover hover:scale-105"
+      class="text-white rounded-full bg-primary flex h-14 w-14 shadow-lg transition-all duration-300 items-center bottom-6 right-6 justify-center fixed z-overlay hover:bg-primary-hover hover:scale-105"
       :class="{ 'scale-90': isOpen }"
       aria-label="AI 助手"
       @click="chatStore.togglePanel()"
@@ -144,7 +144,7 @@ function shouldShowQuickPrompts(msg: ChatMessage) {
     <Transition name="chat-panel">
       <div
         v-if="isOpen"
-        class="flex inset-0 justify-center fixed z-50"
+        class="flex inset-0 justify-center fixed z-overlay"
         :class="chatStore.displayMode === 'dialog'
           ? 'items-center'
           // panel 模式：外层不拦截点击，面板自身 fixed 定位到右下角

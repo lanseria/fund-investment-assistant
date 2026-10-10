@@ -69,7 +69,7 @@ function handleLogout() {
           <Transition name="fade">
             <div
               v-if="isUserMenuOpen"
-              class="mt-2 border rounded-md bg-white min-w-56 shadow-lg right-0 top-full absolute z-50 dark:border-gray-700 dark:bg-gray-800"
+              class="mt-2 border rounded-md bg-white min-w-56 shadow-lg right-0 top-full absolute z-overlay dark:border-gray-700 dark:bg-gray-800"
             >
               <div class="py-1">
                 <!-- 个人中心 -->

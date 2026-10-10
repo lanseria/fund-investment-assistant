@@ -77,7 +77,7 @@ onClickOutside(selectRef, () => {
     <Transition name="fade">
       <div
         v-if="isOpen"
-        class="mt-1 card flex flex-col max-h-60 w-full left-0 top-full absolute z-10 dark:border-gray-600"
+        class="mt-1 card flex flex-col max-h-60 w-full left-0 top-full absolute z-sticky dark:border-gray-600"
       >
         <!-- 搜索输入区域 -->
         <div class="p-2 border-b flex-shrink-0 relative dark:border-gray-700">

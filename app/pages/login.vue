@@ -98,7 +98,7 @@ async function handleLogin() {
         <circle cx="600" cy="44" r="5" style="fill: var(--theme-primary)" />
       </svg>
 
-      <div class="p-12 w-full relative z-10 xl:p-16">
+      <div class="p-12 w-full relative z-sticky xl:p-16">
         <div class="mx-auto max-w-md w-full">
           <!-- 品牌标识 -->
           <div class="flex gap-3 items-center">
@@ -171,7 +171,7 @@ async function handleLogin() {
       <div class="form-bg" aria-hidden="true" />
 
       <!-- 主题与深色模式切换 -->
-      <div class="flex gap-2 right-4 top-4 fixed z-20">
+      <div class="flex gap-2 right-4 top-4 fixed z-raised">
         <button
           class="border border-white/60 rounded-lg bg-white/70 flex h-9 w-9 cursor-pointer shadow-sm transition-colors items-center justify-center backdrop-blur dark:border-white/10 dark:bg-white/10 hover:bg-white/90 dark:hover:bg-white/15"
           :title="`切换主题: ${currentTheme.label}`"
@@ -188,7 +188,7 @@ async function handleLogin() {
         </button>
       </div>
 
-      <div class="max-w-sm w-full relative z-10">
+      <div class="max-w-sm w-full relative z-sticky">
         <!-- 移动端品牌标识 -->
         <div class="mb-8 flex flex-col items-center lg:hidden">
           <div class="border border-white/60 rounded-2xl bg-white/70 flex h-14 w-14 shadow-sm items-center justify-center backdrop-blur dark:border-white/10 dark:bg-white/10">

@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "prepare": "nuxt prepare",
+    "prepare": "nuxt prepare && skills-npm",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "start:generate": "npx serve .output/public",
@@ -61,6 +61,8 @@
     "zod": "catalog:utils"
   },
   "devDependencies": {
-    "@unocss/preset-web-fonts": "catalog:build"
+    "@antfu/skills": "catalog:",
+    "@unocss/preset-web-fonts": "catalog:build",
+    "skills-npm": "catalog:"
   }
 }

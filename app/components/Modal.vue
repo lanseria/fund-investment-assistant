@@ -32,7 +32,7 @@ onUnmounted(() => {
     <!-- 模态框容器 -->
     <div
       v-if="modelValue"
-      class="flex items-center inset-0 justify-center fixed z-50"
+      class="flex items-center inset-0 justify-center fixed z-overlay"
       aria-modal="true"
       role="dialog"
     >

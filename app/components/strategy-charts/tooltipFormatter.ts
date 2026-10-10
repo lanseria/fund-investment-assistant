@@ -16,8 +16,8 @@ export function buildTooltipFormatter(opts: {
 }) {
   const { sectorByDate, rsiSeriesName, estimate, textColor } = opts
 
-// 净值线配色：项目未注册自定义主题，ECharts 内置 default/dark 主题 palette 首色一致
-const NAV_COLOR = '#5070dd'
+  // 净值线配色：项目未注册自定义主题，ECharts 内置 default/dark 主题 palette 首色一致
+  const NAV_COLOR = '#5070dd'
 
   return (params: any) => {
     const list = Array.isArray(params) ? params : [params]
