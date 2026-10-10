@@ -134,6 +134,7 @@ export default defineNuxtConfig({
     port: 8888,
   },
 
+
   experimental: {
     payloadExtraction: false,
     renderJsonPayloads: true,
@@ -142,6 +143,13 @@ export default defineNuxtConfig({
 
   compatibilityDate: '2026-02-04',
   nitro: {
+    // Workaround for nuxt/nuxt#36467 (Nuxt 4.6.0 Windows): Nitro externals 用反斜杠路径解析 nuxt renderer,
+    // 字符串 inline 规则匹配不上 → renderer 被留作 external → 运行时拿不到 manifest 虚拟模块
+    // → 每页 500 "Either manifest or precomputed data must be provided"。正则强制内联；
+    // 升级到含修复的 nuxt (>=4.6.1) 后可删除本段。
+    externals: {
+      inline: [/[\\/]node_modules[\\/]nuxt[\\/]dist[\\/]/],
+    },
     esbuild: {
       options: {
         target: 'esnext',

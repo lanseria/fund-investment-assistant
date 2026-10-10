@@ -230,7 +230,7 @@ async function handleRunStrategies() {
       <p>加载失败: {{ error.message }}</p>
     </div>
 
-    <div v-else-if="data" class="space-y-4">
+    <div v-else-if="data" class="mb-4">
       <!-- 监听 transaction-click 事件；板块主力行为 / RSI / 布林带策略数据存在时合并为同一张图（布林带信号子图位于 RSI 下方） -->
       <GenericStrategyChart
         :history="data.base.history"
@@ -253,7 +253,7 @@ async function handleRunStrategies() {
     </div>
 
     <!-- 档位策略: 结构化档位配置 + 决策评估 + 可视化 (全局配置, 所有用户共享) -->
-    <StrategyTiersPanel :code="code" />
+    <StrategyTiersPanel class="mb-4" :code="code" />
 
     <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照) -->
     <FundHoldingsPanel

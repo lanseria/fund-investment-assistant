@@ -10,7 +10,6 @@ const formData = reactive({
   costPrice: null as number | null,
   name: '',
   attentionLevel: 1,
-  operationStrategy: '',
   fundType: 'open' as 'open' | 'qdii_lof',
 })
 
@@ -23,7 +22,6 @@ watch(() => props.initialData, (newData) => {
     formData.costPrice = newData.costPrice
     formData.name = newData.name
     formData.attentionLevel = newData.attentionLevel || 1
-    formData.operationStrategy = newData.operationStrategy || ''
   }
   else {
     formData.code = ''
@@ -31,7 +29,6 @@ watch(() => props.initialData, (newData) => {
     formData.costPrice = null
     formData.name = ''
     formData.attentionLevel = 1
-    formData.operationStrategy = ''
     formData.fundType = 'open'
   }
 }, { immediate: true })
@@ -61,8 +58,6 @@ function handleSubmit() {
       shares: formData.shares || null,
       costPrice: formData.costPrice || null,
       attentionLevel: formData.attentionLevel,
-      // 空字符串发送 null，便于后端清空策略
-      operationStrategy: formData.operationStrategy.trim() || null,
     }
     if (!isEditing.value)
       payload.fundType = formData.fundType
@@ -142,20 +137,8 @@ function handleSubmit() {
         />
       </div>
 
-      <!-- 操作策略 (全局) -->
-      <div>
-        <label for="operation-strategy" class="text-sm font-medium mb-1 block">操作策略 (选填, 全局)</label>
-        <textarea
-          id="operation-strategy"
-          v-model="formData.operationStrategy"
-          rows="3"
-          maxlength="2000"
-          placeholder="例如：网格策略，每跌 3% 加仓一次；跌破年线清仓。将作为每次 AI 分析的参考。"
-          class="input-base"
-        />
-        <p class="text-xs text-gray-500 mt-1">
-          描述这只基金的操作计划。策略为全局设置，所有用户共享同一份；AI 分析与自动交易决策时会优先参考。
-        </p>
+      <div class="text-xs text-gray-500">
+        操作策略已升级为「档位策略」：请在基金详情页的档位策略面板中配置 (低吸/高抛档位 + 触发条件)。
       </div>
     </div>
 
