@@ -7,6 +7,7 @@ RUN corepack enable
 ENV SKILLS_INSTALL=false
 
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY scripts/prepare.mjs scripts/prepare.mjs
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
 
