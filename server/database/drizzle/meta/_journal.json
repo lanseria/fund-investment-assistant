@@ -295,6 +295,13 @@
       "when": 1791086909472,
       "tag": "0041_numerous_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791594254759,
+      "tag": "0042_kind_puff_adder",
+      "breakpoints": true
     }
   ]
 }

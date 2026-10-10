@@ -4,6 +4,7 @@ import type { FundStockHoldingsSummary } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
+import StrategyTiersPanel from '~/components/strategy/StrategyTiersPanel.vue'
 import { appName } from '~/constants'
 
 const route = useRoute<'fund-code'>()
@@ -250,6 +251,9 @@ async function handleRunStrategies() {
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>没有找到该基金的历史数据。</p>
     </div>
+
+    <!-- 档位策略: 结构化档位配置 + 决策评估 + 可视化 (全局配置, 所有用户共享) -->
+    <StrategyTiersPanel :code="code" />
 
     <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照) -->
     <FundHoldingsPanel

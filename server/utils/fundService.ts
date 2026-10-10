@@ -127,6 +127,23 @@ export async function setFundOperationStrategy(code: string, operationStrategy: 
 }
 
 /**
+ * 设置基金的结构化档位策略 (存于 funds.strategy_tiers, 所有用户共享同一份)。
+ * 传入 null 表示清空档位 (回到无档位状态)。
+ */
+export async function setFundStrategyTiers(code: string, strategyTiers: unknown) {
+  const db = useDb()
+  const [updated] = await db.update(funds)
+    .set({ strategyTiers: strategyTiers ?? null })
+    .where(eq(funds.code, code))
+    .returning({ code: funds.code, name: funds.name, strategyTiers: funds.strategyTiers })
+
+  if (!updated)
+    throw new FundNotFoundError(code)
+
+  return updated
+}
+
+/**
  * 同步单个基金的历史净值数据
  */
 export async function syncSingleFundHistory(code: string): Promise<number> {

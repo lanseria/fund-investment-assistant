@@ -10,3 +10,6 @@ public/assets/fonts
 .env.production
 .zcode
 ios/FundAssistant.xcodeproj/project.xcworkspace/xcuserdata/zhangchao.xcuserdatad/UserInterfaceState.xcuserstate
+.agents
+.fund-analysis
+__tests__

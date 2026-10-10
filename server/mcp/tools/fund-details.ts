@@ -1,3 +1,4 @@
+import type { TierIndicatorContext } from '~~/server/utils/tierStrategy'
 import { format, subDays } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -6,6 +7,8 @@ import { useDb } from '~~/server/utils/db'
 import { getHistoryWithMA } from '~~/server/utils/holdingAnalysis'
 import { computeBiasPct, computeRsi } from '~~/server/utils/indicators'
 import { buildMcpMeta } from '~~/server/utils/mcpMeta'
+import { describeStrategyTiers, evaluateStrategyTiers } from '~~/server/utils/tierStrategy'
+import { parseStrategyTiers } from '~~/shared/strategyTiers'
 
 // 定义包含动态 MA 属性的接口
 interface FundHistoryPoint {
@@ -217,6 +220,32 @@ export default defineMcpTool({
       ? (currentPoint.nav > currentPoint.ma20 ? 'Bullish (Above MA20)' : 'Bearish (Below MA20)')
       : 'Unknown'
 
+    // 结构化档位策略：解析 funds.strategy_tiers 并基于最新确认净值执行决策
+    const tiers = parseStrategyTiers(fund.strategyTiers)
+    const tierBlock = tiers
+      ? (() => {
+          const rsiSignal = activeSignals?.rsi
+          const rsi14FromSignal = typeof rsiSignal?.metrics?.rsi_value === 'number' ? rsiSignal.metrics.rsi_value : computeRsi(closes, 14)
+          const ctx: TierIndicatorContext = {
+            nav: currentPoint?.nav ?? 0,
+            date: navAsOf,
+            ma20: currentPoint?.ma20 ?? null,
+            ma60: currentPoint?.ma60 ?? null,
+            ma250: currentPoint?.ma250 ?? null,
+            rsi14: rsi14FromSignal,
+            bias20: bias20Pct,
+          }
+          return {
+            configured: true,
+            enabled: tiers.enabled,
+            summary: describeStrategyTiers(tiers),
+            tiers,
+            decision: currentPoint ? evaluateStrategyTiers(tiers, ctx) : null,
+            note: 'decision 为档位引擎基于 T-1 已确认净值的建议；trigger/bias 单位为百分数数值 (如 -5 表示 -5%)',
+          }
+        })()
+      : { configured: false }
+
     return {
       content: [{
         type: 'text',
@@ -255,6 +284,7 @@ export default defineMcpTool({
               trend: trendDescription,
             },
             strategy_signals: activeSignals,
+            tier_strategy: tierBlock,
             recent_price_action: recentHistory,
             recent_price_action_meta: {
               as_of: navAsOf,

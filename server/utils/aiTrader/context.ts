@@ -59,6 +59,8 @@ export async function buildAiContext(fullHoldingsData: any[]) {
     bias20: h.bias20,
     // 基金的全局操作策略(所有用户共享)，是决策的强参考：与信号冲突时应优先尊重策略
     ...(h.operationStrategy ? { operationStrategy: h.operationStrategy } : {}),
+    // 结构化档位策略摘要 (所有用户共享)：档位触发时应严格按档位金额/比例执行
+    ...(h.strategyTiersSummary ? { strategyTiersSummary: h.strategyTiersSummary } : {}),
     recentTransactions: h.recentTransactions?.slice(0, 3).map((t: any) => ({
       type: t.type,
       date: t.date,

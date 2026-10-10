@@ -6,7 +6,7 @@ export default antfu(
   {
     unocss: true,
     formatters: true,
-    pnpm: true,
+    pnpm: false,
     ignores: [
       '**/dist/**',
       '**/node_modules/**',

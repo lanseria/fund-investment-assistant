@@ -66,6 +66,8 @@ export const funds = fundSchema.table('funds', {
   todayEstimateUpdateTime: timestamp('today_estimate_update_time', { withTimezone: true }),
   /** 全局操作策略 (自由文本，所有用户共享，作为每次 AI 分析的参考) */
   operationStrategy: text('operation_strategy'),
+  /** 结构化档位策略 (JSONB，所有用户共享)：低吸/高抛档位、触发条件与修正规则，见 shared/strategyTiers.ts */
+  strategyTiers: jsonb('strategy_tiers'),
 })
 
 /**
