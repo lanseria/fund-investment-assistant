@@ -241,7 +241,7 @@ export default defineMcpTool({
             summary: describeStrategyTiers(tiers),
             tiers,
             decision: currentPoint ? evaluateStrategyTiers(tiers, ctx) : null,
-            note: 'decision 为档位引擎基于 T-1 已确认净值的建议；trigger/bias 单位为百分数数值 (如 -5 表示 -5%)',
+            note: 'decision 为档位引擎基于 T-1 已确认净值的建议；低吸按可用现金百分比 (percentOfCash) 表达, amount 仅在能确定用户现金时折算；trigger/bias 单位为百分数数值 (如 -5 表示 -5%)',
           }
         })()
       : { configured: false }

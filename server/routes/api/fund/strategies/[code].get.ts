@@ -1,6 +1,6 @@
 import type { StrategyTiers } from '~~/shared/strategyTiers'
 import { desc, eq } from 'drizzle-orm'
-import { funds, navHistory } from '~~/server/database/schemas'
+import { funds, navHistory, users } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
 import { computeRsi } from '~~/server/utils/indicators'
@@ -12,12 +12,16 @@ import { generateDefaultTiers, parseStrategyTiers } from '~~/shared/strategyTier
  * query: ?full=1 时附带最近 250 个交易日的净值/MA/RSI 序列 (供档位可视化图表使用)。
  */
 export default defineEventHandler(async (event) => {
-  getUserFromEvent(event)
+  const user = getUserFromEvent(event)
   const code = getRouterParam(event, 'code')
   if (!code)
     throw createError({ status: 400, statusText: '基金代码不能为空。' })
 
   const db = useDb()
+  // 当前用户可用现金: 用于把低吸百分比折算成金额展示
+  const me = await db.query.users.findFirst({ where: eq(users.id, user.id), columns: { availableCash: true } })
+  const availableCash = Number(me?.availableCash ?? 0)
+
   const fund = await db.query.funds.findFirst({
     where: eq(funds.code, code),
     columns: { code: true, name: true, yesterdayNav: true, strategyTiers: true },
@@ -32,7 +36,7 @@ export default defineEventHandler(async (event) => {
   const history = rows.reverse().map(r => ({ date: r.navDate, nav: Number(r.nav) }))
 
   const ctx = buildTierIndicatorContext(history)
-  const decision = (tiers && ctx) ? evaluateStrategyTiers(tiers, ctx) : null
+  const decision = (tiers && ctx) ? evaluateStrategyTiers(tiers, ctx, availableCash) : null
   const summary = tiers ? describeStrategyTiers(tiers) : null
 
   // 可视化序列 (净值 + MA20/60/250 + RSI14)
@@ -52,6 +56,7 @@ export default defineEventHandler(async (event) => {
   }
 
   return {
+    availableCash,
     code: fund.code,
     name: fund.name,
     latestNav: ctx?.nav ?? Number(fund.yesterdayNav),

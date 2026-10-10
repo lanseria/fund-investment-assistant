@@ -27,6 +27,7 @@ interface StrategyResponse {
     bias20: number | null
   } | null
   decision: {
+    percentOfCash: number | null
     action: 'buy' | 'sell' | 'clear' | 'hold'
     amount: number | null
     percent: number | null
@@ -70,6 +71,79 @@ async function load() {
 
 onMounted(load)
 
+// --- 档位设定历史 ---
+interface TiersHistoryRow {
+  date: string
+  source: string
+  tiers: StrategyTiers
+  nav: number | null
+  ma20: number | null
+  ma60: number | null
+  ma250: number | null
+  rsi14: number | null
+  bias20: number | null
+  reason: string | null
+  updatedAt: string
+}
+const historyVisible = ref(false)
+const historyLoading = ref(false)
+const historyRows = ref<TiersHistoryRow[]>([])
+
+async function loadHistory() {
+  historyLoading.value = true
+  try {
+    const res = await apiFetch<{ code: string, history: TiersHistoryRow[] }>(`/api/fund/strategies/${props.code}/history`, { params: { limit: 60 } })
+    historyRows.value = res.history
+  }
+  catch (e: any) {
+    toast.error(`历史加载失败: ${e?.message ?? e}`)
+  }
+  finally {
+    historyLoading.value = false
+  }
+}
+
+function toggleHistory() {
+  historyVisible.value = !historyVisible.value
+  if (historyVisible.value && historyRows.value.length === 0)
+    loadHistory()
+}
+
+const sourceMeta: Record<string, { label: string, cls: string }> = {
+  ai: { label: 'AI校准', cls: 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' },
+  manual: { label: '手动', cls: 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300' },
+  mcp: { label: 'MCP', cls: 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' },
+  migrated: { label: '迁移', cls: 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' },
+}
+
+/** 买入档展示: v2 百分比 / v1 金额(历史) */
+function fmtBuy(t: any) {
+  return t.percentOfCash != null ? `现金${t.percentOfCash}%` : `¥${t.amount}`
+}
+
+/** 与上一条快照的简化对比 (低吸档位变化) */
+function tierDiff(row: TiersHistoryRow, prev: TiersHistoryRow | undefined) {
+  if (!prev)
+    return row.tiers.buyTiers.map((t: any) => `≤${t.nav} ${t.percentOfCash != null ? `买现金${t.percentOfCash}%` : `买¥${t.amount}`}`).join('；')
+  const changes: string[] = []
+  const maxLen = Math.max(row.tiers.buyTiers.length, prev.tiers.buyTiers.length)
+  for (let i = 0; i < maxLen; i++) {
+    const a = row.tiers.buyTiers[i]
+    const b = prev.tiers.buyTiers[i]
+    if (!a) {
+      changes.push(`删除第${i + 1}档`)
+      continue
+    }
+    if (!b) {
+      changes.push(`新增 ≤${a.nav} 买${fmtBuy(a)}`)
+      continue
+    }
+    if (a.nav !== b.nav || a.percentOfCash !== b.percentOfCash)
+      changes.push(`第${i + 1}档: ≤${b.nav}/${fmtBuy(b)} → ≤${a.nav}/${fmtBuy(a)}`)
+  }
+  return changes.length > 0 ? changes.join('；') : '低吸档位无变化'
+}
+
 function initFromDefault() {
   if (!data.value)
     return
@@ -79,7 +153,7 @@ function initFromDefault() {
 }
 
 function addBuyTier() {
-  draft.value?.buyTiers.push({ nav: Number((data.value?.latestNav ?? 1) * 0.9), amount: 500 })
+  draft.value?.buyTiers.push({ nav: Number((data.value?.latestNav ?? 1) * 0.9), percentOfCash: 5 })
 }
 function addSellTier() {
   draft.value?.sellTiers.push({ nav: Number((data.value?.latestNav ?? 1) * 1.1), percent: 20 })
@@ -147,7 +221,7 @@ function num(v: number | null | undefined, digits = 4) {
         </span>
         <span class="text-gray-600 dark:text-gray-300">{{ data.decision.reason }}</span>
         <span v-if="data.decision.action === 'buy'" class="text-green-600 font-semibold">
-          建议买入 ¥{{ data.decision.amount }}
+          建议买入可用现金的 {{ data.decision.percentOfCash }}%<template v-if="data.decision.amount != null">（≈¥{{ data.decision.amount }}）</template>
         </span>
         <span v-else-if="data.decision.action !== 'hold'" class="text-red-600 font-semibold">
           建议卖出 {{ data.decision.percent }}%
@@ -281,8 +355,9 @@ function num(v: number | null | undefined, digits = 4) {
               <span class="text-gray-400 w-14">第{{ i + 1 }}档</span>
               <span>净值 ≤</span>
               <input v-model.number="tier.nav" type="number" step="0.0001" min="0" class="input-base !w-28">
-              <span>买入 ¥</span>
-              <input v-model.number="tier.amount" type="number" step="100" min="0" class="input-base !w-28">
+              <span>买入现金</span>
+              <input v-model.number="tier.percentOfCash" type="number" step="0.5" min="0.5" max="50" class="input-base !w-28">
+              <span>%</span>
               <button class="text-gray-400 hover:text-red-500" @click="removeBuyTier(i)">
                 <div class="i-carbon-trash-can" />
               </button>
@@ -358,6 +433,44 @@ function num(v: number | null | undefined, digits = 4) {
             {{ saving ? '保存中...' : '保存档位策略' }}
           </button>
           <span v-if="data.summary" class="text-xs text-gray-400">{{ data.summary }}</span>
+        </div>
+      </div>
+      <!-- 档位设定历史 -->
+      <div class="mt-4 p-3 border rounded-lg dark:border-gray-700">
+        <button class="text-sm font-medium flex w-full items-center justify-between" @click="toggleHistory">
+          <span>档位设定历史 (每日快照)</span>
+          <div class="i-carbon-chevron-down transition-transform" :class="{ 'rotate-180': historyVisible }" />
+        </button>
+        <div v-if="historyVisible" class="mt-3">
+          <div v-if="historyLoading" class="text-gray-400 flex h-20 items-center justify-center">
+            <div class="i-carbon-circle-dash text-2xl animate-spin" />
+          </div>
+          <div v-else-if="historyRows.length === 0" class="text-xs text-gray-400 py-4 text-center">
+            暂无历史记录 (每周一 AI 校准或手动修改后会产生快照)
+          </div>
+          <div v-else class="max-h-80 overflow-y-auto space-y-2">
+            <div
+              v-for="(row, i) in historyRows"
+              :key="row.date + row.source"
+              class="text-xs p-2 rounded bg-gray-50 dark:bg-gray-800/50"
+            >
+              <div class="mb-1 flex flex-wrap gap-2 items-center">
+                <span class="font-mono">{{ row.date }}</span>
+                <span class="px-1.5 py-0.5 rounded" :class="sourceMeta[row.source]?.cls ?? sourceMeta.manual?.cls">
+                  {{ sourceMeta[row.source]?.label ?? row.source }}
+                </span>
+                <span v-if="row.nav" class="text-gray-400">净值 {{ row.nav }}</span>
+                <span v-if="row.rsi14 != null" class="text-gray-400">RSI14 {{ row.rsi14 }}</span>
+                <span v-if="row.bias20 != null" class="text-gray-400">Bias20 {{ row.bias20 }}%</span>
+              </div>
+              <div class="text-gray-600 dark:text-gray-300">
+                {{ tierDiff(row, historyRows[i + 1]) }}
+              </div>
+              <div v-if="row.reason" class="text-gray-400 mt-1">
+                理由: {{ row.reason }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </template>

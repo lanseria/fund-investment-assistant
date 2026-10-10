@@ -2,17 +2,20 @@
 // 结构化档位策略的类型、默认模板与校验，前后端共享 (Nuxt shared 目录)。
 // 存储于 funds.strategy_tiers (JSONB，全局共享)，取代纯文字策略中"写死"的档位，
 // 使低吸/高抛档位可手动配置、可图表化可视化、可被统一引擎执行。
+//
+// 买入档位使用「可用现金百分比」而非固定金额：档位全局共享而每个用户现金不同，
+// 按百分比可让所有用户按同一规则执行 (实际金额 = percentOfCash% × 该用户可用现金)。
 
 import { z } from 'zod'
 
 /**
- * 低吸档位：确认净值 ≤ nav 时买入 amount 元
+ * 低吸档位：确认净值 ≤ nav 时，买入「用户可用现金的 percentOfCash %」
  */
 export const strategyBuyTierSchema = z.object({
   /** 触发净值 (含)，如 1.024 表示净值跌到 1.024 及以下触发 */
   nav: z.number().positive(),
-  /** 买入金额 (元) */
-  amount: z.number().positive(),
+  /** 买入金额 = 可用现金的百分比 (%)，如 5 表示买现金的 5% */
+  percentOfCash: z.number().min(0.5).max(50),
 })
 
 /**
@@ -39,8 +42,8 @@ export const strategyClearRuleSchema = z.object({
  * 档位策略整体结构
  */
 export const strategyTiersSchema = z.object({
-  /** 结构版本，当前固定为 1 */
-  version: z.literal(1),
+  /** 结构版本：1=金额制(已废弃) 2=现金百分比制 */
+  version: z.literal(2),
   /** 是否启用 (关闭后引擎与 AI 均忽略档位) */
   enabled: z.boolean(),
   /**
@@ -58,7 +61,7 @@ export const strategyTiersSchema = z.object({
   sellTiers: z.array(strategySellTierSchema).max(8),
   /** 泡沫清仓条件，null 表示不启用 */
   clearRule: strategyClearRuleSchema.nullable(),
-  /** 净值低于年线 (MA250) 时低吸金额减半 */
+  /** 净值低于年线 (MA250) 时低吸百分比减半 */
   halveBelowMa250: z.boolean(),
   /** 备注 (自由文本，仅供人读，不参与决策) */
   note: z.string().max(500).optional(),
@@ -71,20 +74,21 @@ export type StrategyTiers = z.infer<typeof strategyTiersSchema>
 
 /**
  * 生成默认档位模板：以当前净值 baseNav 为基准，
- * 低吸档位 -5% / -10% / -15% / -20%，高抛档位 +10% / +20% / +30%，
+ * 低吸档位 -5% / -10% / -15% / -20% (买现金 5%/6%/8%/10%)，
+ * 高抛档位 +10% / +20% / +30%，
  * 触发条件 RSI14 ≤ 35 或 bias20 ≤ -5%。
  */
 export function generateDefaultTiers(baseNav: number): StrategyTiers {
   const round4 = (n: number) => Number(n.toFixed(4))
   return {
-    version: 1,
+    version: 2,
     enabled: true,
     trigger: { rsi14Max: 35, bias20MinPct: -5 },
     buyTiers: [
-      { nav: round4(baseNav * 0.95), amount: 500 },
-      { nav: round4(baseNav * 0.90), amount: 600 },
-      { nav: round4(baseNav * 0.85), amount: 800 },
-      { nav: round4(baseNav * 0.80), amount: 1000 },
+      { nav: round4(baseNav * 0.95), percentOfCash: 5 },
+      { nav: round4(baseNav * 0.90), percentOfCash: 6 },
+      { nav: round4(baseNav * 0.85), percentOfCash: 8 },
+      { nav: round4(baseNav * 0.80), percentOfCash: 10 },
     ],
     sellTiers: [
       { nav: round4(baseNav * 1.10), percent: 20 },
@@ -106,14 +110,16 @@ export function normalizeStrategyTiers(input: StrategyTiers): StrategyTiers {
     ...input,
     buyTiers: [...input.buyTiers]
       .sort((a, b) => b.nav - a.nav)
-      .map(t => ({ nav: Number(t.nav.toFixed(4)), amount: Math.round(t.amount * 100) / 100 })),
+      .map(t => ({ nav: Number(t.nav.toFixed(4)), percentOfCash: Math.round(t.percentOfCash * 10) / 10 })),
     sellTiers: [...input.sellTiers]
       .sort((a, b) => a.nav - b.nav)
       .map(t => ({ nav: Number(t.nav.toFixed(4)), percent: Math.round(t.percent * 10) / 10 })),
   }
 }
 
-/** 解析 funds.strategy_tiers 的 JSON 值；无效或版本不兼容时返回 null */
+/**
+ * 解析 funds.strategy_tiers 的 JSON 值；无效、版本不兼容 (version 1 金额制已废弃) 时返回 null。
+ */
 export function parseStrategyTiers(raw: unknown): StrategyTiers | null {
   const result = strategyTiersSchema.safeParse(raw)
   return result.success ? normalizeStrategyTiers(result.data) : null

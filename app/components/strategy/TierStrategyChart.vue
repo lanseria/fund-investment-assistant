@@ -28,7 +28,7 @@ const chartOption = computed<EChartsOption>(() => {
     yAxis: tier.nav,
     lineStyle: { color: '#22c55e', type: 'dashed' as const, width: 1, opacity: 0.8 },
     label: {
-      formatter: `低吸 ≤${tier.nav} 买¥${tier.amount}`,
+      formatter: `低吸 ≤${tier.nav} 买现金${tier.percentOfCash}%`,
       position: 'insideEndTop' as const,
       color: '#22c55e',
       fontSize: 10,

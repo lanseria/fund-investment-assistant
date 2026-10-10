@@ -71,6 +71,44 @@ export const funds = fundSchema.table('funds', {
 })
 
 /**
+ * 档位策略历史表 (strategy_tiers_history)
+ * 每次档位变更 (手动/AI校准/MCP) 都按 (基金, 日期, 来源) upsert 一条快照，
+ * 用于回看档位设定随时间的变化。同一天同来源多次写入时最新一次覆盖。
+ */
+export const strategyTiersHistory = fundSchema.table('strategy_tiers_history', {
+  /** 记录ID (主键, 自增) */
+  id: bigserial('id', { mode: 'number' }).primaryKey(),
+  /** 基金代码 (外键关联 funds 表) */
+  fundCode: varchar('fund_code', { length: 10 }).notNull().references(() => funds.code, { onDelete: 'cascade' }),
+  /** 快照日期 (YYYY-MM-DD)：每天每来源一条 */
+  date: date('date').notNull(),
+  /** 变更来源: 'manual' (页面编辑) | 'ai' (每周AI校准) | 'mcp' (MCP工具) | 'migrated' (初始迁移) */
+  source: varchar('source', { length: 20 }).notNull().default('manual'),
+  /** 档位快照 (完整 StrategyTiers JSON) */
+  tiers: jsonb('tiers').notNull(),
+  /** 快照时的技术指标上下文 (可空, AI 校准任务写入) */
+  nav: numeric('nav', { precision: 10, scale: 4 }),
+  ma20: numeric('ma20', { precision: 10, scale: 4 }),
+  ma60: numeric('ma60', { precision: 10, scale: 4 }),
+  ma250: numeric('ma250', { precision: 10, scale: 4 }),
+  /** 14日RSI (0-100) */
+  rsi14: real('rsi14'),
+  /** 20日乖离率 (%) */
+  bias20: real('bias20'),
+  /** 变更理由 (AI 的调整说明或人工备注) */
+  reason: text('reason'),
+  /** 创建时间 */
+  createdAt: timestamp('created_at', { withTimezone: true }).defaultNow(),
+  /** 更新时间 (同日覆盖时刷新) */
+  updatedAt: timestamp('updated_at', { withTimezone: true }).defaultNow(),
+}, (table) => {
+  return {
+    /** 基金+日期+来源 唯一, 同日同来源重写覆盖 */
+    unqFundDateSource: unique('unq_tiers_history_fund_date_source').on(table.fundCode, table.date, table.source),
+  }
+})
+
+/**
  * 基金重仓股持仓表 (fund_stock_holdings)
  * 存储基金季报披露的重仓股持仓明细 (全局共享，每基金一份最新报告期数据)，
  * 供盘中按重仓股行情加权自算基金估值。数据来源为 Python 服务

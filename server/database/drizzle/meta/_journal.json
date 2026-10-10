@@ -302,6 +302,13 @@
       "when": 1791594254759,
       "tag": "0042_kind_puff_adder",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1791598755830,
+      "tag": "0043_lazy_bulldozer",
+      "breakpoints": true
     }
   ]
 }

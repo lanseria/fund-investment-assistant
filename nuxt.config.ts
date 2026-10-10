@@ -37,6 +37,8 @@ const syncSectorCapitalCrons = (env.CRON_SECTOR_SYNC_CAPITAL ?? '*/30 9-16 * * *
   .filter(Boolean)
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
+// 档位策略 AI 校准: 每周一 08:00 (对每只已配置档位的基金做 AI 分析并调整档位, 记录历史)
+const calibrateTiersCron = env.CRON_AI_CALIBRATE_TIERS ?? '0 8 * * 1'
 // 清理 AI 用户灰尘份额: 每天 10:00 (在 2:30 处理交易之后)
 const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
 // 注: 板块主力资金快照 (sector:syncCapital) 使用独立的 CRON_SECTOR_SYNC_CAPITAL，
@@ -80,6 +82,9 @@ if (!disableScheduler && runDcaPlansCron) {
 }
 if (!disableScheduler && runAiTradeCron) {
   addTask(runAiTradeCron, 'ai:runAutoTrade')
+}
+if (!disableScheduler && calibrateTiersCron) {
+  addTask(calibrateTiersCron, 'ai:calibrateTiers')
 }
 if (!disableScheduler && cleanDustSharesCron) {
   addTask(cleanDustSharesCron, 'fund:cleanDustShares')
@@ -127,13 +132,14 @@ export default defineNuxtConfig({
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
     openRouterBaseUrl: '', // NUXT_OPEN_ROUTER_BASE_URL
+    // 档位策略 AI 校准使用的模型 (默认与 AI 交易一致的 flash 模型, 可用 NUXT_AI_CALIBRATE_MODEL 覆盖)
+    aiCalibrateModel: '',
     // 是否禁用调度器 (开发模式默认禁用定时任务/轮询)
     disableScheduler,
   },
   devServer: {
     port: 8888,
   },
-
 
   experimental: {
     payloadExtraction: false,
