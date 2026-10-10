@@ -7,7 +7,7 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "prepare": "nuxt prepare && skills-npm",
+    "prepare": "nuxt prepare && node scripts/prepare.mjs",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "start:generate": "npx serve .output/public",

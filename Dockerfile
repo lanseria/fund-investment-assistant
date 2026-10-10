@@ -3,6 +3,9 @@ FROM m.daocloud.io/docker.io/node:24-alpine AS build-stage
 WORKDIR /app
 RUN corepack enable
 
+# 部署环境跳过 skills 安装（见 scripts/prepare.mjs）
+ENV SKILLS_INSTALL=false
+
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
     pnpm install --frozen-lockfile
