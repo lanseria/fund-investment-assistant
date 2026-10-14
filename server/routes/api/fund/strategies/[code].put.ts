@@ -7,8 +7,6 @@ import { normalizeStrategyTiers, strategyTiersSchema } from '~~/shared/strategyT
 const bodySchema = z.object({
   /** null 表示清空档位 */
   tiers: strategyTiersSchema.nullable(),
-  /** 变更理由 (可选, 记入历史快照) */
-  reason: z.string().max(500).optional(),
 })
 
 /**
@@ -22,9 +20,9 @@ export default defineEventHandler(async (event) => {
 
   try {
     const body = await readBody(event)
-    const { tiers, reason } = await bodySchema.parseAsync(body)
+    const { tiers } = await bodySchema.parseAsync(body)
     const normalized = tiers === null ? null : normalizeStrategyTiers(tiers)
-    const updated = await setFundStrategyTiers(code, normalized, { source: 'manual', reason: reason ?? undefined })
+    const updated = await setFundStrategyTiers(code, normalized)
     return { code: updated.code, name: updated.name, tiers: updated.strategyTiers ?? null }
   }
   catch (error) {

@@ -1,9 +1,6 @@
 // server/utils/tierStrategy.ts
 // 档位策略决策引擎：所有基金共用同一套规则，输入结构化档位 + 技术指标上下文，
 // 输出 buy/sell/clear/hold 决策。纯函数、不依赖数据库，便于单测与跨端复用。
-//
-// 买入档位为「可用现金百分比」：传入 cash 时决策同时给出折算金额 (元)；
-// 不传时仅给出百分比，由调用方 (前端/AI) 按各用户现金折算。
 
 import type { StrategyBuyTier, StrategySellTier, StrategyTiers } from '~~/shared/strategyTiers'
 import { computeBiasPct, computeRsi } from './indicators'
@@ -30,9 +27,7 @@ export type TierAction = 'buy' | 'sell' | 'clear' | 'hold'
 
 export interface TierDecision {
   action: TierAction
-  /** buy: 买入现金百分比 (%) (已应用减半等修正) */
-  percentOfCash: number | null
-  /** buy: 按传入 cash 折算的金额 (元)；未传 cash 时为 null */
+  /** buy: 买入金额 (元, 已应用减半等修正) */
   amount: number | null
   /** sell/clear: 卖出比例 (%) */
   percent: number | null
@@ -41,7 +36,7 @@ export interface TierDecision {
   sellTier: StrategySellTier | null
   /** 低吸前置条件是否满足 (null=无条件/无法判定但放行) */
   triggerMatched: boolean | null
-  /** 是否因低于年线而百分比减半 */
+  /** 是否因低于年线而金额减半 */
   halved: boolean
   /** 人类可读的决策理由 */
   reason: string
@@ -104,14 +99,10 @@ function evaluateTrigger(tiers: StrategyTiers, ctx: TierIndicatorContext): boole
 
 /**
  * 执行档位策略决策。优先级: 泡沫清仓 > 高抛 > 低吸 > 持有。
- * @param tiers 档位配置
- * @param ctx 指标上下文
- * @param cash 当前用户可用现金 (元)；传入时决策附带折算金额，不传时仅给百分比
  */
-export function evaluateStrategyTiers(tiers: StrategyTiers, ctx: TierIndicatorContext, cash?: number | null): TierDecision {
+export function evaluateStrategyTiers(tiers: StrategyTiers, ctx: TierIndicatorContext): TierDecision {
   const base: TierDecision = {
     action: 'hold',
-    percentOfCash: null,
     amount: null,
     percent: null,
     buyTier: null,
@@ -165,21 +156,16 @@ export function evaluateStrategyTiers(tiers: StrategyTiers, ctx: TierIndicatorCo
     }
     const deepest = buyHit.reduce((a, b) => (b.nav <= a.nav ? b : a))
     const halved = tiers.halveBelowMa250 && ctx.ma250 !== null && ctx.nav < ctx.ma250
-    const percentOfCash = halved ? Math.round(deepest.percentOfCash * 5) / 10 : deepest.percentOfCash
-    const amount = typeof cash === 'number' && cash > 0
-      ? Math.round(cash * percentOfCash / 100)
-      : null
-    const halveNote = halved ? '(低于年线 MA250，百分比减半)' : ''
-    const amountNote = amount !== null ? `，即 ¥${amount}` : ''
+    const amount = halved ? Math.round(deepest.amount / 2) : deepest.amount
+    const halveNote = halved ? '(低于年线 MA250，金额减半)' : ''
     return {
       ...base,
       action: 'buy',
-      percentOfCash,
       amount,
       buyTier: deepest,
       triggerMatched,
       halved,
-      reason: `低吸：净值 ${ctx.nav} ≤ 档位 ${deepest.nav}，买入可用现金的 ${percentOfCash}%${amountNote}${halveNote}`,
+      reason: `低吸：净值 ${ctx.nav} ≤ 档位 ${deepest.nav}，买入 ¥${amount}${halveNote}`,
     }
   }
 
@@ -196,7 +182,7 @@ export function evaluateStrategyTiers(tiers: StrategyTiers, ctx: TierIndicatorCo
 export function describeStrategyTiers(tiers: StrategyTiers): string {
   if (!tiers.enabled)
     return '档位策略：已停用'
-  const buy = tiers.buyTiers.map(t => `≤${t.nav} 买现金${t.percentOfCash}%`).join('；')
+  const buy = tiers.buyTiers.map(t => `≤${t.nav} 买¥${t.amount}`).join('；')
   const sell = tiers.sellTiers.map(t => `≥${t.nav} 减${t.percent}%`).join('；')
   const trigger = [
     tiers.trigger.rsi14Max !== null ? `RSI14≤${tiers.trigger.rsi14Max}` : null,
@@ -209,6 +195,6 @@ export function describeStrategyTiers(tiers: StrategyTiers): string {
     `低吸(${trigger || '无条件'})：${buy || '无'}`,
     `高抛：${sell || '无'}`,
     clear,
-    tiers.halveBelowMa250 ? '低于年线低吸百分比减半' : '',
+    tiers.halveBelowMa250 ? '低于年线低吸减半' : '',
   ].filter(Boolean).join('｜')
 }

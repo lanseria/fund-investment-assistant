@@ -3,7 +3,7 @@
 import BigNumber from 'bignumber.js'
 import { addDays, format, parseISO } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
-import { fundFees, funds, navHistory, strategyTiersHistory } from '~~/server/database/schemas'
+import { fundFees, funds, navHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
@@ -126,26 +126,11 @@ export async function setFundOperationStrategy(code: string, operationStrategy: 
   return updated
 }
 
-/** 档位历史快照的可选指标上下文 */
-export interface TiersHistoryContext {
-  nav?: number | null
-  ma20?: number | null
-  ma60?: number | null
-  ma250?: number | null
-  rsi14?: number | null
-  bias20?: number | null
-}
-
 /**
  * 设置基金的结构化档位策略 (存于 funds.strategy_tiers, 所有用户共享同一份)。
  * 传入 null 表示清空档位 (回到无档位状态)。
- * 每次有效写入都会按 (基金, 当天, 来源) upsert 一条历史快照到 strategy_tiers_history。
  */
-export async function setFundStrategyTiers(
-  code: string,
-  strategyTiers: unknown,
-  options: { source?: string, reason?: string, context?: TiersHistoryContext } = {},
-) {
+export async function setFundStrategyTiers(code: string, strategyTiers: unknown) {
   const db = useDb()
   const [updated] = await db.update(funds)
     .set({ strategyTiers: strategyTiers ?? null })
@@ -154,33 +139,6 @@ export async function setFundStrategyTiers(
 
   if (!updated)
     throw new FundNotFoundError(code)
-
-  // 写入历史快照 (同日同来源覆盖; 清空档位不记录)
-  if (strategyTiers != null) {
-    const ctx = options.context ?? {}
-    await db.insert(strategyTiersHistory)
-      .values({
-        fundCode: code,
-        date: format(new Date(), 'yyyy-MM-dd'),
-        source: options.source ?? 'manual',
-        tiers: strategyTiers,
-        nav: ctx.nav != null ? String(ctx.nav) : null,
-        ma20: ctx.ma20 != null ? String(ctx.ma20) : null,
-        ma60: ctx.ma60 != null ? String(ctx.ma60) : null,
-        ma250: ctx.ma250 != null ? String(ctx.ma250) : null,
-        rsi14: ctx.rsi14 ?? null,
-        bias20: ctx.bias20 ?? null,
-        reason: options.reason ?? null,
-      })
-      .onConflictDoUpdate({
-        target: [strategyTiersHistory.fundCode, strategyTiersHistory.date, strategyTiersHistory.source],
-        set: {
-          tiers: strategyTiers,
-          reason: options.reason ?? null,
-          updatedAt: new Date(),
-        },
-      })
-  }
 
   return updated
 }

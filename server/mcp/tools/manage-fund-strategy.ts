@@ -14,7 +14,7 @@ export default defineMcpTool({
     action: z.enum(['get', 'set', 'clear']).describe('操作类型：get (查看策略) / set (设置或更新策略) / clear (清空策略)'),
     fundCode: z.string().length(6).describe('6位基金代码，例如 "161725"'),
     operationStrategy: z.string().max(2000).optional().describe('(已废弃) 旧版自由文本策略，仅供 get 查看历史内容；set 时忽略。新策略请使用 strategyTiers。'),
-    strategyTiers: strategyTiersSchema.nullable().optional().describe('结构化档位策略 (JSON)。action="set" 时可选：传入则保存档位 (传 null 清空档位)；结构见 shared/strategyTiers.ts：{ version:1, enabled, trigger:{rsi14Max,bias20MinPct}, buyTiers:[{nav,percentOfCash}], sellTiers:[{nav,percent}], clearRule:{rsi14Min,bias20MinPct}|null, halveBelowMa250, note }。'),
+    strategyTiers: strategyTiersSchema.nullable().optional().describe('结构化档位策略 (JSON)。action="set" 时可选：传入则保存档位 (传 null 清空档位)；结构见 shared/strategyTiers.ts：{ version:1, enabled, trigger:{rsi14Max,bias20MinPct}, buyTiers:[{nav,amount}], sellTiers:[{nav,percent}], clearRule:{rsi14Min,bias20MinPct}|null, halveBelowMa250, note }。'),
   },
   handler: async ({ action, fundCode, strategyTiers }) => {
     // 1. 认证检查
@@ -74,7 +74,7 @@ export default defineMcpTool({
       }
 
       try {
-        await setFundStrategyTiers(fundCode, strategyTiers, { source: 'mcp' })
+        await setFundStrategyTiers(fundCode, strategyTiers)
         const db2 = useDb()
         const fund = await db2.query.funds.findFirst({ where: eq(funds.code, fundCode), columns: { code: true, name: true, strategyTiers: true } })
         const tiers = fund ? parseStrategyTiers(fund.strategyTiers) : null

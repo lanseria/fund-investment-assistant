@@ -65,7 +65,7 @@ const chartOption = computed<EChartsOption>(() => {
   const buyLines = t.buyTiers.map(tier => ({
     yAxis: tier.nav,
     lineStyle: { color: c.buy, type: 'dashed' as const, width: 1, opacity: 0.85 },
-    label: { ...lineLabel(`低吸 ≤${tier.nav} 买现金${tier.percentOfCash}%`, c.buy), position: 'insideEndTop' as const },
+    label: { ...lineLabel(`低吸 ≤${tier.nav} 买¥${tier.amount}`, c.buy), position: 'insideEndTop' as const },
   }))
 
   const sellLines = t.sellTiers.map(tier => ({
