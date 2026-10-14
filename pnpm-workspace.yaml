@@ -38,7 +38,7 @@ catalogs:
     '@unocss/nuxt': ^66.11.0
     '@unocss/preset-web-fonts': ^66.11.0
     '@vueuse/nuxt': ^15.0.0
-    nuxt: ^4.6.0
+    nuxt: ^4.6.1
     unocss: ^66.11.0
   dev:
     '@antfu/eslint-config': ^9.5.1
