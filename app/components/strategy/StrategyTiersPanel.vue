@@ -376,6 +376,5 @@ function num(v: number | null | undefined, digits = 4) {
         </div>
       </div>
     </template>
-    </template>
   </section>
 </template>
