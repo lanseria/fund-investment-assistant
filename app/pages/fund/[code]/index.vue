@@ -4,6 +4,7 @@ import type { FundStockHoldingsSummary } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
+import PullbackStrategyPanel from '~/components/strategy/PullbackStrategyPanel.vue'
 import StrategyTiersPanel from '~/components/strategy/StrategyTiersPanel.vue'
 import { appName } from '~/constants'
 
@@ -251,6 +252,14 @@ async function handleRunStrategies() {
       <div i-carbon-search class="text-5xl mx-auto mb-4" />
       <p>没有找到该基金的历史数据。</p>
     </div>
+
+    <!-- 回调买入法(强势基金/ETF 回调买入法的场外日线分批降级版): 仅场外基金展示 -->
+    <PullbackStrategyPanel
+      v-if="fundDetail?.fundType === 'open'"
+      class="mb-4"
+      :code="code"
+      :target-user-id="targetUserId"
+    />
 
     <!-- 档位策略: 结构化档位配置 + 决策评估 + 可视化 (全局配置, 所有用户共享) -->
     <StrategyTiersPanel class="mb-4" :code="code" />

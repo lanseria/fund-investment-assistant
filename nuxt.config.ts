@@ -179,6 +179,7 @@ export default defineNuxtConfig({
       'DataZoomComponent',
       'GridComponent',
       'LegendComponent',
+      'MarkAreaComponent',
       'MarkPointComponent',
       'MarkLineComponent',
       'TitleComponent',
