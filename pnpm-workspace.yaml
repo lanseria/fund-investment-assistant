@@ -1,8 +1,7 @@
 catalogMode: prefer
 minimumReleaseAgeExcludePrune: true
-# 信任策略关闭 (pnpm 默认值)：no-downgrade 会拦截缺少 provenance 凭证的新发布传递依赖 (如 cssnano@9.4.0)，
-# 导致每次升级都要手动往 trustPolicyExclude 加条目。如需恢复供应链防护改回 no-downgrade 并逐个豁免。
-trustPolicy: off
+trustPolicy: no-downgrade
+trustPolicyIgnoreAfter: 10080
 strictPeerDependencies: false
 shellEmulator: true
 packages: []
@@ -27,13 +26,13 @@ catalogs:
     drizzle-kit: ^0.31.11
     drizzle-orm: ^0.45.4
     iconv-lite: ^0.7.3
-    openai: ^7.32.0
+    openai: ^7.34.0
     pg: ^8.23.1
     secure-exec: ^0.3.3
   build:
     '@nuxt/eslint': ^1.17.0
     '@nuxtjs/color-mode': ^4.0.1
-    '@pinia/nuxt': ^1.0.2
+    '@pinia/nuxt': ^1.0.3
     '@unocss/eslint-config': ^66.11.0
     '@unocss/nuxt': ^66.11.0
     '@unocss/preset-web-fonts': ^66.11.0
@@ -54,7 +53,7 @@ catalogs:
     echarts: ^6.1.0
     markdown-exit: ^1.3.0
     nuxt-echarts: ^1.1.0
-    pinia: ^4.0.3
+    pinia: ^4.1.0
     vue: ^3.5.44
     vue-echarts: ^8.3.2
   icons:
@@ -70,4 +69,4 @@ catalogs:
     zod: ^4.6.7
 catalog:
   '@antfu/skills': ^0.1.0
-  skills-npm: ^4.0.0
+  skills-npm: ^4.1.0
