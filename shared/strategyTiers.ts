@@ -97,6 +97,67 @@ export function generateDefaultTiers(baseNav: number): StrategyTiers {
   }
 }
 
+/** 低吸首档相对最新确认净值的折扣 (与默认模板一致：-5%) */
+export const TIER_FIRST_BUY_DISCOUNT = 0.95
+
+/**
+ * 以最新确认净值重铺档位净值 (v1 金额制最小版，供每周定时任务使用)：
+ * - 保留：版本 / 启用状态 / 低吸触发条件 / 买入金额 / 高抛减仓比例 / 清仓条件 / 年线减半 / 备注
+ * - 低吸首档锚定在 `nav × 0.95`，其余低吸档按"原档距比例"同步缩放 (形状不变)
+ * - 高抛档位按同一比例缩放；若缩放后不再严格高于最新净值，则保留原高抛档 (避免误触高抛)
+ * - 纯函数、幂等：用同一 nav 连续调用两次结果一致
+ *
+ * @returns 重铺后的档位；未启用、无低吸档或数值异常时返回 null (调用方应跳过该基金)
+ */
+export function repaveStrategyTiersNavs(tiers: StrategyTiers, nav: number): StrategyTiers | null {
+  if (!tiers.enabled || tiers.buyTiers.length === 0)
+    return null
+  if (!Number.isFinite(nav) || nav <= 0)
+    return null
+
+  const round4 = (n: number) => Number(n.toFixed(4))
+  const oldFirst = tiers.buyTiers[0]!.nav
+  if (!(oldFirst > 0))
+    return null
+
+  const firstBuyNav = round4(nav * TIER_FIRST_BUY_DISCOUNT)
+  if (!(firstBuyNav > 0))
+    return null
+
+  // 低吸：首档 -5%，其余档保持相对首档的比例
+  const buyTiers = tiers.buyTiers.map(t => ({
+    nav: round4(firstBuyNav * (t.nav / oldFirst)),
+    amount: t.amount,
+  }))
+  for (let i = 0; i < buyTiers.length; i++) {
+    if (!(buyTiers[i]!.nav > 0))
+      return null
+    // 归一化后低吸档按 nav 降序；重铺后必须仍严格递减
+    if (i > 0 && !(buyTiers[i]!.nav < buyTiers[i - 1]!.nav))
+      return null
+  }
+
+  // 高抛：同比例缩放；仅在所有缩放结果仍高于最新净值时采用，否则保留原高抛档位
+  let sellTiers = tiers.sellTiers
+  if (sellTiers.length > 0) {
+    const scaled = sellTiers.map(t => ({
+      nav: round4(firstBuyNav * (t.nav / oldFirst)),
+      percent: t.percent,
+    }))
+    const valid = scaled.every((t, i) =>
+      t.nav > nav && (i === 0 || t.nav > scaled[i - 1]!.nav),
+    )
+    if (valid)
+      sellTiers = scaled
+  }
+
+  return {
+    ...tiers,
+    buyTiers,
+    sellTiers,
+  }
+}
+
 /**
  * 规范化档位：数值修正 + 排序 (买入按 nav 降序、卖出按 nav 升序)。
  * 用于保存前与读取后的兜底清洗。

@@ -74,7 +74,10 @@ export default defineMcpTool({
       }
 
       try {
-        await setFundStrategyTiers(fundCode, strategyTiers)
+        await setFundStrategyTiers(fundCode, strategyTiers, {
+          source: 'mcp',
+          reason: 'MCP manage_fund_strategy set',
+        })
         const db2 = useDb()
         const fund = await db2.query.funds.findFirst({ where: eq(funds.code, fundCode), columns: { code: true, name: true, strategyTiers: true } })
         const tiers = fund ? parseStrategyTiers(fund.strategyTiers) : null

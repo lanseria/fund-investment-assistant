@@ -37,6 +37,8 @@ const syncSectorCapitalCrons = (env.CRON_SECTOR_SYNC_CAPITAL ?? '*/30 9-16 * * *
   .filter(Boolean)
 // AI 自动交易: 工作日 14:30
 const runAiTradeCron = env.CRON_AI_AUTO_TRADE ?? '30 14 * * 1-5'
+// 每周档位重铺: 每周一 08:00 (以最新确认净值重铺档位净值，保留金额/触发条件，写入档位历史)
+const repaveTiersCron = env.CRON_TIER_REPAVE ?? '0 8 * * 1'
 // 清理 AI 用户灰尘份额: 每天 10:00 (在 2:30 处理交易之后)
 const cleanDustSharesCron = env.CRON_FUND_CLEAN_DUST ?? '0 10 * * *'
 // 注: 板块主力资金快照 (sector:syncCapital) 使用独立的 CRON_SECTOR_SYNC_CAPITAL，
@@ -80,6 +82,9 @@ if (!disableScheduler && runDcaPlansCron) {
 }
 if (!disableScheduler && runAiTradeCron) {
   addTask(runAiTradeCron, 'ai:runAutoTrade')
+}
+if (!disableScheduler && repaveTiersCron) {
+  addTask(repaveTiersCron, 'tier:repaveTiers')
 }
 if (!disableScheduler && cleanDustSharesCron) {
   addTask(cleanDustSharesCron, 'fund:cleanDustShares')
@@ -133,7 +138,6 @@ export default defineNuxtConfig({
   devServer: {
     port: 8888,
   },
-
 
   experimental: {
     payloadExtraction: false,

@@ -22,7 +22,10 @@ export default defineEventHandler(async (event) => {
     const body = await readBody(event)
     const { tiers } = await bodySchema.parseAsync(body)
     const normalized = tiers === null ? null : normalizeStrategyTiers(tiers)
-    const updated = await setFundStrategyTiers(code, normalized)
+    const updated = await setFundStrategyTiers(code, normalized, {
+      source: 'manual',
+      reason: '页面手动编辑档位',
+    })
     return { code: updated.code, name: updated.name, tiers: updated.strategyTiers ?? null }
   }
   catch (error) {

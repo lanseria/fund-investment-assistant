@@ -85,6 +85,58 @@ async function load() {
 
 onMounted(load)
 
+// --- 档位设定历史 (手动编辑 / MCP 修改 / 每周重铺) ---
+interface TiersHistoryRow {
+  date: string
+  source: string
+  tiers: StrategyTiers
+  nav: string | null
+  rsi14: number | null
+  bias20: number | null
+  reason: string | null
+  updatedAt: string
+}
+
+const historyVisible = ref(false)
+const historyLoading = ref(false)
+const historyRows = ref<TiersHistoryRow[]>([])
+
+async function loadHistory() {
+  historyLoading.value = true
+  try {
+    const res = await apiFetch<{ code: string, history: TiersHistoryRow[] }>(`/api/fund/strategies/${props.code}/history`, { params: { limit: 30 } })
+    historyRows.value = res.history ?? []
+  }
+  catch (e: any) {
+    toast.error(`档位历史加载失败: ${e?.message ?? e}`)
+  }
+  finally {
+    historyLoading.value = false
+  }
+}
+
+function toggleHistory() {
+  historyVisible.value = !historyVisible.value
+  if (historyVisible.value && historyRows.value.length === 0)
+    loadHistory()
+}
+
+const sourceMeta: Record<string, { label: string, cls: string }> = {
+  weekly: { label: '每周重铺', cls: 'bg-blue-500/10 text-blue-600 dark:text-blue-300' },
+  manual: { label: '手动', cls: 'bg-secondary color-fade' },
+  mcp: { label: 'MCP', cls: 'bg-purple-500/10 text-purple-600 dark:text-purple-300' },
+  ai: { label: 'AI校准', cls: 'bg-amber-500/10 text-amber-600 dark:text-amber-300' },
+  migrated: { label: '迁移', cls: 'bg-secondary color-fade' },
+}
+
+function buyTierText(t: { nav: number, amount?: number }): string {
+  return `≤${t.nav} 买¥${t.amount ?? '-'}`
+}
+
+function historyTierSummary(row: TiersHistoryRow): string {
+  return (row.tiers?.buyTiers ?? []).map(buyTierText).join('；')
+}
+
 function initFromDefault() {
   if (!data.value)
     return
@@ -373,6 +425,45 @@ function num(v: number | null | undefined, digits = 4) {
             {{ saving ? '保存中...' : '保存档位策略' }}
           </button>
           <span v-if="data.summary" class="text-xs color-fade">{{ data.summary }}</span>
+        </div>
+      </div>
+
+      <!-- 档位设定历史 -->
+      <div class="mt-4 pt-3 border-t border-base">
+        <button class="text-sm font-medium flex w-full items-center justify-between" @click="toggleHistory">
+          <span class="flex gap-2 items-center">
+            <span class="i-carbon-calendar text-primary" />
+            档位设定历史
+            <span class="text-xs color-fade font-normal">(手动 / MCP / 每周一重铺)</span>
+          </span>
+          <span class="i-carbon-chevron-down text-xs transition-transform" :class="{ 'rotate-180': historyVisible }" />
+        </button>
+        <div v-if="historyVisible" class="mt-3">
+          <div v-if="historyLoading" class="flex h-16 items-center justify-center">
+            <span class="i-carbon-circle-dash text-2xl text-primary animate-spin" />
+          </div>
+          <div v-else-if="historyRows.length === 0" class="text-xs color-fade py-4 text-center">
+            暂无历史记录 (手动编辑、MCP 修改或每周一重铺后会产生快照)
+          </div>
+          <div v-else class="max-h-80 overflow-y-auto space-y-2">
+            <div v-for="row in historyRows" :key="row.date + row.source" class="bg-secondary/60 text-xs p-2.5 rounded-lg">
+              <div class="mb-1 flex flex-wrap gap-2 items-center">
+                <span class="font-mono">{{ row.date }}</span>
+                <span class="px-1.5 py-0.5 rounded" :class="sourceMeta[row.source]?.cls ?? sourceMeta.manual?.cls">
+                  {{ sourceMeta[row.source]?.label ?? row.source }}
+                </span>
+                <span v-if="row.nav" class="color-fade">净值 {{ row.nav }}</span>
+                <span v-if="row.rsi14 != null" class="color-fade">RSI14 {{ row.rsi14 }}</span>
+                <span v-if="row.bias20 != null" class="color-fade">Bias20 {{ row.bias20 }}%</span>
+              </div>
+              <div class="color-fade">
+                {{ historyTierSummary(row) }}
+              </div>
+              <div v-if="row.reason" class="color-fade mt-1">
+                {{ row.reason }}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </template>

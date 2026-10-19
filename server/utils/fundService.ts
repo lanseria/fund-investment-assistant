@@ -3,7 +3,7 @@
 import BigNumber from 'bignumber.js'
 import { addDays, format, parseISO } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
-import { fundFees, funds, navHistory } from '~~/server/database/schemas'
+import { fundFees, funds, navHistory, strategyTiersHistory } from '~~/server/database/schemas'
 import { fetchFundHistory } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
@@ -126,11 +126,29 @@ export async function setFundOperationStrategy(code: string, operationStrategy: 
   return updated
 }
 
+/** 写入档位历史快照的附加信息 */
+export interface SetStrategyTiersOptions {
+  /** 变更来源：manual(页面) / mcp(MCP工具) / weekly(每周重铺) / ai(AI校准) / migrated(迁移) */
+  source?: 'manual' | 'mcp' | 'weekly' | 'ai' | 'migrated'
+  /** 变更理由 (写入历史表，供回看) */
+  reason?: string | null
+  /** 变更时的技术指标上下文 (可空) */
+  context?: {
+    nav: number
+    ma20: number | null
+    ma60: number | null
+    ma250: number | null
+    rsi14: number | null
+    bias20: number | null
+  } | null
+}
+
 /**
  * 设置基金的结构化档位策略 (存于 funds.strategy_tiers, 所有用户共享同一份)。
  * 传入 null 表示清空档位 (回到无档位状态)。
+ * 传入 options.source 时，按 (基金, 日期, 来源) upsert 一条 strategy_tiers_history 快照。
  */
-export async function setFundStrategyTiers(code: string, strategyTiers: unknown) {
+export async function setFundStrategyTiers(code: string, strategyTiers: unknown, options: SetStrategyTiersOptions = {}) {
   const db = useDb()
   const [updated] = await db.update(funds)
     .set({ strategyTiers: strategyTiers ?? null })
@@ -139,6 +157,31 @@ export async function setFundStrategyTiers(code: string, strategyTiers: unknown)
 
   if (!updated)
     throw new FundNotFoundError(code)
+
+  // 清空档位不写历史 (history.tiers 非空)
+  if (strategyTiers && options.source) {
+    const ctx = options.context
+    const num = (v: number | null | undefined) => (v === null || v === undefined ? null : String(v))
+    const snapshot = {
+      tiers: strategyTiers,
+      nav: num(ctx?.nav),
+      ma20: num(ctx?.ma20),
+      ma60: num(ctx?.ma60),
+      ma250: num(ctx?.ma250),
+      rsi14: ctx?.rsi14 ?? null,
+      bias20: ctx?.bias20 ?? null,
+      reason: options.reason ?? null,
+    }
+    await db.insert(strategyTiersHistory).values({
+      fundCode: code,
+      date: format(new Date(), 'yyyy-MM-dd'),
+      source: options.source,
+      ...snapshot,
+    }).onConflictDoUpdate({
+      target: [strategyTiersHistory.fundCode, strategyTiersHistory.date, strategyTiersHistory.source],
+      set: { ...snapshot, updatedAt: new Date() },
+    })
+  }
 
   return updated
 }
