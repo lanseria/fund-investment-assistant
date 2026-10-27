@@ -1,7 +1,9 @@
 FROM node:26-alpine AS build-stage
 
 WORKDIR /app
-RUN corepack enable
+# 统一设置 Corepack 镜像源，后续所有继承 base 的阶段（builder / prod-deps）全局继承
+ENV COREPACK_NPM_REGISTRY=https://registry.npmmirror.com
+RUN npm install -g corepack && corepack enable
 
 # 部署环境跳过 skills 安装（见 scripts/prepare.mjs）
 ENV SKILLS_INSTALL=false
@@ -9,7 +11,7 @@ ENV SKILLS_INSTALL=false
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY scripts/prepare.mjs scripts/prepare.mjs
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile
+    pnpm install --frozen-lockfile --frozen-lockfile --registry=https://registry.npmmirror.com
 
 COPY . .
 RUN pnpm build
