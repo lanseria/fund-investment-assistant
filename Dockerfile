@@ -11,7 +11,7 @@ ENV SKILLS_INSTALL=false
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY scripts/prepare.mjs scripts/prepare.mjs
 RUN --mount=type=cache,id=pnpm-store,target=/root/.pnpm-store \
-    pnpm install --frozen-lockfile --frozen-lockfile --registry=https://registry.npmmirror.com
+    pnpm install --frozen-lockfile --registry=https://registry.npmmirror.com
 
 COPY . .
 RUN pnpm build
