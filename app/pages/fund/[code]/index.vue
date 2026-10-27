@@ -1,5 +1,6 @@
 <!-- eslint-disable no-alert -->
 <script setup lang="ts">
+import type { Hs300PenetrationDailySeries, Hs300PenetrationResponse } from '~~/shared/hs300Penetration'
 import type { FundStockHoldingsSummary } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
@@ -10,7 +11,9 @@ import { appName } from '~/constants'
 
 const route = useRoute<'fund-code'>()
 const code = route.params.code as string
-const targetUserId = route.query.userId ? Number(route.query.userId) : null
+const targetUserId = route.query.userId
+  ? Number(route.query.userId)
+  : null
 
 const holdingStore = useHoldingStore()
 const { holdings } = storeToRefs(holdingStore)
@@ -22,7 +25,9 @@ const currentHolding = computed(() => holdingStore.holdings.find(h => h.code ===
 const { data: fundDetail, pending: fundDetailPending, error: fundDetailError, refresh: refreshDetail } = useAsyncData(
   `fund-detail-${code}-${targetUserId || 'me'}`,
   () => apiFetch<any>(`/api/fund/holdings/${code}/detail`, {
-    params: targetUserId ? { userId: targetUserId } : undefined,
+    params: targetUserId
+      ? { userId: targetUserId }
+      : undefined,
   }),
   {
     lazy: true,
@@ -60,6 +65,21 @@ const mergedSectorHistory = computed(() => {
 const stockHoldingsPanel = computed<FundStockHoldingsSummary | null>(() => {
   return fundDetail.value?.stockHoldings ?? null
 })
+
+// 沪深300基金占比日频序列：直接叠加进基础走势图（主图右侧 % 轴折线），与净值同图对比；
+// 取数失败/无日频数据时静默降级为「不叠加」，不影响主图渲染。
+// 用独立 key（按基金区分）避免与占比页共用 key 时的刷新语义耦合；服务端有 30 分钟缓存。
+const { data: penetrationDaily } = useAsyncData<Hs300PenetrationDailySeries | null>(
+  `fund-penetration-daily-${code}`,
+  () => apiFetch<Hs300PenetrationResponse>('/api/market/hs300-penetration')
+    .then(res => res.daily ?? null)
+    .catch(() => null),
+  {
+    lazy: true,
+    server: false,
+    default: () => null,
+  },
+)
 
 onMounted(async () => {
   // 如果直接通过链接进入，确保持仓数据加载以供后续"买入/卖出"模态框联调使用
@@ -121,7 +141,19 @@ const { syncHistory: triggerSyncHistory, runStrategiesForFund } = holdingStore
 
 const fundName = computed(() => {
   const holding = holdingStore.holdings.find(h => h.code === code)
-  return holding ? holding.name : (fundDetail.value?.name || code)
+  return holding
+    ? holding.name
+    : (fundDetail.value?.name || code)
+})
+
+/** 基础走势图标题：按已叠加的数据源动态拼接（板块主力行为 / 沪深300基金占比） */
+const chartTitle = computed(() => {
+  let title = `基金 ${fundName.value} - 基础走势`
+  if (mergedSectorHistory.value && sectorCapitalHistoryData.value?.sectorName)
+    title += ` · 板块「${sectorCapitalHistoryData.value.sectorName}」主力行为`
+  if (penetrationDaily.value)
+    title += ' · 沪深300基金占比'
+  return title
 })
 
 useHead({
@@ -237,10 +269,11 @@ async function handleRunStrategies() {
         :history="data.base.history"
         :signals="data.base.signals"
         :transactions="(data.base as any).transactions"
-        :title="`基金 ${fundName} - 基础走势${mergedSectorHistory && sectorCapitalHistoryData?.sectorName ? ` · 板块「${sectorCapitalHistoryData.sectorName}」主力行为` : ''}`"
+        :title="chartTitle"
         :sector-history="mergedSectorHistory"
         :rsi-data="rsiData ?? undefined"
         :bollinger-data="bollingerSignalData"
+        :penetration-daily="penetrationDaily ?? undefined"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"

@@ -49,8 +49,13 @@ export function buildChartLayout(opts: {
   fundSeries: Record<string, any>[]
   gridColor: string
   textColor: string
+  /**
+   * 主图右侧附加 Y 轴（如「沪深300基金占比」%）。
+   * 提供时所有网格右侧留白统一加宽，避免第二个右轴标签被裁切、并保持各子图日期横向对齐。
+   */
+  mainExtraYAxis?: Record<string, any> | null
 }): ChartLayout {
-  const { allDates, subPanels, fundSeries, gridColor, textColor } = opts
+  const { allDates, subPanels, fundSeries, gridColor, textColor, mainExtraYAxis } = opts
 
   const TOP_AREA = 13
   const BOTTOM_AREA = 8
@@ -58,26 +63,59 @@ export function buildChartLayout(opts: {
   const subHeightTotal = subPanels.reduce((sum, p) => sum + p.height, 0)
   const mainHeight = 100 - TOP_AREA - BOTTOM_AREA - subHeightTotal - GRID_GAP * (subPanels.length + 1)
 
-  const grids: Record<string, any>[] = [{ top: `${TOP_AREA}%`, left: '8%', right: '9%', height: `${mainHeight}%` }]
+  // 主图有两个右轴（交易金额 + 占比）时放宽右侧留白；所有网格保持一致以保证时间轴对齐
+  const rightInset = mainExtraYAxis
+    ? '15%'
+    : '9%'
+
+  const grids: Record<string, any>[] = [
+    {
+      top: `${TOP_AREA}%`,
+      left: '8%',
+      right: rightInset,
+      height: `${mainHeight}%`,
+    },
+  ]
   const xAxes: Record<string, any>[] = [
-    { type: 'category', gridIndex: 0, data: allDates, axisLabel: { show: false }, axisLine: { lineStyle: { color: gridColor } } },
+    {
+      type: 'category',
+      gridIndex: 0,
+      data: allDates,
+      axisLabel: { show: false },
+      axisLine: {
+        lineStyle: { color: gridColor },
+      },
+    },
   ]
   const yAxes: Record<string, any>[] = [
     {
       type: 'value',
       gridIndex: 0,
       scale: true,
-      axisLine: { show: true, lineStyle: { color: gridColor } },
-      axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
-      splitLine: { lineStyle: { color: gridColor } },
+      axisLine: {
+        show: true,
+        lineStyle: { color: gridColor },
+      },
+      axisLabel: {
+        color: textColor,
+        formatter: (val: number) => val.toFixed(3),
+      },
+      splitLine: {
+        lineStyle: { color: gridColor },
+      },
     },
     {
       type: 'value',
       gridIndex: 0,
       scale: true,
       position: 'right',
-      axisLine: { lineStyle: { color: gridColor } },
-      axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+      axisLine: {
+        lineStyle: { color: gridColor },
+      },
+      axisLabel: {
+        color: textColor,
+        formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+      },
       splitLine: { show: false },
     },
   ]
@@ -85,18 +123,31 @@ export function buildChartLayout(opts: {
   const zoomXAxisIndexes = [0]
   const panelSeriesStart = new Map<string, number>()
 
+  // 主图附加右轴（保留在 yAxes 第 3 个位置，供叠加序列用 yAxisIndex: 2 引用）
+  if (mainExtraYAxis)
+    yAxes.push({ gridIndex: 0, ...mainExtraYAxis })
+
   let cursorTop = TOP_AREA + mainHeight + GRID_GAP
   subPanels.forEach((panel, i) => {
     const gridIndex = i + 1
     const yAxisIndex = yAxes.length
-    grids.push({ top: `${cursorTop}%`, left: '8%', right: '9%', height: `${panel.height}%` })
+    grids.push({
+      top: `${cursorTop}%`,
+      left: '8%',
+      right: rightInset,
+      height: `${panel.height}%`,
+    })
     xAxes.push({
       type: 'category',
       gridIndex,
       data: allDates,
-      axisLine: { lineStyle: { color: gridColor } },
+      axisLine: {
+        lineStyle: { color: gridColor },
+      },
       // 仅最后一个子图显示 x 轴日期标签，其余与主图共享视觉对齐
-      axisLabel: i === subPanels.length - 1 ? { color: textColor } : { show: false },
+      axisLabel: i === subPanels.length - 1
+        ? { color: textColor }
+        : { show: false },
     })
     yAxes.push({ gridIndex, ...panel.yAxis })
     panelSeriesStart.set(panel.key, multiSeries.length)
@@ -105,5 +156,12 @@ export function buildChartLayout(opts: {
     cursorTop += panel.height + GRID_GAP
   })
 
-  return { grids, xAxes, yAxes, multiSeries, zoomXAxisIndexes, panelSeriesStart }
+  return {
+    grids,
+    xAxes,
+    yAxes,
+    multiSeries,
+    zoomXAxisIndexes,
+    panelSeriesStart,
+  }
 }

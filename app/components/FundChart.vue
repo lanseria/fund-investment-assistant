@@ -1,9 +1,12 @@
 <script setup lang="ts">
 import type { EChartsOption } from 'echarts'
+import type { Hs300PenetrationDailySeries } from '~~/shared/hs300Penetration'
 import type { SectorAlignedData, SubPanel } from './strategy-charts/panels'
 import type { BollingerSignalData, EstimatePoint, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
+import { alignDailyToDates } from '~~/shared/hs300Penetration'
+import { PENETRATION_SERIES_COLOR, PENETRATION_SERIES_NAME } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 import { STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS } from '~/utils/sectorStyle'
 import { buildChartLayout, chartHeightClass as resolveChartHeightClass } from './strategy-charts/layout'
@@ -26,6 +29,11 @@ const props = defineProps<{
   bollingerData?: BollingerSignalData
   /** 当日盘中估值点（可选）。估值日期晚于历史最后净值日期时，以虚线延伸到该估值点 */
   estimate?: EstimatePoint
+  /**
+   * 沪深300基金占比日频估算序列（可选）。
+   * 传入后在主图叠加一条占比折线（右侧独立 % 轴），与净值共享时间轴便于对比走势。
+   */
+  penetrationDaily?: Hs300PenetrationDailySeries
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -45,13 +53,21 @@ const hasBollinger = computed(() => {
   return !!b && (b.buy.length > 0 || b.sell.length > 0)
 })
 
+// 沪深300基金占比叠加线：仅在拿到有效日频序列时展示，加载失败/为空不影响主图
+const hasPenetration = computed(() => {
+  const d = props.penetrationDaily
+  return !!d && d.dates.length > 0 && d.ratio.length > 0
+})
+
 // 图表总高度随子图组合自适应
 const chartHeightClass = computed(() =>
   resolveChartHeightClass(hasRsi.value, hasBollinger.value, hasSector.value),
 )
 
 const colorMode = useColorMode()
-provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
+provide(THEME_KEY, computed(() => colorMode.value === 'dark'
+  ? 'dark'
+  : 'default'))
 
 const chartOption = computed<EChartsOption>(() => {
   const isDark = colorMode.value === 'dark'
@@ -63,25 +79,44 @@ const chartOption = computed<EChartsOption>(() => {
   props.history.forEach(p => fundByDate.set(p.date, p))
 
   // --- 当日估值延伸点：仅当估值日期晚于历史最后净值日期（官方净值未出）时展示 ---
-  const lastHistoryDate = props.history.length > 0 ? props.history[props.history.length - 1]!.date : ''
+  const lastHistoryDate = props.history.length > 0
+    ? props.history[props.history.length - 1]!.date
+    : ''
   // 估值日期统一为 yyyy-MM-dd：上游实测带 "HH:mm:ss" 后缀(如 "2026-08-27 16:04:00")，
   // 与净值/板块日期字符串不一致时 Set 去重失效，时间轴会重复出现同一天
   const rawEstimateDate = props.estimate?.date ?? ''
-  const estimateDate = /^\d{4}-\d{2}-\d{2}/.test(rawEstimateDate) ? rawEstimateDate.slice(0, 10) : rawEstimateDate
+  const estimateDate = /^\d{4}-\d{2}-\d{2}/.test(rawEstimateDate)
+    ? rawEstimateDate.slice(0, 10)
+    : rawEstimateDate
   const estimatePoint = props.estimate && lastHistoryDate && estimateDate > lastHistoryDate
     ? { ...props.estimate, date: estimateDate }
     : null
 
   // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 布林带信号日期 ∪ 估值日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
   const fundDates = props.history.map(p => p.date)
-  const sectorDates = hasSector.value ? props.sectorHistory!.dates : []
-  const rsiDates = hasRsi.value ? props.rsiData!.dates : []
-  const bollingerDates = hasBollinger.value
-    ? [...props.bollingerData!.buy, ...props.bollingerData!.sell].map(p => p.date)
+  const sectorDates = hasSector.value
+    ? props.sectorHistory!.dates
     : []
-  const estimateDates = estimatePoint ? [estimatePoint.date] : []
+  const rsiDates = hasRsi.value
+    ? props.rsiData!.dates
+    : []
+  const bollingerDates = hasBollinger.value
+    ? [
+        ...props.bollingerData!.buy,
+        ...props.bollingerData!.sell,
+      ].map(p => p.date)
+    : []
+  const estimateDates = estimatePoint
+    ? [estimatePoint.date]
+    : []
   const allDates = (hasSector.value || hasRsi.value || hasBollinger.value || estimatePoint)
-    ? Array.from(new Set([...fundDates, ...sectorDates, ...rsiDates, ...bollingerDates, ...estimateDates])).sort()
+    ? Array.from(new Set([
+        ...fundDates,
+        ...sectorDates,
+        ...rsiDates,
+        ...bollingerDates,
+        ...estimateDates,
+      ])).sort()
     : fundDates
 
   // 基金序列对齐到 allDates（板块独有日期补 null）
@@ -93,6 +128,46 @@ const chartOption = computed<EChartsOption>(() => {
   const ma120Data = allDates.map(d => pointAt(d)?.ma120 ?? null)
 
   const transactionBarSeries = buildTransactionBarSeries(props.transactions, allDates)
+
+  // --- 沪深300基金占比（可选）：对齐到统一时间轴，主图叠加一条折线（右侧独立 % 轴） ---
+  const penetrationAligned = hasPenetration.value
+    ? alignDailyToDates(allDates, props.penetrationDaily!)
+    : []
+  const penetrationData = penetrationAligned.map(point => point
+    ? Number(point.ratio.toFixed(4))
+    : null)
+  const penetrationSeries = hasPenetration.value
+    ? [
+        {
+          name: PENETRATION_SERIES_NAME,
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 2,
+          data: penetrationData,
+          showSymbol: false,
+          smooth: true,
+          connectNulls: true,
+          z: 4,
+          lineStyle: { width: 1.5, color: PENETRATION_SERIES_COLOR },
+          itemStyle: { color: PENETRATION_SERIES_COLOR },
+        },
+      ]
+    : []
+  // 主图第三个 Y 轴：占比（%）。不画轴线/分隔线，仅用彩色刻度标签，避免与净值/金额轴混淆
+  const penetrationYAxis = hasPenetration.value
+    ? {
+        type: 'value',
+        scale: true,
+        position: 'right',
+        offset: 56,
+        name: '占比',
+        nameTextStyle: { color: PENETRATION_SERIES_COLOR, fontSize: 11 },
+        axisLine: { show: false },
+        axisTick: { show: false },
+        axisLabel: { color: PENETRATION_SERIES_COLOR, fontSize: 10, formatter: '{value}%' },
+        splitLine: { show: false },
+      }
+    : null
 
   // --- 板块主力行为数据（可选）：按日期建索引并对齐到 allDates ---
   const sectorByDate = new Map<string, SectorAlignedData>()
@@ -117,10 +192,17 @@ const chartOption = computed<EChartsOption>(() => {
     })
   }
   const rsiLineData = allDates.map(d => rsiByDate.get(d) ?? null)
-  const rsiSeriesName = hasRsi.value ? `RSI(${props.rsiData!.config.rsiPeriod})` : null
+  const rsiSeriesName = hasRsi.value
+    ? `RSI(${props.rsiData!.config.rsiPeriod})`
+    : null
 
   // 统一的 tooltip：合并基金走势与板块主力行为信息
-  const tooltipFormatter = buildTooltipFormatter({ sectorByDate, rsiSeriesName, estimate: estimatePoint, textColor })
+  const tooltipFormatter = buildTooltipFormatter({
+    sectorByDate,
+    rsiSeriesName,
+    estimate: estimatePoint,
+    textColor,
+  })
 
   // --- 基金走势序列（净值 + 均线 + 交易量柱），统一绑定到第 0 个网格 ---
   const fundSeries: any[] = [
@@ -145,10 +227,16 @@ const chartOption = computed<EChartsOption>(() => {
                 formatter: () => estimatePoint.nav.toFixed(4),
                 fontSize: 11,
               },
-              data: [[
-                { coord: [lastHistoryDate, fundByDate.get(lastHistoryDate)?.nav] },
-                { coord: [estimatePoint.date, estimatePoint.nav] },
-              ]],
+              data: [
+                [
+                  {
+                    coord: [lastHistoryDate, fundByDate.get(lastHistoryDate)?.nav],
+                  },
+                  {
+                    coord: [estimatePoint.date, estimatePoint.nav],
+                  },
+                ],
+              ],
             },
           }
         : {}),
@@ -171,47 +259,147 @@ const chartOption = computed<EChartsOption>(() => {
         zlevel: 10,
       },
     },
-    { name: 'MA5', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma5Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-    { name: 'MA10', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma10Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-    { name: 'MA20', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma20Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
-    { name: 'MA120', type: 'line', xAxisIndex: 0, yAxisIndex: 0, data: ma120Data, showSymbol: false, lineStyle: { type: 'dashed' }, z: 3 },
+    {
+      name: 'MA5',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: ma5Data,
+      showSymbol: false,
+      lineStyle: { type: 'dashed' },
+      z: 3,
+    },
+    {
+      name: 'MA10',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: ma10Data,
+      showSymbol: false,
+      lineStyle: { type: 'dashed' },
+      z: 3,
+    },
+    {
+      name: 'MA20',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: ma20Data,
+      showSymbol: false,
+      lineStyle: { type: 'dashed' },
+      z: 3,
+    },
+    {
+      name: 'MA120',
+      type: 'line',
+      xAxisIndex: 0,
+      yAxisIndex: 0,
+      data: ma120Data,
+      showSymbol: false,
+      lineStyle: { type: 'dashed' },
+      z: 3,
+    },
     ...transactionBarSeries,
   ]
 
   // --- 无板块、无 RSI 且无布林带数据：保持原有单图布局，行为与之前一致 ---
   if (!hasSector.value && !hasRsi.value && !hasBollinger.value) {
     return {
-      title: { text: props.title, left: 'center', textStyle: { color: textColor } },
-      tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+      title: {
+        text: props.title,
+        left: 'center',
+        textStyle: { color: textColor },
+      },
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'cross' },
+        formatter: tooltipFormatter,
+      },
       // 默认 plain 图例在宽度不足时自动换行，避免滚动条挤压
       legend: {
-        data: ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出'],
+        data: [
+          '净值',
+          'MA5',
+          'MA10',
+          'MA20',
+          'MA120',
+          '买入',
+          '卖出',
+          '转入',
+          '转出',
+          ...(hasPenetration.value
+            ? [PENETRATION_SERIES_NAME]
+            : []),
+        ],
         top: 40,
         textStyle: { color: textColor },
       },
-      grid: { top: 96, left: '10%', right: '12%', bottom: '18%' },
-      xAxis: { type: 'category', data: allDates, axisLabel: { color: textColor }, axisLine: { lineStyle: { color: gridColor } } },
+      // 叠加占比线时主图右侧多一个 % 轴，放宽右侧留白避免标签被裁切
+      grid: {
+        top: 96,
+        left: '10%',
+        right: hasPenetration.value
+          ? '17%'
+          : '12%',
+        bottom: '18%',
+      },
+      xAxis: {
+        type: 'category',
+        data: allDates,
+        axisLabel: { color: textColor },
+        axisLine: {
+          lineStyle: { color: gridColor },
+        },
+      },
       yAxis: [
         {
           type: 'value',
           scale: true,
-          axisLabel: { color: textColor, formatter: (val: number) => val.toFixed(3) },
-          splitLine: { lineStyle: { color: gridColor } },
+          axisLabel: {
+            color: textColor,
+            formatter: (val: number) => val.toFixed(3),
+          },
+          splitLine: {
+            lineStyle: { color: gridColor },
+          },
         },
         {
           type: 'value',
           scale: true,
           position: 'right',
-          axisLabel: { color: textColor, formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }) },
+          axisLabel: {
+            color: textColor,
+            formatter: (val: number) => formatCurrency(val, { minimumFractionDigits: 0, maximumFractionDigits: 0 }),
+          },
           splitLine: { show: false },
-          axisLine: { lineStyle: { color: gridColor } },
+          axisLine: {
+            lineStyle: { color: gridColor },
+          },
         },
+        ...(penetrationYAxis
+          ? [penetrationYAxis]
+          : []),
       ],
       dataZoom: [
-        { type: 'inside', start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
-        { type: 'slider', start: props.dataZoomStart, end: props.dataZoomEnd, top: 'auto', bottom: 10, height: 25 },
+        {
+          type: 'inside',
+          start: props.dataZoomStart,
+          end: props.dataZoomEnd,
+          zoomOnMouseWheel: false,
+        },
+        {
+          type: 'slider',
+          start: props.dataZoomStart,
+          end: props.dataZoomEnd,
+          top: 'auto',
+          bottom: 10,
+          height: 25,
+        },
       ],
-      series: fundSeries,
+      series: [
+        ...fundSeries,
+        ...penetrationSeries,
+      ],
     } as EChartsOption
   }
 
@@ -250,6 +438,7 @@ const chartOption = computed<EChartsOption>(() => {
     fundSeries,
     gridColor,
     textColor,
+    mainExtraYAxis: penetrationYAxis,
   })
 
   // 主力强度按正负染色：visualMap 仅作用于主力强度序列。
@@ -259,22 +448,46 @@ const chartOption = computed<EChartsOption>(() => {
     .filter((v): v is number => v !== null && v !== undefined)
     .reduce((max, v) => Math.max(max, Math.abs(v)), 0) || 1
 
-  const legendData = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出']
+  const legendData = [
+    '净值',
+    'MA5',
+    'MA10',
+    'MA20',
+    'MA120',
+    '买入',
+    '卖出',
+    '转入',
+    '转出',
+  ]
   if (rsiSeriesName)
     legendData.push(rsiSeriesName)
   if (hasSector.value)
     legendData.push('主力强度', '主力资金', '主力暗盘', '散户资金')
+  if (hasPenetration.value)
+    legendData.push(PENETRATION_SERIES_NAME)
 
   return {
-    title: { text: props.title, left: 'center', textStyle: { color: textColor } },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'cross' }, formatter: tooltipFormatter },
+    title: {
+      text: props.title,
+      left: 'center',
+      textStyle: { color: textColor },
+    },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'cross' },
+      formatter: tooltipFormatter,
+    },
     // 默认 plain 图例在宽度不足时自动换行，避免滚动条挤压
     legend: {
       data: legendData,
       top: 40,
       textStyle: { color: textColor },
     },
-    axisPointer: { link: [{ xAxisIndex: 'all' }] },
+    axisPointer: {
+      link: [
+        { xAxisIndex: 'all' },
+      ],
+    },
     ...(strengthSeriesIndex !== -1
       ? {
           visualMap: {
@@ -284,7 +497,9 @@ const chartOption = computed<EChartsOption>(() => {
             min: -strengthMaxAbs,
             max: strengthMaxAbs,
             calculable: false,
-            inRange: { color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS] },
+            inRange: {
+              color: [STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS],
+            },
           },
         }
       : {}),
@@ -292,10 +507,26 @@ const chartOption = computed<EChartsOption>(() => {
     xAxis: xAxes,
     yAxis: yAxes,
     dataZoom: [
-      { type: 'inside', xAxisIndex: zoomXAxisIndexes, start: props.dataZoomStart, end: props.dataZoomEnd, zoomOnMouseWheel: false },
-      { type: 'slider', xAxisIndex: zoomXAxisIndexes, start: props.dataZoomStart, end: props.dataZoomEnd, bottom: 8, height: 22 },
+      {
+        type: 'inside',
+        xAxisIndex: zoomXAxisIndexes,
+        start: props.dataZoomStart,
+        end: props.dataZoomEnd,
+        zoomOnMouseWheel: false,
+      },
+      {
+        type: 'slider',
+        xAxisIndex: zoomXAxisIndexes,
+        start: props.dataZoomStart,
+        end: props.dataZoomEnd,
+        bottom: 8,
+        height: 22,
+      },
     ],
-    series: multiSeries,
+    series: [
+      ...multiSeries,
+      ...penetrationSeries,
+    ],
   } as EChartsOption
 })
 

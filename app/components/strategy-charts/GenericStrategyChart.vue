@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import type { Hs300PenetrationDailySeries } from '~~/shared/hs300Penetration'
 import type { BollingerSignalData, EstimatePoint, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
@@ -18,6 +19,8 @@ defineProps<{
   bollingerData?: BollingerSignalData
   /** 当日盘中估值点（可选）。估值日期晚于历史最后净值日期时，以虚线延伸到该估值点 */
   estimate?: EstimatePoint
+  /** 沪深300基金占比日频序列（可选）。传入后在主图叠加占比折线（右侧 % 轴），与净值同图对比 */
+  penetrationDaily?: Hs300PenetrationDailySeries
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -43,6 +46,7 @@ function handleTransactionClick(tx: any) {
       :rsi-data="rsiData"
       :bollinger-data="bollingerData"
       :estimate="estimate"
+      :penetration-daily="penetrationDaily"
       @signal-click="handleSignalClick"
       @transaction-click="handleTransactionClick"
     />

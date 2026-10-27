@@ -1,5 +1,6 @@
 import type { SectorAlignedData } from './panels'
 import type { EstimatePoint } from '~/types/chart'
+import { PENETRATION_SERIES_NAME } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 import { buildActionBadgeHtml } from '~/utils/sectorStyle'
 
@@ -20,7 +21,9 @@ export function buildTooltipFormatter(opts: {
   const NAV_COLOR = '#5070dd'
 
   return (params: any) => {
-    const list = Array.isArray(params) ? params : [params]
+    const list = Array.isArray(params)
+      ? params
+      : [params]
     if (list.length === 0)
       return ''
 
@@ -34,13 +37,33 @@ export function buildTooltipFormatter(opts: {
     // 当日估值延伸点：该日期官方净值未出（净值序列为空），补充净值线的盘中估值行
     if (estimate && estimate.date === date) {
       const rate = estimate.growthRate != null
-        ? ` <span style="color:${textColor}">(估 ${estimate.growthRate > 0 ? '+' : ''}${estimate.growthRate.toFixed(2)}%)</span>`
+        ? ` <span style="color:${textColor}">(估 ${estimate.growthRate > 0
+          ? '+'
+          : ''}${estimate.growthRate.toFixed(2)}%)</span>`
         : ''
       const marker = `<span style="display:inline-block;margin-right:4px;border-radius:10px;width:10px;height:10px;background-color:${NAV_COLOR};"></span>`
       lines.push(`${marker}净值(盘中估值): ${estimate.nav.toFixed(4)}${rate}`)
     }
 
-    const seriesOrder = ['净值', 'MA5', 'MA10', 'MA20', 'MA120', '买入', '卖出', '转入', '转出', '主力强度', '主力资金', '主力暗盘', '散户资金', ...(rsiSeriesName ? [rsiSeriesName] : [])]
+    const seriesOrder = [
+      '净值',
+      'MA5',
+      'MA10',
+      'MA20',
+      'MA120',
+      '买入',
+      '卖出',
+      '转入',
+      '转出',
+      PENETRATION_SERIES_NAME,
+      '主力强度',
+      '主力资金',
+      '主力暗盘',
+      '散户资金',
+      ...(rsiSeriesName
+        ? [rsiSeriesName]
+        : []),
+    ]
 
     list
       .filter((item: any) => item?.value !== null && item?.value !== undefined)
@@ -52,7 +75,9 @@ export function buildTooltipFormatter(opts: {
           if (Number.isNaN(amount) || amount === 0)
             return
           const absAmount = Math.abs(amount)
-          const direction = amount < 0 ? '流出' : '流入'
+          const direction = amount < 0
+            ? '流出'
+            : '流入'
           lines.push(`${item.marker}${item.seriesName}: ${formatCurrency(absAmount)} <span style="color:${textColor}">(${direction})</span>`)
           return
         }
@@ -62,16 +87,25 @@ export function buildTooltipFormatter(opts: {
           return
         }
 
+        if (item.seriesName === PENETRATION_SERIES_NAME) {
+          lines.push(`${item.marker}${item.seriesName}: ${Number(item.value).toFixed(3)}%`)
+          return
+        }
+
         if (item.seriesName === '主力强度') {
           const v = Number(item.value)
-          const sign = v > 0 ? '+' : ''
+          const sign = v > 0
+            ? '+'
+            : ''
           lines.push(`${item.marker}主力强度: ${sign}${v.toFixed(2)}%`)
           return
         }
 
         if (item.seriesName === '主力资金' || item.seriesName === '主力暗盘' || item.seriesName === '散户资金') {
           const v = Number(item.value)
-          const sign = v > 0 ? '+' : ''
+          const sign = v > 0
+            ? '+'
+            : ''
           lines.push(`${item.marker}${item.seriesName}: ${sign}${v.toFixed(2)} 亿`)
           return
         }

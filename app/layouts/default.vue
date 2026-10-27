@@ -11,6 +11,7 @@ const navItems = [
   { to: '/daily-ops', label: '每日操作', icon: 'i-carbon-calendar' },
   { to: '/leaderboard', label: '排行榜', icon: 'i-carbon-trophy' },
   { to: '/sector-capital', label: '板块资金', icon: 'i-carbon-money' },
+  { to: '/hs300-penetration', label: '300基金占比', icon: 'i-carbon-chart-line' },
 ]
 
 // 下拉菜单状态控制
@@ -23,7 +24,9 @@ onClickOutside(userMenuRef, () => {
 })
 
 function toggleDark() {
-  colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'
+  colorMode.preference = colorMode.value === 'dark'
+    ? 'light'
+    : 'dark'
 }
 
 function handleLogout() {
@@ -40,7 +43,7 @@ function handleLogout() {
         <div i-carbon-finance class="text-primary" />
         基金助手
       </NuxtLink>
-      <div v-if="authStore.isAuthenticated" class="flex gap-1 items-center">
+      <div v-if="authStore.isAuthenticated" class="flex flex-wrap gap-1 items-center">
         <!-- 主导航 -->
         <NuxtLink
           v-for="item in navItems"
