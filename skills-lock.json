@@ -19,6 +19,12 @@
       "skillPath": "skills/antfu-create-pr/SKILL.md",
       "computedHash": "5b30176199cc323906910f73e95e10b1506827738b5dc166f33fd256956861ce"
     },
+    "antfu-issue-triage": {
+      "source": "antfu/skills",
+      "sourceType": "github",
+      "skillPath": "skills/antfu-issue-triage/SKILL.md",
+      "computedHash": "54d4b6ac7063a5ebade8fa42f0dc54d171b4a5ab19d0685e4b576be0dd76497f"
+    },
     "code-review": {
       "source": "mattpocock/skills",
       "sourceType": "github",
