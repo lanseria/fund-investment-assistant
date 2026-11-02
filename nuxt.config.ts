@@ -129,6 +129,10 @@ export default defineNuxtConfig({
     redis: {
       host: '',
       password: '',
+      // Redis 键前缀 (NUXT_REDIS_KEY_PREFIX)。多个部署实例共用同一个 Redis 时必须
+      // 设置不同的前缀，否则 PASETO 密钥 (localKey 等) 互相串用，
+      // A 实例签发的 token 会在 B 实例被认可，导致串账号
+      keyPrefix: 'fund',
     },
     openRouterApiKey: '', // NUXT_OPEN_ROUTER_API_KEY
     openRouterBaseUrl: '', // NUXT_OPEN_ROUTER_BASE_URL

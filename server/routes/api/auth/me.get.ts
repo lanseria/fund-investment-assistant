@@ -15,8 +15,12 @@ export default defineEventHandler(async (event) => {
     where: eq(users.id, tokenUser.id),
   })
 
-  if (!user) {
-    throw createError({ status: 404, statusText: 'User not found.' })
+  // 用户名对不上说明 token 与该 ID 当前的主人不是同一个人
+  // (数据库恢复导致 ID 复用/多实例串号)，清除会话强制重新登录，避免静默变成别人
+  if (!user || user.username !== tokenUser.username) {
+    deleteCookie(event, 'auth-token', { path: '/' })
+    deleteCookie(event, 'auth-refresh-token', { path: '/' })
+    throw createError({ status: 401, statusText: 'Session does not match this account. Please log in again.' })
   }
 
   // 3. 返回包含 aiSystemPrompt 的完整对象

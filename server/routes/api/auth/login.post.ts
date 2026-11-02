@@ -1,5 +1,5 @@
 /* eslint-disable no-console */
-import type { UserPayload } from '~~/server/utils/auth'
+import type { RefreshTokenPayload, UserPayload } from '~~/server/utils/auth'
 import { addDays, addMonths } from 'date-fns'
 import { eq } from 'drizzle-orm'
 import { encrypt, sign } from 'paseto-ts/v4'
@@ -75,10 +75,17 @@ export default defineEventHandler(async (event) => {
   const refreshTokenExp = addMonths(new Date(), 1)
 
   // 加密时使用 slimTokenPayload
-  const accessTokenPayload = { ...slimTokenPayload, exp: accessTokenExp.toISOString() }
+  const accessTokenPayload = {
+    ...slimTokenPayload,
+    exp: accessTokenExp.toISOString(),
+  }
   const accessToken = await encrypt(localKey, accessTokenPayload)
 
-  const refreshTokenPayload = { sub: String(user.id), exp: refreshTokenExp.toISOString() }
+  const refreshTokenPayload: RefreshTokenPayload = {
+    sub: String(user.id),
+    username: user.username,
+    exp: refreshTokenExp.toISOString(),
+  }
   const refreshToken = await sign(refreshPrivateKey, refreshTokenPayload)
 
   // 设置 Cookie

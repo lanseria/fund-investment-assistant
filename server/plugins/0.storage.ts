@@ -5,8 +5,10 @@ export default defineNitroPlugin(() => {
   const config = useRuntimeConfig()
 
   // 从运行时配置动态传入凭据
+  // base 即 Redis 实际键名的前缀 (如 fund-prod:localKey)，
+  // 通过 NUXT_REDIS_KEY_PREFIX 区分不同部署实例，避免密钥/缓存串用
   const driver = redisDriver({
-    base: 'redis',
+    base: config.redis.keyPrefix || 'fund',
     host: config.redis.host,
     port: 6379,
     password: config.redis.password,

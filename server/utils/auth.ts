@@ -12,6 +12,18 @@ export interface UserPayload {
   availableCash?: string | null
 }
 
+// Refresh token (PASETO public) 的 payload 类型
+export interface RefreshTokenPayload {
+  /** 用户 ID (字符串形式) */
+  sub: string
+  /**
+   * 用户名。refresh 时必须与数据库中该 ID 的当前用户名一致，
+   * 防止用户 ID 被他人占用 (数据库恢复/多实例串号) 后静默登录成别人
+   */
+  username: string
+  exp?: string
+}
+
 // 密码哈希 (Argon2)
 export async function hashPassword(password: string) {
   return await argon2.hash(password)
