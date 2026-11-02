@@ -2,12 +2,11 @@
   "name": "fund-investment-assistant",
   "type": "module",
   "private": true,
-  "packageManager": "pnpm@12.15.0",
+  "packageManager": "pnpm@12.16.1",
   "scripts": {
     "build": "nuxt build",
     "dev": "nuxt dev",
     "generate": "nuxt generate",
-    "prepare": "nuxt prepare && node scripts/prepare.mjs",
     "preview": "nuxt preview",
     "start": "node .output/server/index.mjs",
     "start:generate": "npx serve .output/public",
@@ -61,8 +60,6 @@
     "zod": "catalog:utils"
   },
   "devDependencies": {
-    "@antfu/skills": "catalog:",
-    "@unocss/preset-web-fonts": "catalog:build",
-    "skills-npm": "catalog:"
+    "@unocss/preset-web-fonts": "catalog:build"
   }
 }

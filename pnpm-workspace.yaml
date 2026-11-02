@@ -20,33 +20,33 @@ onlyBuiltDependencies:
 
 catalogs:
   backend:
-    '@nuxtjs/mcp-toolkit': ^0.24.2
+    '@nuxtjs/mcp-toolkit': ^0.24.3
     '@types/pg': ^8.23.1
     argon2: ^0.45.1
     drizzle-kit: ^0.31.11
     drizzle-orm: ^0.45.4
     iconv-lite: ^0.7.3
-    openai: ^7.43.0
+    openai: ^7.47.0
     pg: ^8.23.1
     secure-exec: ^0.3.3
   build:
     '@nuxt/eslint': ^1.17.0
-    '@nuxtjs/color-mode': ^4.0.1
+    '@nuxtjs/color-mode': ^4.1.0
     '@pinia/nuxt': ^1.0.3
-    '@unocss/eslint-config': ^66.11.0
-    '@unocss/nuxt': ^66.11.0
-    '@unocss/preset-web-fonts': ^66.11.0
+    '@unocss/eslint-config': ^66.12.0
+    '@unocss/nuxt': ^66.12.0
+    '@unocss/preset-web-fonts': ^66.12.0
     '@vueuse/nuxt': ^15.0.0
-    nuxt: ^4.6.2
-    unocss: ^66.11.0
+    nuxt: ^4.6.3
+    unocss: ^66.12.0
   dev:
     '@antfu/eslint-config': ^10.0.0
     '@nuxt/test-utils': ^4.3.4
-    eslint: ^10.13.0
+    eslint: ^10.14.0
     eslint-plugin-format: ^2.0.1
     typescript: ^6.0.3
     vitest: ^5.0.5
-    vue-tsc: ^3.3.13
+    vue-tsc: ^3.3.14
   frontend:
     '@vueuse/components': ^15.0.0
     '@vueuse/core': ^15.0.0
@@ -63,10 +63,7 @@ catalogs:
   utils:
     bignumber.js: ^11.1.5
     date-fns: ^4.4.0
-    es-toolkit: ^1.53.0
+    es-toolkit: ^1.53.1
     mitt: ^3.0.1
     paseto-ts: ^2.0.7
     zod: ^4.6.7
-catalog:
-  '@antfu/skills': ^0.1.2
-  skills-npm: ^4.1.0
