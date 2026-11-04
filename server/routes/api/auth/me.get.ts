@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm'
 import { users } from '~~/server/database/schemas'
 import { getUserFromEvent } from '~~/server/utils/auth'
 import { useDb } from '~~/server/utils/db'
+import { clearAuthCookies } from '~~/server/utils/session'
 
 export default defineEventHandler(async (event) => {
   // 1. 获取 Token 中的基础信息 (id, role 等)
@@ -18,8 +19,7 @@ export default defineEventHandler(async (event) => {
   // 用户名对不上说明 token 与该 ID 当前的主人不是同一个人
   // (数据库恢复导致 ID 复用/多实例串号)，清除会话强制重新登录，避免静默变成别人
   if (!user || user.username !== tokenUser.username) {
-    deleteCookie(event, 'auth-token', { path: '/' })
-    deleteCookie(event, 'auth-refresh-token', { path: '/' })
+    clearAuthCookies(event)
     throw createError({ status: 401, statusText: 'Session does not match this account. Please log in again.' })
   }
 

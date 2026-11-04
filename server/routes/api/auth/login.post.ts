@@ -1,11 +1,9 @@
 /* eslint-disable no-console */
-import type { RefreshTokenPayload, UserPayload } from '~~/server/utils/auth'
-import { addDays, addMonths } from 'date-fns'
 import { eq } from 'drizzle-orm'
-import { encrypt, sign } from 'paseto-ts/v4'
 import { z } from 'zod'
 import { users } from '~~/server/database/schemas'
 import { hashPassword, needsRehash, verifyPassword } from '~~/server/utils/auth'
+import { issueSession, toFullUserPayload } from '~~/server/utils/session'
 
 const loginSchema = z.object({
   username: z.string(),
@@ -41,71 +39,12 @@ export default defineEventHandler(async (event) => {
     }).catch(e => console.error(`[Auth] Password migration failed:`, e))
   }
 
-  // 1. 完整的用户数据 (用于返回给前端 Redia/Pinia)
-  const fullUserPayload: UserPayload = {
-    id: user.id,
-    username: user.username,
-    role: user.role,
-    aiMode: user.aiMode,
-    aiSystemPrompt: user.aiSystemPrompt,
-    availableCash: user.availableCash,
-  }
-
-  // 2. 精简的 Token 数据 (用于存入 Cookie，避免超长)
-  // 剔除了 aiSystemPrompt 等大字段
-  const slimTokenPayload: UserPayload = {
-    id: user.id,
-    username: user.username,
-    role: user.role,
-    aiMode: user.aiMode,
-    // 其他字段保持 undefined/null，节省空间
-  }
-
-  const [localKey, refreshPrivateKey] = await Promise.all([
-    useStorage('redis').getItem<string>('localKey'),
-    useStorage('redis').getItem<string>('refreshPrivateKey'),
-  ])
-
-  if (!localKey || !refreshPrivateKey)
-    throw new Error('Server not initialized: keys are missing.')
-
-  // Access Token 有效期 15 天
-  const accessTokenExp = addDays(new Date(), 15)
-  // Refresh Token 有效期 1 个月
-  const refreshTokenExp = addMonths(new Date(), 1)
-
-  // 加密时使用 slimTokenPayload
-  const accessTokenPayload = {
-    ...slimTokenPayload,
-    exp: accessTokenExp.toISOString(),
-  }
-  const accessToken = await encrypt(localKey, accessTokenPayload)
-
-  const refreshTokenPayload: RefreshTokenPayload = {
-    sub: String(user.id),
-    username: user.username,
-    exp: refreshTokenExp.toISOString(),
-  }
-  const refreshToken = await sign(refreshPrivateKey, refreshTokenPayload)
-
-  // 设置 Cookie
-  setCookie(event, 'auth-token', accessToken, {
-    httpOnly: true,
-    expires: accessTokenExp,
-    path: '/',
-    sameSite: 'lax',
-  })
-
-  setCookie(event, 'auth-refresh-token', refreshToken, {
-    httpOnly: true,
-    expires: refreshTokenExp,
-    path: '/',
-    sameSite: 'lax',
-  })
+  // 签发会话:15 天 Access Token + 1 个月 Refresh Token,并写入 Cookie
+  const { accessToken } = await issueSession(event, user)
 
   // 返回给前端的是完整数据
   return {
-    user: fullUserPayload,
+    user: toFullUserPayload(user),
     token: accessToken, // 显式返回给小程序
   }
 })
