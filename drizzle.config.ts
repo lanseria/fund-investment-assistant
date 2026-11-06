@@ -5,6 +5,7 @@ export default defineConfig({
   dialect: 'postgresql',
   schema: './server/database/schemas.ts',
   out: './server/database/drizzle',
+  migrations: { schema: 'drizzle_fund' },
   dbCredentials: {
     url: env.NUXT_DB_URL!,
   },
