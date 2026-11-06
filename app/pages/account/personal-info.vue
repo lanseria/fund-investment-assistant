@@ -27,12 +27,22 @@ const isEditingCash = ref(false)
 const localAvailableCash = ref(0)
 const isSavingCash = ref(false)
 
+// 修改密码相关
+const pwdForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: '',
+})
+const isChangingPassword = ref(false)
+
 // 初始化
 watch(() => authStore.user, (u) => {
   if (u) {
     aiForm.aiMode = u.aiMode || 'off'
     aiForm.aiSystemPrompt = u.aiSystemPrompt || ''
-    localAvailableCash.value = u.availableCash ? Number(u.availableCash) : 0
+    localAvailableCash.value = u.availableCash
+      ? Number(u.availableCash)
+      : 0
   }
 }, { immediate: true })
 
@@ -55,6 +65,38 @@ async function saveCash() {
   }
   finally {
     isSavingCash.value = false
+  }
+}
+
+// 提交修改密码
+async function handleChangePassword() {
+  if (pwdForm.newPassword.length < 6) {
+    toast.error('新密码至少6位')
+    return
+  }
+  if (pwdForm.newPassword !== pwdForm.confirmPassword) {
+    toast.error('两次输入的新密码不一致')
+    return
+  }
+  isChangingPassword.value = true
+  try {
+    await apiFetch('/api/user/password', {
+      method: 'PUT',
+      body: {
+        oldPassword: pwdForm.oldPassword,
+        newPassword: pwdForm.newPassword,
+      },
+    })
+    toast.success('密码修改成功')
+    pwdForm.oldPassword = ''
+    pwdForm.newPassword = ''
+    pwdForm.confirmPassword = ''
+  }
+  catch (e: any) {
+    toast.error(`修改失败: ${e.data?.statusMessage || '未知错误'}`)
+  }
+  finally {
+    isChangingPassword.value = false
   }
 }
 
@@ -219,6 +261,56 @@ async function handleSaveConfig() {
             </button>
           </div>
         </div>
+      </div>
+
+      <!-- 修改密码卡片 -->
+      <div class="p-4 border rounded-lg bg-white space-y-3 dark:border-gray-700 dark:bg-gray-800">
+        <h2 class="text-sm text-gray-500 font-semibold dark:text-gray-400">
+          修改密码
+        </h2>
+        <form class="max-w-md space-y-3" @submit.prevent="handleChangePassword">
+          <div>
+            <label class="text-sm font-medium mb-1 block">旧密码</label>
+            <input
+              v-model="pwdForm.oldPassword"
+              type="password"
+              class="input-base"
+              autocomplete="current-password"
+              required
+            >
+          </div>
+          <div>
+            <label class="text-sm font-medium mb-1 block">新密码</label>
+            <input
+              v-model="pwdForm.newPassword"
+              type="password"
+              class="input-base"
+              placeholder="至少6位"
+              autocomplete="new-password"
+              required
+            >
+          </div>
+          <div>
+            <label class="text-sm font-medium mb-1 block">确认新密码</label>
+            <input
+              v-model="pwdForm.confirmPassword"
+              type="password"
+              class="input-base"
+              placeholder="再次输入新密码"
+              autocomplete="new-password"
+              required
+            >
+          </div>
+          <div class="flex justify-end">
+            <button
+              type="submit"
+              class="btn"
+              :disabled="isChangingPassword || !pwdForm.oldPassword || pwdForm.newPassword.length < 6 || pwdForm.newPassword !== pwdForm.confirmPassword"
+            >
+              {{ isChangingPassword ? '保存中...' : '修改密码' }}
+            </button>
+          </div>
+        </form>
       </div>
 
       <!-- AI 设置组件 -->
