@@ -131,10 +131,12 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
 
   let importedCount = 0
   let skippedCount = 0
+  const skippedItems: { code: string, reason: string }[] = []
 
   for (const item of dataToImport) {
     if (!item.code || item.shares === undefined || item.costPrice === undefined) {
       skippedCount++
+      skippedItems.push({ code: item.code || '(未知)', reason: '缺少代码、份额或成本价' })
       continue
     }
 
@@ -143,6 +145,7 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
       const fund = await findOrCreateFund(item.code, fundType)
       if (!fund) {
         skippedCount++
+        skippedItems.push({ code: item.code, reason: '基金信息创建失败' })
         continue
       }
 
@@ -158,12 +161,14 @@ export async function importHoldingsData(dataToImport: { code: string, shares: n
     catch (error) {
       if (error instanceof HoldingExistsError) {
         skippedCount++
+        skippedItems.push({ code: item.code, reason: '已存在于持仓/关注列表' })
       }
       else {
         console.error(`导入基金 ${item.code} 失败:`, error)
         skippedCount++
+        skippedItems.push({ code: item.code, reason: error instanceof Error ? error.message : String(error) })
       }
     }
   }
-  return { imported: importedCount, skipped: skippedCount }
+  return { imported: importedCount, skipped: skippedCount, skippedItems }
 }
