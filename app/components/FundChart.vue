@@ -6,7 +6,7 @@ import type { BollingerSignalData, EstimatePoint, RsiChartData } from '~/types/c
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { alignDailyToDates } from '~~/shared/hs300Penetration'
-import { PENETRATION_SERIES_COLOR, PENETRATION_SERIES_NAME } from '~/constants/chart'
+import { COST_LINE_SERIES_COLOR, COST_LINE_SERIES_NAME, PENETRATION_SERIES_COLOR, PENETRATION_SERIES_NAME } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
 import { STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS } from '~/utils/sectorStyle'
 import { buildChartLayout, chartHeightClass as resolveChartHeightClass } from './strategy-charts/layout'
@@ -34,6 +34,8 @@ const props = defineProps<{
    * 传入后在主图叠加一条占比折线（右侧独立 % 轴），与净值共享时间轴便于对比走势。
    */
   penetrationDaily?: Hs300PenetrationDailySeries
+  /** 用户持仓成本价（可选）。传入后在主图叠加一条水平「我的成本」虚线，直观对比当前净值的盈亏 */
+  costPrice?: number | null
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -169,6 +171,55 @@ const chartOption = computed<EChartsOption>(() => {
       }
     : null
 
+  // --- 「我的成本」抽象买入线（可选）：持仓成本价水平虚线，净值高于成本即盈利、低于即亏损 ---
+  const costPrice = props.costPrice != null && props.costPrice > 0
+    ? props.costPrice
+    : null
+  // 线尾盈亏标注的基准净值：优先当日盘中估值，否则取最后一个有净值的交易日
+  const lastNavValue = estimatePoint?.nav
+    ?? [...navData].reverse().find((v): v is number => v != null)
+    ?? null
+  const costProfitRate = costPrice != null && lastNavValue != null
+    ? ((lastNavValue - costPrice) / costPrice) * 100
+    : null
+  const costSeries = costPrice != null
+    ? [
+        {
+          name: COST_LINE_SERIES_NAME,
+          type: 'line',
+          xAxisIndex: 0,
+          yAxisIndex: 0,
+          // 常量序列铺满统一时间轴，同时保证成本价始终进入 Y 轴可视范围
+          data: allDates.map(() => costPrice),
+          showSymbol: false,
+          connectNulls: true,
+          silent: true,
+          z: 2,
+          lineStyle: { type: 'dashed', width: 1.5, color: COST_LINE_SERIES_COLOR },
+          itemStyle: { color: COST_LINE_SERIES_COLOR },
+          // 线尾标注成本价与相对最新净值的盈亏幅度（红涨绿跌）
+          endLabel: {
+            show: true,
+            formatter: () => {
+              const sign = costProfitRate != null && costProfitRate >= 0
+                ? '+'
+                : ''
+              return costProfitRate != null
+                ? `成本 ${costPrice.toFixed(4)} (${sign}${costProfitRate.toFixed(2)}%)`
+                : `成本 ${costPrice.toFixed(4)}`
+            },
+            color: costProfitRate == null
+              ? COST_LINE_SERIES_COLOR
+              : (costProfitRate >= 0
+                  ? STRENGTH_COLOR_POS
+                  : STRENGTH_COLOR_NEG),
+            fontSize: 11,
+            offset: [4, 0],
+          },
+        },
+      ]
+    : []
+
   // --- 板块主力行为数据（可选）：按日期建索引并对齐到 allDates ---
   const sectorByDate = new Map<string, SectorAlignedData>()
   if (hasSector.value) {
@@ -201,6 +252,7 @@ const chartOption = computed<EChartsOption>(() => {
     sectorByDate,
     rsiSeriesName,
     estimate: estimatePoint,
+    costPrice,
     textColor,
   })
 
@@ -330,6 +382,9 @@ const chartOption = computed<EChartsOption>(() => {
           ...(hasPenetration.value
             ? [PENETRATION_SERIES_NAME]
             : []),
+          ...(costPrice != null
+            ? [COST_LINE_SERIES_NAME]
+            : []),
         ],
         top: 40,
         textStyle: { color: textColor },
@@ -399,6 +454,7 @@ const chartOption = computed<EChartsOption>(() => {
       series: [
         ...fundSeries,
         ...penetrationSeries,
+        ...costSeries,
       ],
     } as EChartsOption
   }
@@ -465,6 +521,8 @@ const chartOption = computed<EChartsOption>(() => {
     legendData.push('主力强度', '主力资金', '主力暗盘', '散户资金')
   if (hasPenetration.value)
     legendData.push(PENETRATION_SERIES_NAME)
+  if (costPrice != null)
+    legendData.push(COST_LINE_SERIES_NAME)
 
   return {
     title: {
@@ -526,6 +584,7 @@ const chartOption = computed<EChartsOption>(() => {
     series: [
       ...multiSeries,
       ...penetrationSeries,
+      ...costSeries,
     ],
   } as EChartsOption
 })

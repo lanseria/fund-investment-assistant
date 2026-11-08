@@ -1,8 +1,8 @@
 import type { SectorAlignedData } from './panels'
 import type { EstimatePoint } from '~/types/chart'
-import { PENETRATION_SERIES_NAME } from '~/constants/chart'
+import { COST_LINE_SERIES_NAME, PENETRATION_SERIES_NAME } from '~/constants/chart'
 import { formatCurrency } from '~/utils/format'
-import { buildActionBadgeHtml } from '~/utils/sectorStyle'
+import { buildActionBadgeHtml, STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS } from '~/utils/sectorStyle'
 
 /**
  * 多子图共享的 axis tooltip formatter。
@@ -13,9 +13,11 @@ export function buildTooltipFormatter(opts: {
   sectorByDate: Map<string, SectorAlignedData>
   rsiSeriesName: string | null
   estimate?: EstimatePoint | null
+  /** 持仓成本价（可选）。传入后「我的成本」行附带当日净值相对成本的盈亏幅度 */
+  costPrice?: number | null
   textColor: string
 }) {
-  const { sectorByDate, rsiSeriesName, estimate, textColor } = opts
+  const { sectorByDate, rsiSeriesName, estimate, costPrice, textColor } = opts
 
   // 净值线配色：项目未注册自定义主题，ECharts 内置 default/dark 主题 palette 首色一致
   const NAV_COLOR = '#5070dd'
@@ -56,6 +58,7 @@ export function buildTooltipFormatter(opts: {
       '转入',
       '转出',
       PENETRATION_SERIES_NAME,
+      COST_LINE_SERIES_NAME,
       '主力强度',
       '主力资金',
       '主力暗盘',
@@ -89,6 +92,29 @@ export function buildTooltipFormatter(opts: {
 
         if (item.seriesName === PENETRATION_SERIES_NAME) {
           lines.push(`${item.marker}${item.seriesName}: ${Number(item.value).toFixed(3)}%`)
+          return
+        }
+
+        // 「我的成本」行：成本价 + 当日净值相对成本的盈亏幅度（红涨绿跌；估值日无官方净值时不附盈亏）
+        if (item.seriesName === COST_LINE_SERIES_NAME) {
+          const cost = Number(item.value)
+          const navItem = list.find((nav: any) => nav?.seriesName === '净值' && nav?.value !== null && nav?.value !== undefined)
+          const nav = navItem
+            ? Number(navItem.value)
+            : null
+          const rate = nav != null && costPrice != null && costPrice > 0
+            ? ((nav - costPrice) / costPrice) * 100
+            : null
+          const sign = rate != null && rate >= 0
+            ? '+'
+            : ''
+          const rateColor = rate != null && rate >= 0
+            ? STRENGTH_COLOR_POS
+            : STRENGTH_COLOR_NEG
+          const rateText = rate != null
+            ? ` <span style="color:${rateColor}">(较成本 ${sign}${rate.toFixed(2)}%)</span>`
+            : ''
+          lines.push(`${item.marker}我的成本: ${cost.toFixed(4)}${rateText}`)
           return
         }
 

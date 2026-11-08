@@ -274,6 +274,7 @@ async function handleRunStrategies() {
         :rsi-data="rsiData ?? undefined"
         :bollinger-data="bollingerSignalData"
         :penetration-daily="penetrationDaily ?? undefined"
+        :cost-price="currentHolding?.costPrice ?? null"
         :data-zoom-start="dataZoomStart"
         :data-zoom-end="dataZoomEnd"
         @signal-click="openSignalDetails"

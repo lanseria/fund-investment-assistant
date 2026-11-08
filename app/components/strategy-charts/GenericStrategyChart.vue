@@ -21,6 +21,8 @@ defineProps<{
   estimate?: EstimatePoint
   /** 沪深300基金占比日频序列（可选）。传入后在主图叠加占比折线（右侧 % 轴），与净值同图对比 */
   penetrationDaily?: Hs300PenetrationDailySeries
+  /** 用户持仓成本价（可选）。传入后在主图叠加一条水平「我的成本」虚线，直观对比当前净值的盈亏 */
+  costPrice?: number | null
 }>()
 
 const emit = defineEmits(['signal-click', 'transaction-click'])
@@ -47,6 +49,7 @@ function handleTransactionClick(tx: any) {
       :bollinger-data="bollingerData"
       :estimate="estimate"
       :penetration-daily="penetrationDaily"
+      :cost-price="costPrice"
       @signal-click="handleSignalClick"
       @transaction-click="handleTransactionClick"
     />

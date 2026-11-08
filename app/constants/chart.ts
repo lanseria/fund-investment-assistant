@@ -35,3 +35,12 @@ export const PENETRATION_SERIES_NAME = '沪深300基金占比'
 
 /** 沪深300基金占比叠加线的配色（与占比页折线一致） */
 export const PENETRATION_SERIES_COLOR = '#0ea5e9'
+
+/**
+ * 基金基础走势图中叠加的「我的成本」抽象买入线系列名。
+ * 以持仓成本价为基准画一条水平虚线：净值高于该线即盈利、低于即亏损。
+ */
+export const COST_LINE_SERIES_NAME = '我的成本'
+
+/** 「我的成本」抽象买入线配色（琥珀色，与净值/占比线区分，深浅色模式均可读） */
+export const COST_LINE_SERIES_COLOR = '#f59e0b'
