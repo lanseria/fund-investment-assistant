@@ -67,7 +67,9 @@ interface HistoryRecord {
 // 获取场内基金的实时价格
 export async function fetchFundLofPrice(fundCode: string): Promise<FundRealtimeData | null> {
   // 自动判断交易所前缀 (6开头为沪市sh, 其他为深市sz)
-  const prefix = fundCode.startsWith('6') ? 'sh' : 'sz'
+  const prefix = fundCode.startsWith('6')
+    ? 'sh'
+    : 'sz'
   const url = `https://qt.gtimg.cn/q=${prefix}${fundCode}`
 
   try {
@@ -136,6 +138,56 @@ export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRe
 }
 
 /**
+ * 官方估算兜底的取数结果。
+ *
+ * 区分「基金不在盘中估值列表」与「上游数据源整体不可用」这两种 404:
+ * 前者是该基金的正常属性(QDII/货币型/纯债),后者是平台级故障。
+ * 混为一谈会让上游宕机时段每只基金都刷出一条"不在估值列表"的误导日志。
+ */
+export type OfficialEstimateOutcome
+  /** 取到了估值 */
+  = | { status: 'ok', data: FundRealtimeData }
+  /** 该基金不在盘中估值列表(上游健康,属正常情况) */
+    | { status: 'not_listed' }
+  /** 上游数据源/服务不可用(平台级故障) */
+    | { status: 'unavailable' }
+
+/** 探测上游是否健康:健康结果缓存 5 分钟,避免每只基金都探一次 */
+const REALTIME_SOURCE_PROBE_TTL_MS = 5 * 60 * 1000
+/** 用于探测的代表性基金(华夏成长混合,流动性好,正常应始终在盘中估值列表) */
+const REALTIME_SOURCE_PROBE_FUND = '000001'
+let realtimeSourceHealthyUntil = 0
+let realtimeSourceHealthy = false
+
+/**
+ * 探测盘中估值数据源是否整体可用。
+ *
+ * 用一个必定在估值列表里的代表基金探活:能取到即为上游健康。上游整体宕机时
+ * 所有基金的 `/fund/realtime` 都会 404(2026-11 实测 powercloud 整站 521),
+ * 此时不能把"404"解读成"该基金不在列表"。
+ */
+async function probeRealtimeSource(): Promise<boolean> {
+  if (Date.now() < realtimeSourceHealthyUntil)
+    return realtimeSourceHealthy
+
+  const config = useRuntimeConfig()
+  let healthy = false
+  try {
+    const data = await $fetch<StrategyRealtimeResponse>(
+      `${config.strategyApiUrl}/fund/realtime/${REALTIME_SOURCE_PROBE_FUND}`,
+      { timeout: 10_000 },
+    )
+    healthy = Boolean(data?.name)
+  }
+  catch {
+    healthy = false
+  }
+  realtimeSourceHealthy = healthy
+  realtimeSourceHealthyUntil = Date.now() + REALTIME_SOURCE_PROBE_TTL_MS
+  return healthy
+}
+
+/**
  * 获取开放式基金的盘中实时估值(官方估算兜底)。
  *
  * 数据来源为 Python 服务 (`NUXT_STRATEGY_API_URL/fund/realtime/{code}`，
@@ -143,9 +195,10 @@ export async function fetchFundRealtimeRaw(fundCode: string): Promise<StrategyRe
  * 供自算估值不成立/无法自算的基金(无重仓非黄金的场外基金等)兜底,
  * 保证每只基金都有盘中估值展示。
  *
- * @returns 获取失败(不在盘中估值列表/服务不可用)时返回 null
+ * @returns 成功返回 `{ status: 'ok' }`;404 时再探活判定是
+ *          `not_listed`(正常)还是 `unavailable`(上游宕机)
  */
-export async function fetchFundOfficialEstimateFallback(fundCode: string): Promise<FundRealtimeData | null> {
+export async function fetchFundOfficialEstimateFallback(fundCode: string): Promise<OfficialEstimateOutcome> {
   const config = useRuntimeConfig()
   const url = `${config.strategyApiUrl}/fund/realtime/${fundCode}`
 
@@ -159,22 +212,32 @@ export async function fetchFundOfficialEstimateFallback(fundCode: string): Promi
 
     // 估值日期仅到日级,无分钟级时间戳;用服务端当前时刻以保留"X 分钟前更新"语义
     return {
-      name: data.name,
-      code: data.code,
-      yesterdayNav: data.yesterdayNav ?? '',
-      estimateNav: nav ?? '',
-      percentageChange: growthRate != null ? String(growthRate) : '',
-      updateTime: new Date().toISOString(),
+      status: 'ok',
+      data: {
+        name: data.name,
+        code: data.code,
+        yesterdayNav: data.yesterdayNav ?? '',
+        estimateNav: nav ?? '',
+        percentageChange: growthRate != null
+          ? String(growthRate)
+          : '',
+        updateTime: new Date().toISOString(),
+      },
     }
   }
   catch (error: any) {
-    // 404 = 该基金不在盘中估值列表(QDII/货币型等),属于预期情况,降级为 warn
     const status = error?.response?.status || error?.statusCode
-    if (status === 404)
-      console.warn(`[OfficialEstimateFallback] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
-    else
+    if (status !== 404) {
       console.error(`[OfficialEstimateFallback] 获取基金 ${fundCode} 实时估值失败:`, error?.message || error)
-    return null
+      return { status: 'unavailable' }
+    }
+
+    // 404 有两种可能:该基金不在列表,或上游整体宕机。探活一次再定性。
+    if (await probeRealtimeSource()) {
+      console.warn(`[OfficialEstimateFallback] 基金 ${fundCode} 不在盘中估值列表(可能是 QDII/货币型),已跳过。`)
+      return { status: 'not_listed' }
+    }
+    return { status: 'unavailable' }
   }
 }
 
@@ -214,7 +277,9 @@ export async function fetchStocksRealtime(codes: string[], opts?: { timeoutMs?: 
 
   try {
     const data = await $fetch<StocksRealtimeResponse>(url, {
-      params: { codes: codes.join(',') },
+      params: {
+        codes: codes.join(','),
+      },
       timeout: opts?.timeoutMs ?? 15_000,
     })
     if (data.missing.length > 0)
@@ -269,7 +334,9 @@ export async function fetchGoldRealtime(codes: string[], opts?: { timeoutMs?: nu
 
   try {
     const data = await $fetch<GoldRealtimeResponse>(url, {
-      params: { codes: codes.join(',') },
+      params: {
+        codes: codes.join(','),
+      },
       timeout: opts?.timeoutMs ?? 15_000,
     })
     if (data.missing.length > 0)
@@ -417,7 +484,10 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
               const pointParts = p.split(' ')
               const timeStr = pointParts[0]!
               const priceStr = pointParts[1]!
-              return [`${timeStr.slice(0, 2)}:${timeStr.slice(2)}`, Number.parseFloat(priceStr)]
+              return [
+                `${timeStr.slice(0, 2)}:${timeStr.slice(2)}`,
+                Number.parseFloat(priceStr),
+              ]
             })
           }
           else {
@@ -433,7 +503,9 @@ export async function fetchMarketIndexes(codes: string[]): Promise<MarketIndexDa
       // 为了调试，我们先返回一个包含 chartData 长度的对象
       // parts[0] 形如 v_sh000001="1 / v_hkHSI="100 / v_fuNIY="delay，= 后标记行情类型
       const quoteKindFlag = parts[0]!.split('=')[1] ?? ''
-      const parsedTime = parts[30] ? parseQuoteTime(parts[30]) : null
+      const parsedTime = parts[30]
+        ? parseQuoteTime(parts[30])
+        : null
       const result = {
         code,
         name: parts[1]!,

@@ -5,6 +5,7 @@ import { eq } from 'drizzle-orm'
 import { fundStockHoldings } from '~~/server/database/schemas'
 import { fetchFundRealtimeRaw } from '~~/server/utils/dataFetcher'
 import { useDb } from '~~/server/utils/db'
+import { fetchFundTopHoldings } from '~~/server/utils/fundEstimateSource'
 
 /** fund_stock_holdings 表的单行(不含外键冗余字段) */
 export interface FundStockHoldingRow {
@@ -40,7 +41,9 @@ export function parseHoldingPct(raw: unknown): number | null {
   if (!s)
     return null
   const n = Number.parseFloat(s)
-  return Number.isFinite(n) && n > 0 ? n : null
+  return Number.isFinite(n) && n > 0
+    ? n
+    : null
 }
 
 /**
@@ -58,7 +61,12 @@ export function extractStockHoldings(holdings: PowercloudStockHolding[] | null |
     const pct = parseHoldingPct(h?.pct)
     if (!STOCK_CODE_RE.test(stockCode) || !stockName || pct == null)
       continue
-    rows.push({ stockCode, stockName, pct, reportDate: '' })
+    rows.push({
+      stockCode,
+      stockName,
+      pct,
+      reportDate: '',
+    })
   }
   return rows
 }
@@ -66,43 +74,107 @@ export function extractStockHoldings(holdings: PowercloudStockHolding[] | null |
 /**
  * 同步单只基金的重仓股持仓明细(季报口径)到 fund_stock_holdings 表。
  *
- * 数据来源为 Python 服务 /fund/realtime/{code} 的 holdings 字段
- * (底层 powercloud 聚合接口,季报披露口径)。新报告期数据整体覆盖旧数据
- * (事务内先删后插,天然处理重仓股调出前十的情况)。
+ * 数据源按顺序尝试:
+ * 1. Python 服务 /fund/realtime/{code} 的 holdings 字段(底层 powercloud 聚合接口)
+ * 2. 天天基金 F10 `FundArchivesDatas.aspx?type=jjcc`(公开网页接口,powercloud
+ *    整站宕机时的备用源;2026-11 powercloud 返回 521 后新增)
  *
- * - 基金无股票持仓(纯债/货币)或上游无数据: 清空该基金已有行,返回 synced=0
- * - Python 服务不可用/基金不存在: 抛出错误,由调用方决定降级策略
+ * 新报告期数据整体覆盖旧数据(事务内先删后插,天然处理重仓股调出前十的情况)。
  *
- * @returns { synced, reportDate } synced 为写入条数,reportDate 为报告期
+ * - 基金无股票持仓(纯债/货币/联接基金)或上游确认无数据: 清空该基金已有行,返回 synced=0
+ * - 两个数据源都不可用: 抛出错误,由调用方决定降级策略(不用空数据覆盖已有持仓)
+ *
+ * @returns { synced, reportDate, source } synced 为写入条数,reportDate 为报告期,
+ *          source 为实际生效的数据源(none 表示该基金确无股票持仓)
  */
-export async function syncFundStockHoldings(code: string): Promise<{ synced: number, reportDate: string | null }> {
-  const raw = await fetchFundRealtimeRaw(code)
+export async function syncFundStockHoldings(
+  code: string,
+): Promise<{ synced: number, reportDate: string | null, source: 'powercloud' | 'f10' | 'none' }> {
+  const primary = await trySyncFromPowercloud(code)
+  if (primary !== null) {
+    return {
+      ...primary,
+      source: primary.synced > 0
+        ? 'powercloud'
+        : 'none',
+    }
+  }
+
+  // powercloud 不可用(上游宕机/接口未部署):降级到天天基金 F10
+  console.warn(`[StockHoldings] 基金 ${code} powercloud 重仓股不可用,改用天天基金 F10。`)
+  const f10 = await fetchFundTopHoldings(code)
+  if (f10 === null)
+    throw new Error(`基金 ${code} 重仓股数据源不可用(powercloud 与 F10 均失败)`)
+
+  if (f10.holdings.length === 0 || !f10.reportDate) {
+    await dbDeleteFundHoldings(code)
+    return { synced: 0, reportDate: f10.reportDate, source: 'none' }
+  }
+
+  const reportDate = f10.reportDate
+  await dbReplaceFundHoldings(code, f10.holdings.map(h => ({ ...h, reportDate })))
+  return { synced: f10.holdings.length, reportDate, source: 'f10' }
+}
+
+/**
+ * 从 powercloud 同步重仓股;上游不可用时返回 null(交由调用方降级),不抛错。
+ */
+async function trySyncFromPowercloud(code: string): Promise<{ synced: number, reportDate: string | null } | null> {
+  let raw
+  try {
+    raw = await fetchFundRealtimeRaw(code)
+  }
+  catch (error: any) {
+    // 上游 5xx/网络错误/4xx 一律视为「本数据源不可用」,返回 null 触发 F10 降级;
+    // 基金是否真的不存在由 F10 给出最终答复
+    console.warn(`[StockHoldings] 基金 ${code} powercloud 请求失败:`, error?.message || error)
+    return null
+  }
+
   const reportDate = String(raw.holdingsDate ?? '').trim()
   const stocks = extractStockHoldings(raw.holdings)
 
-  const db = useDb()
   // 上游无有效持仓或报告期非法(如债基/货基、数据源异常): 清空旧数据,避免自算用了过期持仓
   if (stocks.length === 0 || !REPORT_DATE_RE.test(reportDate)) {
-    await db.transaction(async (tx) => {
-      await tx.delete(fundStockHoldings).where(eq(fundStockHoldings.fundCode, code))
-    })
-    return { synced: 0, reportDate: REPORT_DATE_RE.test(reportDate) ? reportDate : null }
+    await dbDeleteFundHoldings(code)
+    return {
+      synced: 0,
+      reportDate: REPORT_DATE_RE.test(reportDate)
+        ? reportDate
+        : null,
+    }
   }
 
+  await dbReplaceFundHoldings(code, stocks.map(s => ({ ...s, reportDate })))
+  return { synced: stocks.length, reportDate }
+}
+
+/** 事务内清空该基金的重仓股行 */
+async function dbDeleteFundHoldings(code: string) {
+  const db = useDb()
+  await db.transaction(async (tx) => {
+    await tx.delete(fundStockHoldings).where(eq(fundStockHoldings.fundCode, code))
+  })
+}
+
+/** 事务内用新报告期数据整体覆盖该基金的重仓股行 */
+async function dbReplaceFundHoldings(
+  code: string,
+  rows: { stockCode: string, stockName: string, pct: number, reportDate: string }[],
+) {
+  const db = useDb()
   await db.transaction(async (tx) => {
     await tx.delete(fundStockHoldings).where(eq(fundStockHoldings.fundCode, code))
     await tx.insert(fundStockHoldings).values(
-      stocks.map(s => ({
+      rows.map(s => ({
         fundCode: code,
         stockCode: s.stockCode,
         stockName: s.stockName,
         pct: s.pct,
-        reportDate,
+        reportDate: s.reportDate,
       })),
     )
   })
-
-  return { synced: stocks.length, reportDate }
 }
 
 /**

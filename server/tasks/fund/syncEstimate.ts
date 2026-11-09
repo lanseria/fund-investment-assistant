@@ -7,7 +7,7 @@ import { isQuoteRefreshHours, isTradingDay } from '~~/shared/market'
 export default defineTask({
   meta: {
     name: 'fund:syncEstimate',
-    description: '盘中同步所有基金估值 (重仓股行情加权 + 黄金基金按金价 Au9999 + 场内/LOF 按场内价,写 funds 表主估值字段)',
+    description: '盘中同步所有基金估值 (重仓股行情加权 + 黄金基金按金价 Au9999 + 指数型/ETF 联接按跟踪指数 + 场内/LOF 按场内价,写 funds 表主估值字段)',
   },
   async run() {
     // --- 交易日检查 (节假日数据来自数据库 market_holidays) ---

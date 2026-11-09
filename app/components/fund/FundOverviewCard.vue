@@ -87,7 +87,7 @@ const attentionMeta = ['', '普通', '重点', '核心']
           label="今日估算"
           :value="props.detail.percentageChange !== null ? props.detail.percentageChange : null"
           :colored="true"
-          hint="重仓股行情加权自算;黄金基金按金价,场内基金按场内价"
+          hint="重仓股行情加权自算;黄金基金按金价,指数基金按跟踪指数,场内基金按场内价"
           value-class="!text-xl"
         />
         <StatCard

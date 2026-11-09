@@ -18,15 +18,18 @@ export default defineTask({
     let success = 0
     let failed = 0
     let empty = 0
+    /** 各数据源命中次数,用于发现 powercloud 是否长期不可用 */
+    const sourceStats: Record<string, number> = {}
 
     for (const [index, fund] of allFunds.entries()) {
       try {
         const result = await syncFundStockHoldings(fund.code)
+        sourceStats[result.source] = (sourceStats[result.source] ?? 0) + 1
         if (result.synced > 0)
           success++
         else
           empty++
-        console.warn(`[syncStockHoldings] 基金 ${fund.code}(${fund.name}) 同步 ${result.synced} 条,报告期 ${result.reportDate ?? '无'}`)
+        console.warn(`[syncStockHoldings] 基金 ${fund.code}(${fund.name}) 同步 ${result.synced} 条,报告期 ${result.reportDate ?? '无'},数据源 ${result.source}`)
       }
       catch (e) {
         failed++
@@ -43,14 +46,18 @@ export default defineTask({
       try {
         const { syncAllFundsSelfEstimates } = await import('~~/server/utils/selfEstimateService')
         const r = await syncAllFundsSelfEstimates()
-        console.warn(`[syncStockHoldings] 持仓更新后估值同步: success=${r.success}, failed=${r.failed}, stocks=${r.stockCount}`)
+        console.warn(
+          `[syncStockHoldings] 持仓更新后估值同步: success=${r.success}, failed=${r.failed}, `
+          + `skipped=${r.skipped}, stocks=${r.stockCount}, index=${r.indexCount}`,
+        )
       }
       catch (e) {
         console.error('[syncStockHoldings] 持仓更新后估值同步失败:', e)
       }
     }
 
-    console.warn(`[syncStockHoldings] ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} 完成: total=${allFunds.length}, success=${success}, empty=${empty}, failed=${failed}`)
-    return { result: `Success (total: ${allFunds.length}, success: ${success}, empty: ${empty}, failed: ${failed})` }
+    const sourceSummary = Object.entries(sourceStats).map(([k, v]) => `${k}=${v}`).join(',')
+    console.warn(`[syncStockHoldings] ${format(new Date(), 'yyyy-MM-dd HH:mm:ss')} 完成: total=${allFunds.length}, success=${success}, empty=${empty}, failed=${failed}, 数据源(${sourceSummary})`)
+    return { result: `Success (total: ${allFunds.length}, success: ${success}, empty: ${empty}, failed: ${failed}, sources: ${sourceSummary})` }
   },
 })

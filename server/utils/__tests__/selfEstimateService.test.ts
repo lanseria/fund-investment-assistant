@@ -2,7 +2,7 @@ import type { StockRealtimeQuote } from '../dataFetcher'
 import type { FundStockHoldingRow } from '../stockHoldingService'
 import { describe, expect, it } from 'vitest'
 import { isGoldPriceFund } from '../../../shared/fund'
-import { calcGoldEstimate, calcSelfEstimate, GOLD_PRICE_CODE } from '../selfEstimateService'
+import { calcGoldEstimate, calcIndexEstimate, calcSelfEstimate, GOLD_PRICE_CODE, sumHoldingPct } from '../selfEstimateService'
 import { enrichStocksWithQuotes, extractStockHoldings, parseHoldingPct } from '../stockHoldingService'
 
 function holding(stockCode: string, pct: number): FundStockHoldingRow {
@@ -122,9 +122,23 @@ describe('calcSelfEstimate (重仓股加权自算估值)', () => {
   })
 
   it('覆盖率按持仓行合计(而非行情命中数)', () => {
-    const rows = [holding('600519', 8.5), holding('000858', 6.2)]
+    const rows = [holding('600519', 60), holding('000858', 40)]
     const result = calcSelfEstimate('1', rows, Object.fromEntries([quote('600519', 1), quote('000858', 1)]))
-    expect(result!.coverage).toBe(14.7)
+    expect(result!.coverage).toBe(100)
+  })
+
+  it('重仓覆盖率不足门槛时返回 null(联接基金残余仓位不可信)', () => {
+    // 实测联接基金季报常只剩几只打新残留(0.00%~1.87%),归一化会把残余个股放大成噪声
+    const rows = [holding('920162', 1.2), holding('920157', 0.67)]
+    const quotes = Object.fromEntries([quote('920162', 5), quote('920157', -5)])
+    expect(calcSelfEstimate('1.5', rows, quotes)).toBeNull()
+  })
+
+  it('覆盖率恰好等于门槛时采信', () => {
+    const rows = [holding('600519', 30)]
+    const result = calcSelfEstimate('1', rows, Object.fromEntries([quote('600519', 1)]))
+    expect(result).not.toBeNull()
+    expect(result!.coverage).toBe(30)
   })
 
   it('a 股与港股 5 位代码混合加权(如港股通基金)', () => {
@@ -178,6 +192,42 @@ describe('calcGoldEstimate (金价自算估值)', () => {
 
   it('与 GOLD_PRICE_CODE (AU9999) 对应', () => {
     expect(GOLD_PRICE_CODE).toBe('AU9999')
+  })
+})
+
+describe('calcIndexEstimate (跟踪指数自算估值)', () => {
+  it('按指数涨跌幅套用昨净,coverage 固定 100', () => {
+    // 0.5788 × (1 + 1.18/100) = 0.5788 × 1.0118 = 0.585629... → 0.5856
+    const result = calcIndexEstimate('0.5788', { changePct: 1.18 })
+    expect(result).not.toBeNull()
+    expect(result!.changePct).toBeCloseTo(1.18, 6)
+    expect(result!.nav).toBe(0.5856)
+    expect(result!.coverage).toBe(100)
+  })
+
+  it('下跌时净值为负增长', () => {
+    // 0.6232 × (1 - 0.30/100) = 0.621330... → 0.6213
+    const result = calcIndexEstimate('0.6232', { changePct: -0.3 })
+    expect(result!.nav).toBe(0.6213)
+  })
+
+  it('指数无涨跌幅(未开盘/停牌)返回 null', () => {
+    expect(calcIndexEstimate('1', { changePct: Number.NaN })).toBeNull()
+  })
+
+  it('昨净非法返回 null', () => {
+    expect(calcIndexEstimate('0', { changePct: 1 })).toBeNull()
+    expect(calcIndexEstimate('-1', { changePct: 1 })).toBeNull()
+  })
+})
+
+describe('sumHoldingPct (重仓覆盖率合计)', () => {
+  it('合计全部持仓行占比', () => {
+    expect(sumHoldingPct([holding('600519', 10.84), holding('300750', 8.79)])).toBeCloseTo(19.63, 6)
+  })
+
+  it('空持仓为 0', () => {
+    expect(sumHoldingPct([])).toBe(0)
   })
 })
 
