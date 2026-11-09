@@ -7,23 +7,15 @@ import { formatCurrency } from '~/utils/format'
  */
 
 /** 图表总高度随子图组合自适应 */
-export function chartHeightClass(hasRsi: boolean, hasBollinger: boolean, hasSector: boolean): string {
+export function chartHeightClass(hasRsi: boolean, hasSector: boolean): string {
   // 必须使用字面量 class：UnoCSS 依静态源码扫描生成样式，
   // 模板字符串拼接的 h-* 不会被提取，会导致图表高度样式缺失。
-  if (hasRsi && hasBollinger && hasSector)
-    return 'h-265' // 全部子图 1060px：主图约 254px / RSI 138px / 布林带信号 95px / 主力双图 190px
   if (hasRsi && hasSector)
     return 'h-215' // 860px
-  if (hasBollinger && hasSector)
-    return 'h-200' // 800px
   if (hasSector)
     return 'h-165' // 660px
-  if (hasRsi && hasBollinger)
-    return 'h-185' // 740px
   if (hasRsi)
     return 'h-150' // 600px
-  if (hasBollinger)
-    return 'h-140' // 560px
   return 'h-100' // 单图 400px
 }
 

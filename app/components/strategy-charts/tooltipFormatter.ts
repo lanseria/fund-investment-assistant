@@ -70,7 +70,6 @@ export function buildTooltipFormatter(opts: {
 
     list
       .filter((item: any) => item?.value !== null && item?.value !== undefined)
-      .filter((item: any) => item.seriesName !== '布林带信号') // 布林带子图的透明承载序列不参与坐标轴 tooltip
       .sort((a: any, b: any) => seriesOrder.indexOf(a.seriesName) - seriesOrder.indexOf(b.seriesName))
       .forEach((item: any) => {
         if (item.seriesType === 'bar') {

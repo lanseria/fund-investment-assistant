@@ -1,21 +1,4 @@
 /**
- * 布林带策略子图数据结构（仅买卖信号点，由每日策略信号记录筛选聚合而成）
- */
-export interface BollingerSignalPoint {
-  /** 信号日期 (yyyy-MM-dd) */
-  date: string
-  /** 信号当日净值（作为信号点的 y 坐标） */
-  close: number
-  /** 完整信号记录（用于点击查看信号详情） */
-  signal: Record<string, any>
-}
-
-export interface BollingerSignalData {
-  buy: BollingerSignalPoint[]
-  sell: BollingerSignalPoint[]
-}
-
-/**
  * 当日盘中估值点：估值日期晚于历史净值最后日期时，
  * 由「基础走势」图以虚线从最后净值点延伸到该估值点
  */

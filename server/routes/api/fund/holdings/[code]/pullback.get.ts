@@ -9,7 +9,7 @@ import { PULLBACK_LIMITATIONS, PULLBACK_PARAMS, PULLBACK_STATUS_LABEL } from '~~
  * 强势基金回调买入法（场外日线分批版）图表数据。
  *
  * 只面向场外基金（fundType = 'open'）：分钟级买点、即时止损、AVWAP 与跳空缺口
- * 对场外基金不可执行，场内 ETF/LOF 请使用档位策略图，因此场内直接返回 supported = false。
+ * 对场外基金不可执行（场内 ETF/LOF 请参考通用策略图），因此场内直接返回 supported = false。
  * 返回内容为基金级数据（与用户无关），仓位建议由前端结合账户资产计算。
  */
 export default defineEventHandler(async (event) => {
@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     return {
       ...base,
       supported: false,
-      unsupportedReason: '本图为「场外基金 · 日线分批低吸版」，仅适用于场外基金；场内 ETF/LOF 的分钟级买点与即时止损无法在净值口径下复现，请参考上方档位策略图。',
+      unsupportedReason: '本图为「场外基金 · 日线分批低吸版」，仅适用于场外基金；场内 ETF/LOF 的分钟级买点与即时止损无法在净值口径下复现，请参考上方通用策略图。',
       status: 'unsupported' as const,
       statusLabel: PULLBACK_STATUS_LABEL.unsupported,
       latestNav: null,

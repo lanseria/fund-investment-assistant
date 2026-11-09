@@ -6,7 +6,6 @@ import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import TransactionDetailModal from '~/components/fund/TransactionDetailModal.vue'
 import GenericStrategyChart from '~/components/strategy-charts/GenericStrategyChart.vue'
 import PullbackStrategyPanel from '~/components/strategy/PullbackStrategyPanel.vue'
-import StrategyTiersPanel from '~/components/strategy/StrategyTiersPanel.vue'
 import { appName } from '~/constants'
 
 const route = useRoute<'fund-code'>()
@@ -120,7 +119,7 @@ const {
 // --- 定投计划模态框 (预填当前基金) ---
 const isDcaModalOpen = ref(false)
 
-// --- 策略图表数据（基础走势 / RSI / 布林带 / 区间涨跌 / dataZoom 区间筛选） ---
+// --- 策略图表数据（基础走势 / RSI / 区间涨跌 / dataZoom 区间筛选） ---
 const {
   data,
   pending,
@@ -128,7 +127,6 @@ const {
   refresh,
   rsiData,
   refreshRsi,
-  bollingerSignalData,
   activeFilter,
   dataZoomStart,
   dataZoomEnd,
@@ -264,7 +262,7 @@ async function handleRunStrategies() {
     </div>
 
     <div v-else-if="data" class="mb-4">
-      <!-- 监听 transaction-click 事件；板块主力行为 / RSI / 布林带策略数据存在时合并为同一张图（布林带信号子图位于 RSI 下方） -->
+      <!-- 监听 transaction-click 事件；板块主力行为 / RSI 策略数据存在时合并为同一张图（RSI 子图位于主图下方） -->
       <GenericStrategyChart
         :history="data.base.history"
         :signals="data.base.signals"
@@ -272,7 +270,6 @@ async function handleRunStrategies() {
         :title="chartTitle"
         :sector-history="mergedSectorHistory"
         :rsi-data="rsiData ?? undefined"
-        :bollinger-data="bollingerSignalData"
         :penetration-daily="penetrationDaily ?? undefined"
         :cost-price="currentHolding?.costPrice ?? null"
         :data-zoom-start="dataZoomStart"
@@ -294,9 +291,6 @@ async function handleRunStrategies() {
       :code="code"
       :target-user-id="targetUserId"
     />
-
-    <!-- 档位策略: 结构化档位配置 + 决策评估 + 可视化 (全局配置, 所有用户共享) -->
-    <StrategyTiersPanel class="mb-4" :code="code" />
 
     <!-- 重仓股持仓明细(数据库季报持仓 + 行情快照) -->
     <FundHoldingsPanel

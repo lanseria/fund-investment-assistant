@@ -1,14 +1,12 @@
 // server/utils/strategies.ts
 /* eslint-disable no-console */
-import BigNumber from 'bignumber.js'
 import { startOfDay } from 'date-fns'
 import { and, eq, gte } from 'drizzle-orm'
 import { ofetch } from 'ofetch'
 import { holdings, strategySignals } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 
-const STRATEGIES_TO_RUN = ['rsi', 'bollinger_bands']
-const STRATEGIES_REQUIRING_HOLDING_STATUS = ['bollinger_bands']
+const STRATEGIES_TO_RUN = ['rsi']
 
 /**
  * 为所有持仓基金执行策略分析，并支持覆盖当天数据
@@ -35,12 +33,8 @@ export async function runStrategiesForAllHoldings() {
     for (const strategyName of STRATEGIES_TO_RUN) {
       try {
         const url = `${strategyApiBaseUrl}/strategies/${strategyName}/${holding.fundCode}`
-        const params: Record<string, any> = {}
 
-        if (STRATEGIES_REQUIRING_HOLDING_STATUS.includes(strategyName))
-          params.is_holding = new BigNumber(holding.shares || 0).isGreaterThan(0)
-
-        const signalData = await ofetch(url, { params })
+        const signalData = await ofetch(url)
 
         await db.insert(strategySignals).values({
           fundCode: signalData.fund_code,
@@ -107,13 +101,8 @@ export async function runStrategiesForFund(fundCode: string, userId: number) {
     try {
       // 使用 fundCode 构建 URL，而不是错误的 holding.code
       const url = `${strategyApiBaseUrl}/strategies/${strategyName}/${fundCode}`
-      const params: Record<string, any> = {}
 
-      // is_holding 参数现在可以根据当前用户的持仓情况准确判断
-      if (STRATEGIES_REQUIRING_HOLDING_STATUS.includes(strategyName))
-        params.is_holding = new BigNumber(holding.shares || 0).isGreaterThan(0)
-
-      const signalData = await ofetch(url, { params })
+      const signalData = await ofetch(url)
 
       await db.insert(strategySignals).values({
         fundCode: signalData.fund_code,

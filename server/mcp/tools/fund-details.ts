@@ -1,4 +1,3 @@
-import type { TierIndicatorContext } from '~~/server/utils/tierStrategy'
 import { format, subDays } from 'date-fns'
 import { desc, eq } from 'drizzle-orm'
 import { z } from 'zod'
@@ -7,8 +6,6 @@ import { useDb } from '~~/server/utils/db'
 import { getHistoryWithMA } from '~~/server/utils/holdingAnalysis'
 import { computeBiasPct, computeRsi } from '~~/server/utils/indicators'
 import { buildMcpMeta } from '~~/server/utils/mcpMeta'
-import { describeStrategyTiers, evaluateStrategyTiers } from '~~/server/utils/tierStrategy'
-import { parseStrategyTiers } from '~~/shared/strategyTiers'
 
 // 定义包含动态 MA 属性的接口
 interface FundHistoryPoint {
@@ -55,13 +52,13 @@ export default defineMcpTool({
 【返回内容清单】
 1) info：code/name、sector（项目板块标签）、fund_type（open=普通场外, qdii_lof=场内/QDII）、operation_strategy（基金级全局操作策略文本，null=未设置）、latest_nav（最新已确认单位净值，单位元/份）、latest_date 与 nav_as_of（均为该净值日期，yyyy-MM-dd）。
 2) technical_analysis（基于已确认净值序列，基准日见 as_of 字段）：ma5/ma20/ma60/ma250（移动均线，单位元/份；ma250 即年线，基金历史净值不足 250 个交易日时为 null）；bias_20_pct 与 bias_250_pct（20/250 日乖离率，数值单位 %，如 -3.10 表示净值低于对应均线 3.10%）；bias_20（旧版带 % 号的字符串字段，仅为兼容保留，已弃用，勿再解析）；rsi_6/rsi_12/rsi_24（6/12/24 日 RSI，0-100 数值，按 Wilder 平滑 SMA(X,N,1) 口径计算，与主流行情 App 展示的 RSI(6/12/24) 口径一致，平盘或数据不足时为 null）；trend（净值相对 MA20 的位置：Bullish (Above MA20) / Bearish (Below MA20) / Unknown）。
-3) strategy_signals：策略引擎（外部 Python 服务）每日生成的信号，键为策略名 rsi / bollinger_bands。每条含 signal（引擎原始中文文本，如 "买入"/"卖出"/"持有/观望"，已弃用，勿依赖）、signal_enum（固定枚举 buy/hold/sell/unknown，由 signal 归一化而来）、as_of 与 date（信号对应的交易日）、reason（引擎给出的中文解释，是信号的最权威说明）、metrics（引擎指标原文）。bollinger_bands.metrics 额外注入 bband_mid_period 字段：布林带周期为 50，即 bband_mid = MA50，与 technical_analysis.ma20 是两个不同价位的均线，不可互相替代；bband_mid/bband_upper/bband_lower 单位为元/份，bband_dev_factor 为标准差倍数。
+3) strategy_signals：策略引擎（外部 Python 服务）每日生成的信号，键为策略名 rsi。每条含 signal（引擎原始中文文本，如 "买入"/"卖出"/"持有/观望"，已弃用，勿依赖）、signal_enum（固定枚举 buy/hold/sell/unknown，由 signal 归一化而来）、as_of 与 date（信号对应的交易日）、reason（引擎给出的中文解释，是信号的最权威说明）、metrics（引擎指标原文）。
 4) sector_capital：基金所属板块（东财板块）的主力资金行为，为最新交易日 (T-0) 数据，基准日见 capital_as_of 与 latest.date。latest 含 main_action（板块主力行为枚举文本：抢筹/建仓/洗盘/出货）、main_capital/retail_capital/main_hidden（主力净流入/散户净流入/主力暗盘，单位亿元人民币，正=净流入，负=净流出）、change_percent（板块当日涨跌幅，单位 %）、main_strength（主力强度，单位 %）；recent_trend 为最近 10 个交易日升序序列。bound=false 表示该基金未绑定东财板块，此时无资金数据。
 5) recent_price_action：最近 days 个交易日的净值序列（升序，含 date/nav/ma5/ma20，单位元/份）；recent_price_action_meta 说明请求与实际返回行数。
 
 【已知限制】基金净值为 T-1（净值当晚才公布），sector_capital 为 T-0，两者相差一个交易日，做联合判断时务必对齐各自 as_of；rsi_6/12/24 是本服务按净值序列计算，strategy_signals.rsi 是策略引擎的 RSI(14)（其 metrics.rsi_period=14），周期不同、数值不可互换，也与用户在 App 上看到的 6/12/24 日 RSI 数值不同；QDII 基金净值披露更晚（T-1 或 T-2）。
 
-【典型误用警示】不要把 bias_20_pct/bias_250_pct 当绝对价差（它们是百分比）；不要把布林中轨 bband_mid 当成 MA20；不要把 strategy_signals 的 signal 文本当枚举（请用 signal_enum）；signal_enum 与 reason 语义冲突时（如"买入"但 reason 说"继续持有"），以 reason 为准并在结论中说明分歧。`,
+【典型误用警示】不要把 bias_20_pct/bias_250_pct 当绝对价差（它们是百分比）；不要把 strategy_signals 的 signal 文本当枚举（请用 signal_enum）；signal_enum 与 reason 语义冲突时（如"买入"但 reason 说"继续持有"），以 reason 为准并在结论中说明分歧。`,
   inputSchema: {
     fundCode: z.string().describe('基金代码 (例如 "161725")'),
     days: z.number().int().min(1).max(DAYS_MAX).optional().default(DAYS_DEFAULT).describe(`返回最近 N 个交易日的净值序列 (recent_price_action)。默认 ${DAYS_DEFAULT}，最大 ${DAYS_MAX}。注意单位是"交易日"而非自然日；该参数不影响 technical_analysis 等区块，它们始终基于最新数据计算。`),
@@ -116,9 +113,6 @@ export default defineMcpTool({
     rawSignals.forEach((s) => {
       if (!activeSignals[s.strategyName]) {
         const metrics = (s.metrics && typeof s.metrics === 'object') ? { ...s.metrics as Record<string, any> } : {}
-        // 布林带中轨周期显式化：bband_period=50，即中轨=MA50，与 ma20 不是同一条均线
-        if (s.strategyName === 'bollinger_bands' && metrics.bband_period != null)
-          metrics.bband_mid_period = metrics.bband_period
 
         activeSignals[s.strategyName] = {
           signal: s.signal, // 引擎原始中文文本（弃用，仅为兼容保留）
@@ -220,32 +214,6 @@ export default defineMcpTool({
       ? (currentPoint.nav > currentPoint.ma20 ? 'Bullish (Above MA20)' : 'Bearish (Below MA20)')
       : 'Unknown'
 
-    // 结构化档位策略：解析 funds.strategy_tiers 并基于最新确认净值执行决策
-    const tiers = parseStrategyTiers(fund.strategyTiers)
-    const tierBlock = tiers
-      ? (() => {
-          const rsiSignal = activeSignals?.rsi
-          const rsi14FromSignal = typeof rsiSignal?.metrics?.rsi_value === 'number' ? rsiSignal.metrics.rsi_value : computeRsi(closes, 14)
-          const ctx: TierIndicatorContext = {
-            nav: currentPoint?.nav ?? 0,
-            date: navAsOf,
-            ma20: currentPoint?.ma20 ?? null,
-            ma60: currentPoint?.ma60 ?? null,
-            ma250: currentPoint?.ma250 ?? null,
-            rsi14: rsi14FromSignal,
-            bias20: bias20Pct,
-          }
-          return {
-            configured: true,
-            enabled: tiers.enabled,
-            summary: describeStrategyTiers(tiers),
-            tiers,
-            decision: currentPoint ? evaluateStrategyTiers(tiers, ctx) : null,
-            note: 'decision 为档位引擎基于 T-1 已确认净值的建议；trigger/bias 单位为百分数数值 (如 -5 表示 -5%)',
-          }
-        })()
-      : { configured: false }
-
     return {
       content: [{
         type: 'text',
@@ -284,7 +252,6 @@ export default defineMcpTool({
               trend: trendDescription,
             },
             strategy_signals: activeSignals,
-            tier_strategy: tierBlock,
             recent_price_action: recentHistory,
             recent_price_action_meta: {
               as_of: navAsOf,

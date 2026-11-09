@@ -1,10 +1,10 @@
-import type { BollingerSignalData, RsiChartData } from '~/types/chart'
+import type { RsiChartData } from '~/types/chart'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { SECTOR_ACTION_STYLE } from '~/utils/sectorStyle'
 
 /**
  * 多子图布局中的子面板定义与构建器。
- * 每个子图(RSI / 布林带信号 / 板块主力行为)构建为一个 SubPanel，
+ * 每个子图(RSI / 板块主力行为)构建为一个 SubPanel，
  * 再交由 layout.ts 统一装配 grid / 坐标轴 / series。
  */
 
@@ -108,60 +108,6 @@ export function buildRsiPanel(opts: {
             fontSize: 10,
             fontWeight: 'bold' as const,
             formatter: (p: any) => (p.name === '买入' ? 'B' : 'S'),
-          },
-        },
-      },
-    ],
-  }
-}
-
-/** 布林带子图：淡色净值线作参照，其上标注放大版买入/卖出信号点（B/S，可点击查看信号详情） */
-export function buildBollingerPanel(opts: {
-  bollingerData: BollingerSignalData
-  navData: (number | null)[]
-  gridColor: string
-  textColor: string
-}): SubPanel {
-  const bollingerSignalMarks = [
-    ...opts.bollingerData.buy.map(p => ({ name: '买入', coord: [p.date, p.close], symbol: 'pin', itemStyle: { color: '#ef4444' }, fullData: p.signal })),
-    ...opts.bollingerData.sell.map(p => ({ name: '卖出', coord: [p.date, p.close], symbol: 'triangle', symbolRotate: 180, itemStyle: { color: '#22c55e' }, fullData: p.signal })),
-  ]
-
-  return {
-    key: 'bollinger',
-    height: 9,
-    yAxis: {
-      type: 'value',
-      scale: true,
-      axisLine: { show: true, lineStyle: { color: opts.gridColor } },
-      splitLine: { lineStyle: { color: opts.gridColor } },
-      axisLabel: { color: opts.textColor, formatter: (val: number) => val.toFixed(3) },
-    },
-    series: [
-      {
-        name: '布林带信号',
-        type: 'line',
-        data: opts.navData, // 与主图相同的净值序列，子图内作参照线
-        showSymbol: false,
-        lineStyle: { color: '#64748b', width: 1.5, opacity: 0.85 },
-        markPoint: {
-          symbolSize: 30,
-          data: bollingerSignalMarks,
-          label: {
-            show: true,
-            color: '#fff',
-            fontSize: 12,
-            fontWeight: 'bold' as const,
-            formatter: (p: any) => (p.name === '买入' ? 'B' : 'S'),
-          },
-          tooltip: {
-            formatter: (params: any) => {
-              if (params.data?.fullData) {
-                const d = params.data.fullData
-                return `<b>${d.signal}信号 (ID: ${d.id})</b><br/>日期: ${d.latestDate}<br/>净值: ${Number(d.latestClose).toFixed(4)}<br/>原因: ${d.reason}`
-              }
-              return params.name
-            },
           },
         },
       },

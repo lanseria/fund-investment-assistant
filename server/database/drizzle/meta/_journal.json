@@ -309,6 +309,13 @@
       "when": 1792393084379,
       "tag": "0043_weekly_tier_repave",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1794210450605,
+      "tag": "0044_remove_tier_strategy",
+      "breakpoints": true
     }
   ]
 }

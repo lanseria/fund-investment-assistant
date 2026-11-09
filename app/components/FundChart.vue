@@ -2,7 +2,7 @@
 import type { EChartsOption } from 'echarts'
 import type { Hs300PenetrationDailySeries } from '~~/shared/hs300Penetration'
 import type { SectorAlignedData, SubPanel } from './strategy-charts/panels'
-import type { BollingerSignalData, EstimatePoint, RsiChartData } from '~/types/chart'
+import type { EstimatePoint, RsiChartData } from '~/types/chart'
 import type { HoldingHistoryPoint } from '~/types/holding'
 import type { SectorCapitalHistoryResponse } from '~/types/sector'
 import { alignDailyToDates } from '~~/shared/hs300Penetration'
@@ -11,7 +11,7 @@ import { formatCurrency } from '~/utils/format'
 import { STRENGTH_COLOR_NEG, STRENGTH_COLOR_POS } from '~/utils/sectorStyle'
 import { buildChartLayout, chartHeightClass as resolveChartHeightClass } from './strategy-charts/layout'
 import { buildTransactionBarSeries, mapSignalsToMarkPoints, mapTransactionsToMarkPoints } from './strategy-charts/marks'
-import { buildBollingerPanel, buildRsiPanel, buildSectorPanels } from './strategy-charts/panels'
+import { buildRsiPanel, buildSectorPanels } from './strategy-charts/panels'
 import { buildTooltipFormatter } from './strategy-charts/tooltipFormatter'
 
 const props = defineProps<{
@@ -25,8 +25,6 @@ const props = defineProps<{
   sectorHistory?: SectorCapitalHistoryResponse['history']
   /** RSI 策略数据（可选）。传入后将以子图形式叠加在走势图下方，与净值共享同一条时间轴 */
   rsiData?: RsiChartData
-  /** 布林带策略买卖信号（可选）。传入后将作为子图叠加在 RSI 子图下方，只标注买入/卖出信号点 */
-  bollingerData?: BollingerSignalData
   /** 当日盘中估值点（可选）。估值日期晚于历史最后净值日期时，以虚线延伸到该估值点 */
   estimate?: EstimatePoint
   /**
@@ -50,11 +48,6 @@ const hasRsi = computed(() => {
   return !!r && r.dates.length > 0
 })
 
-const hasBollinger = computed(() => {
-  const b = props.bollingerData
-  return !!b && (b.buy.length > 0 || b.sell.length > 0)
-})
-
 // 沪深300基金占比叠加线：仅在拿到有效日频序列时展示，加载失败/为空不影响主图
 const hasPenetration = computed(() => {
   const d = props.penetrationDaily
@@ -63,7 +56,7 @@ const hasPenetration = computed(() => {
 
 // 图表总高度随子图组合自适应
 const chartHeightClass = computed(() =>
-  resolveChartHeightClass(hasRsi.value, hasBollinger.value, hasSector.value),
+  resolveChartHeightClass(hasRsi.value, hasSector.value),
 )
 
 const colorMode = useColorMode()
@@ -94,7 +87,7 @@ const chartOption = computed<EChartsOption>(() => {
     ? { ...props.estimate, date: estimateDate }
     : null
 
-  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 布林带信号日期 ∪ 估值日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
+  // --- 统一时间轴：基金日期 ∪ 板块日期 ∪ RSI 日期 ∪ 估值日期（yyyy-MM-dd 字符串排序即等价于时间排序） ---
   const fundDates = props.history.map(p => p.date)
   const sectorDates = hasSector.value
     ? props.sectorHistory!.dates
@@ -102,21 +95,14 @@ const chartOption = computed<EChartsOption>(() => {
   const rsiDates = hasRsi.value
     ? props.rsiData!.dates
     : []
-  const bollingerDates = hasBollinger.value
-    ? [
-        ...props.bollingerData!.buy,
-        ...props.bollingerData!.sell,
-      ].map(p => p.date)
-    : []
   const estimateDates = estimatePoint
     ? [estimatePoint.date]
     : []
-  const allDates = (hasSector.value || hasRsi.value || hasBollinger.value || estimatePoint)
+  const allDates = (hasSector.value || hasRsi.value || estimatePoint)
     ? Array.from(new Set([
         ...fundDates,
         ...sectorDates,
         ...rsiDates,
-        ...bollingerDates,
         ...estimateDates,
       ])).sort()
     : fundDates
@@ -354,8 +340,8 @@ const chartOption = computed<EChartsOption>(() => {
     ...transactionBarSeries,
   ]
 
-  // --- 无板块、无 RSI 且无布林带数据：保持原有单图布局，行为与之前一致 ---
-  if (!hasSector.value && !hasRsi.value && !hasBollinger.value) {
+  // --- 无板块且无 RSI 数据：保持原有单图布局，行为与之前一致 ---
+  if (!hasSector.value && !hasRsi.value) {
     return {
       title: {
         text: props.title,
@@ -459,21 +445,13 @@ const chartOption = computed<EChartsOption>(() => {
     } as EChartsOption
   }
 
-  // --- 多子图布局：主图(净值)下方依次叠加 RSI / 布林带信号 / 板块主力强度 / 主力资金子图，共享时间轴 ---
+  // --- 多子图布局：主图(净值)下方依次叠加 RSI / 板块主力强度 / 主力资金子图，共享时间轴 ---
   const subPanels: SubPanel[] = []
   if (hasRsi.value) {
     subPanels.push(buildRsiPanel({
       rsiData: props.rsiData!,
       rsiByDate,
       rsiLineData,
-      gridColor,
-      textColor,
-    }))
-  }
-  if (hasBollinger.value) {
-    subPanels.push(buildBollingerPanel({
-      bollingerData: props.bollingerData!,
-      navData,
       gridColor,
       textColor,
     }))

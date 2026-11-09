@@ -39,7 +39,7 @@ if (authStore.isAuthenticated) {
 // 左侧品牌区特性列表
 const features = [
   { icon: 'i-carbon-flash', title: '实时估值', desc: '盘中 SSE 推送，持仓涨跌实时可见' },
-  { icon: 'i-carbon-analytics', title: '策略信号', desc: '主力资金 · RSI · 布林带多维信号' },
+  { icon: 'i-carbon-analytics', title: '策略信号', desc: '主力资金 · RSI 多维信号' },
   { icon: 'i-carbon-bot', title: 'AI 助手', desc: '智能分析持仓，给出操作建议' },
 ]
 

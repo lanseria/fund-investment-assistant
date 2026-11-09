@@ -30,7 +30,7 @@ const props = defineProps<{
 const colorMode = useColorMode()
 provide(THEME_KEY, computed(() => colorMode.value === 'dark' ? 'dark' : 'default'))
 
-/** 明暗两套调色板：与 FundChart / TierStrategyChart 保持同一套约定 */
+/** 明暗两套调色板：与 FundChart 保持同一套约定 */
 function palette() {
   const isDark = colorMode.value === 'dark'
   return {

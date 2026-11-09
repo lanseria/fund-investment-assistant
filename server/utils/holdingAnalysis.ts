@@ -4,8 +4,6 @@ import { isSameDay } from 'date-fns'
 import { and, desc, eq, gte, inArray, lte, sql } from 'drizzle-orm'
 import { fundFees, funds, fundTransactions, holdings, navHistory, sectorBindings, sectorCapitalHistory, strategySignals, users } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
-import { describeStrategyTiers } from '~~/server/utils/tierStrategy'
-import { parseStrategyTiers } from '~~/shared/strategyTiers'
 
 /**
  * 批量获取指定基金代码最近19天的净值总和与数量
@@ -330,13 +328,6 @@ export async function getUserHoldingsAndSummary(userId: number) {
       sector: fundInfo.sector,
       attentionLevel: h.attentionLevel,
       operationStrategy: fundInfo.operationStrategy,
-      // 结构化档位策略摘要 (全局共享)：供 AI 上下文与前端展示
-      ...(fundInfo.strategyTiers
-        ? (() => {
-            const parsed = parseStrategyTiers(fundInfo.strategyTiers)
-            return parsed ? { strategyTiersSummary: describeStrategyTiers(parsed) } : {}
-          })()
-        : {}),
       yesterdayNav: Number(fundInfo.yesterdayNav),
       todayEstimateNav: fundInfo.todayEstimateNav,
       percentageChange: fundInfo.percentageChange,

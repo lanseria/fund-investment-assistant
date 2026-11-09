@@ -11,15 +11,12 @@ export interface HoldingFilters {
   mainActions: string[]
   // RSI 信号分桶：买入/卖出/其他
   rsi: string[]
-  // 布林信号分桶：买入/卖出/其他
-  bollinger: string[]
 }
 
 // 筛选信号的 URL query 参数键名（逗号分隔）
 const QUERY_KEYS = {
   mainActions: 'mains',
   rsi: 'rsi',
-  bollinger: 'boll',
 } as const
 
 // 将逗号分隔的字符串拆为去重后的数组
@@ -54,7 +51,6 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
   const filters = ref<HoldingFilters>({
     mainActions: parseQueryArray(route.query[QUERY_KEYS.mainActions]),
     rsi: parseQueryArray(route.query[QUERY_KEYS.rsi]),
-    bollinger: parseQueryArray(route.query[QUERY_KEYS.bollinger]),
   })
 
   // 辅助函数
@@ -66,8 +62,6 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
       query[QUERY_KEYS.mainActions] = filters.value.mainActions.join(',')
     if (filters.value.rsi.length)
       query[QUERY_KEYS.rsi] = filters.value.rsi.join(',')
-    if (filters.value.bollinger.length)
-      query[QUERY_KEYS.bollinger] = filters.value.bollinger.join(',')
     return query
   }
 
@@ -96,19 +90,17 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
   // 任一筛选组非空
   const hasActiveFilters = computed(() =>
     filters.value.mainActions.length > 0
-    || filters.value.rsi.length > 0
-    || filters.value.bollinger.length > 0,
+    || filters.value.rsi.length > 0,
   )
 
   // 已选总数（供 Header 角标）
   const activeFilterCount = computed(() =>
     filters.value.mainActions.length
-    + filters.value.rsi.length
-    + filters.value.bollinger.length,
+    + filters.value.rsi.length,
   )
 
   function resetFilters() {
-    filters.value = { mainActions: [], rsi: [], bollinger: [] }
+    filters.value = { mainActions: [], rsi: [] }
   }
 
   // 筛选条件变化时同步到 URL（可分享/刷新保留）
@@ -118,7 +110,7 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
 
   // 判断单只持仓是否满足筛选条件（组内为或、组间为与）
   function matchesFilters(h: Holding): boolean {
-    const { mainActions, rsi, bollinger } = filters.value
+    const { mainActions, rsi } = filters.value
 
     // 主力行为组
     if (mainActions.length) {
@@ -133,10 +125,6 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
     if (rsi.length && !rsi.includes(bucketSignal(h.signals?.rsi)))
       return false
 
-    // 布林组
-    if (bollinger.length && !bollinger.includes(bucketSignal(h.signals?.bollinger_bands)))
-      return false
-
     return true
   }
 
@@ -147,7 +135,7 @@ export function useDashboardData(holdings: Ref<Holding[]>) {
       sourceHoldings = sourceHoldings.filter(h => h.holdingAmount !== null)
     }
 
-    // 策略信号筛选（主力行为 / RSI / 布林）
+    // 策略信号筛选（主力行为 / RSI）
     if (hasActiveFilters.value) {
       sourceHoldings = sourceHoldings.filter(matchesFilters)
     }

@@ -24,11 +24,6 @@ const METRIC_LABELS: Record<string, string> = {
   ma10: 'MA10',
   ma20: 'MA20',
   ma120: 'MA120',
-  upper_band: '布林上轨',
-  middle_band: '布林中轨',
-  lower_band: '布林下轨',
-  bandwidth: '带宽',
-  percent_b: '%B',
   bias20: 'BIAS20',
 }
 

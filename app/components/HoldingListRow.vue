@@ -122,7 +122,6 @@ function getBiasTagClass(bias: number) {
 // 循环渲染的策略标签（base 已单独处理，优先展示板块主力行为）
 const strategiesForTags = {
   rsi: 'RSI',
-  bollinger_bands: '布林',
 }
 
 function handleMouseEnter(event: MouseEvent, strategyKey: string) {
@@ -337,7 +336,7 @@ function hideProfitDetail() {
         >
           基础走势
         </span>
-        <!-- rsi / bollinger_bands 策略信号 -->
+        <!-- rsi 策略信号 -->
         <span
           v-for="(name, key) in strategiesForTags"
           :key="key"

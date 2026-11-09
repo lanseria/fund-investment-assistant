@@ -12,7 +12,6 @@ const PUBLIC_API_ROUTES = [
   '/api/dicts/all',
   '/api/webhooks/trend-radar',
   '/api/dev/trigger-ai',
-  '/api/dev/repave-tiers',
   '/api/dev/init-assets',
 ]
 

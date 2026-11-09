@@ -1,4 +1,4 @@
-import type { BollingerSignalData, BollingerSignalPoint, RsiChartData } from '~/types/chart'
+import type { RsiChartData } from '~/types/chart'
 import { isAfter, parseISO } from 'date-fns'
 import { subtractByUnit } from '~/utils/date'
 
@@ -15,36 +15,29 @@ export const FUND_DATE_FILTERS = [
 
 /**
  * 基金策略图表数据编排：
- * 基础走势 + 布林带 + 区间涨跌 三合一请求、RSI 独立懒加载、
- * 布林带买卖信号提取、图表区间筛选（dataZoom）与区间涨跌展示格式化。
+ * 基础走势 + 区间涨跌 二合一请求、RSI 独立懒加载、
+ * 图表区间筛选（dataZoom）与区间涨跌展示格式化。
  */
 export function useFundStrategyData(code: string, targetUserId: number | null) {
-  // 策略图表数据(基础走势/布林带/区间涨跌)：懒加载不阻塞路由切换，图表区在数据到达前显示整卡加载态
+  // 策略图表数据(基础走势/区间涨跌)：懒加载不阻塞路由切换，图表区在数据到达前显示整卡加载态
   const { data, pending, error, refresh } = useAsyncData(
     `fund-all-strategies-structured-${code}`,
     async () => {
-      const fetchGenericStrategy = (strategy: string = '') => {
-        const params: any = { ma: [5, 10, 20, 120] }
-        if (strategy)
-          params.strategy = strategy
-        if (targetUserId)
-          params.userId = targetUserId
-
-        return apiFetch(`/api/fund/holdings/${code}/history`, { params })
-      }
-
       // 获取区间涨跌幅数据
       const fetchPerformance = () => apiFetch<Record<string, number | null>>(`/api/fund/holdings/${code}/performance`)
 
-      const [baseData, bollingerData, performanceData] = await Promise.all([
-        fetchGenericStrategy(''),
-        fetchGenericStrategy('bollinger_bands'),
+      const [baseData, performanceData] = await Promise.all([
+        apiFetch(`/api/fund/holdings/${code}/history`, {
+          params: {
+            ma: [5, 10, 20, 120],
+            ...(targetUserId ? { userId: targetUserId } : {}),
+          },
+        }),
         fetchPerformance(),
       ])
 
       return {
         base: baseData,
-        bollingerBands: bollingerData,
         performance: performanceData,
       }
     },
@@ -65,38 +58,6 @@ export function useFundStrategyData(code: string, targetUserId: number | null) {
       default: () => null,
     },
   )
-
-  // 布林带策略买卖信号：从每日策略信号记录中筛选出买入/卖出点（不含「持有/观望」），
-  // 作为「基础走势」图 RSI 下方的独立子图展示（只展示信号点，不展示布林带轨值）
-  const bollingerSignalData = computed<BollingerSignalData | undefined>(() => {
-    const signals = data.value?.bollingerBands?.signals
-    if (!signals || signals.length === 0)
-      return undefined
-
-    const buy: BollingerSignalPoint[] = []
-    const sell: BollingerSignalPoint[] = []
-    signals.forEach((s: any) => {
-      const type = String(s.signal ?? '').trim()
-      if (type !== '买入' && type !== '卖出')
-        return
-      const close = Number(s.latestClose)
-      if (Number.isNaN(close))
-        return
-      const point: BollingerSignalPoint = {
-        date: String(s.latestDate),
-        close,
-        signal: s,
-      }
-      if (type === '买入')
-        buy.push(point)
-      else
-        sell.push(point)
-    })
-
-    if (buy.length === 0 && sell.length === 0)
-      return undefined
-    return { buy, sell }
-  })
 
   // --- 图表区间筛选（dataZoom 百分比） ---
   const activeFilter = ref<string | null>(null)
@@ -168,7 +129,6 @@ export function useFundStrategyData(code: string, targetUserId: number | null) {
     refresh,
     rsiData,
     refreshRsi,
-    bollingerSignalData,
     activeFilter,
     dataZoomStart,
     dataZoomEnd,

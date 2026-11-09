@@ -3,20 +3,17 @@ import { z } from 'zod'
 import { funds } from '~~/server/database/schemas'
 import { useDb } from '~~/server/utils/db'
 import { FundNotFoundError } from '~~/server/utils/errors'
-import { setFundStrategyTiers } from '~~/server/utils/fundService'
-import { describeStrategyTiers } from '~~/server/utils/tierStrategy'
-import { parseStrategyTiers, strategyTiersSchema } from '~~/shared/strategyTiers'
+import { setFundOperationStrategy } from '~~/server/utils/fundService'
 
 export default defineMcpTool({
   name: 'manage_fund_strategy',
-  description: '查看或修改基金的全局策略。策略为全局设置：所有用户查看同一只基金时共享同一份。现在以结构化档位策略为准 (低吸/高抛档位+触发条件，AI 分析与自动交易决策依据)；旧版自由文本仅作背景参考。支持 get (查看策略)、set (设置档位)、clear (清空策略)。',
+  description: '查看或修改基金的全局操作策略。策略为全局设置：所有用户查看同一只基金时共享同一份策略，作为 AI 分析与自动交易决策的参考。支持 get (查看策略)、set (设置/更新策略)、clear (清空策略)。',
   inputSchema: {
-    action: z.enum(['get', 'set', 'clear']).describe('操作类型：get (查看策略) / set (设置或更新策略) / clear (清空策略)'),
+    action: z.enum(['get', 'set', 'clear']).describe('操作类型：get (查看策略) / set (设置/更新策略) / clear (清空策略)'),
     fundCode: z.string().length(6).describe('6位基金代码，例如 "161725"'),
-    operationStrategy: z.string().max(2000).optional().describe('(已废弃) 旧版自由文本策略，仅供 get 查看历史内容；set 时忽略。新策略请使用 strategyTiers。'),
-    strategyTiers: strategyTiersSchema.nullable().optional().describe('结构化档位策略 (JSON)。action="set" 时可选：传入则保存档位 (传 null 清空档位)；结构见 shared/strategyTiers.ts：{ version:1, enabled, trigger:{rsi14Max,bias20MinPct}, buyTiers:[{nav,amount}], sellTiers:[{nav,percent}], clearRule:{rsi14Min,bias20MinPct}|null, halveBelowMa250, note }。'),
+    operationStrategy: z.string().max(2000).optional().describe('策略内容 (自由文本)。仅当 action="set" 时必填，例如："网格策略，每跌 3% 加仓一次；跌破年线清仓"。'),
   },
-  handler: async ({ action, fundCode, strategyTiers }) => {
+  handler: async ({ action, fundCode, operationStrategy }) => {
     // 1. 认证检查
     const event = useEvent()
     const userId = event.context.userId
@@ -38,7 +35,7 @@ export default defineMcpTool({
       try {
         const fund = await db.query.funds.findFirst({
           where: eq(funds.code, fundCode),
-          columns: { code: true, name: true, operationStrategy: true, strategyTiers: true },
+          columns: { code: true, name: true, operationStrategy: true },
         })
 
         if (!fund) {
@@ -48,14 +45,10 @@ export default defineMcpTool({
           }
         }
 
-        const tiers = parseStrategyTiers(fund.strategyTiers)
-        const tiersText = tiers
-          ? `\n结构化档位策略 (已配置): ${describeStrategyTiers(tiers)}`
-          : '\n结构化档位策略: (未设置, 可通过 strategyTiers 参数配置)'
         return {
           content: [{
             type: 'text',
-            text: `${fund.name} (${fund.code}) 的全局操作策略:\n${fund.operationStrategy || '(未设置)'}${tiersText}`,
+            text: `${fund.name} (${fund.code}) 的全局操作策略:\n${fund.operationStrategy || '(未设置)'}`,
           }],
         }
       }
@@ -66,26 +59,19 @@ export default defineMcpTool({
 
     // --- Action: Set (设置/更新策略) ---
     if (action === 'set') {
-      if (strategyTiers === undefined || strategyTiers === null) {
+      if (!operationStrategy || !operationStrategy.trim()) {
         return {
           isError: true,
-          content: [{ type: 'text', text: 'action="set" 现在只接受 strategyTiers 结构化档位 (旧版自由文本已废弃)。传入档位 JSON；清空档位请使用 action="clear"。' }],
+          content: [{ type: 'text', text: 'action="set" 时必须提供非空的 operationStrategy 内容。若想清空策略请使用 action="clear"。' }],
         }
       }
 
       try {
-        await setFundStrategyTiers(fundCode, strategyTiers, {
-          source: 'mcp',
-          reason: 'MCP manage_fund_strategy set',
-        })
-        const db2 = useDb()
-        const fund = await db2.query.funds.findFirst({ where: eq(funds.code, fundCode), columns: { code: true, name: true, strategyTiers: true } })
-        const tiers = fund ? parseStrategyTiers(fund.strategyTiers) : null
-        const updated = { code: fundCode, name: fund?.name ?? fundCode }
+        const updated = await setFundOperationStrategy(fundCode, operationStrategy)
         return {
           content: [{
             type: 'text',
-            text: `✅ 已更新基金 ${updated.name} (${updated.code}) 的档位策略:\n${tiers ? describeStrategyTiers(tiers) : '(未设置)'}\n注意: 该策略对所有用户共享, AI 分析与自动交易决策以档位策略为准。`,
+            text: `✅ 已更新基金 ${updated.name} (${updated.code}) 的全局操作策略:\n${updated.operationStrategy}\n注意: 该策略对所有用户共享, AI 分析与自动交易决策时会优先参考。`,
           }],
         }
       }
@@ -103,11 +89,11 @@ export default defineMcpTool({
     // --- Action: Clear (清空策略) ---
     if (action === 'clear') {
       try {
-        const updated = await setFundStrategyTiers(fundCode, null)
+        const updated = await setFundOperationStrategy(fundCode, null)
         return {
           content: [{
             type: 'text',
-            text: `✅ 已清空基金 ${updated.name} (${updated.code}) 的档位策略。(旧版自由文本保留作历史参考, 不再参与决策)`,
+            text: `✅ 已清空基金 ${updated.name} (${updated.code}) 的全局操作策略。`,
           }],
         }
       }

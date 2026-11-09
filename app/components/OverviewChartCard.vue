@@ -151,7 +151,7 @@ const slicedData = computed(() => {
         />
       </template>
       <template v-else>
-        <!-- 其他策略 (如布林带)：保持纯粹，不混入交易记录 -->
+        <!-- 其他策略 (如 RSI)：保持纯粹，不混入交易记录 -->
         <MiniFundChart
           :history="(slicedData as any).history"
           :signals="(slicedData as any).signals"

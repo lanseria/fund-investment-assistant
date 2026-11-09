@@ -55,7 +55,7 @@ const emit = defineEmits([
       <button
         class="icon-btn relative"
         :class="{ 'text-primary': hasActiveFilters }"
-        title="筛选基金（主力行为 / RSI / 布林）"
+        title="筛选基金（主力行为 / RSI）"
         @click="emit('open-filter')"
       >
         <div i-carbon-filter />

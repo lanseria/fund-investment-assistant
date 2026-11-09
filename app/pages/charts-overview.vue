@@ -11,7 +11,6 @@ const fundList = computed(() => holdingStore.holdings)
 
 const strategySelectOptions = [
   { value: '', label: '基础走势' },
-  { value: 'bollinger_bands', label: '布林带策略' },
   { value: 'rsi', label: 'RSI 策略' },
 ]
 
